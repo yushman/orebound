@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/Ship.tscn" id="1_ship"]
+
+[node name="Run" type="Node2D"]
+
+[node name="Camera2D" type="Camera2D" parent="."]
+
+[node name="Ship" parent="." instance=ExtResource("1_ship")]
