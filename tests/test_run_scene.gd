@@ -17,3 +17,14 @@ func test_run_scene_has_ship_and_is_main_scene():
 	var cs = ship.find_children("*", "CollisionShape2D", false, false)
 	assert_eq(cs.size(), 1)
 	assert_true(cs[0].shape is CircleShape2D)
+
+
+func test_run_has_planet_and_two_moons():
+	var run = load("res://scenes/Run.tscn").instantiate()
+	add_child_autofree(run)
+	var indices := []
+	for c in run.get_children():
+		if c.scene_file_path == "res://scenes/Body.tscn":
+			indices.append(c.index)
+	indices.sort()
+	assert_eq(indices, [0, 1, 2])

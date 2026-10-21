@@ -19,7 +19,7 @@ func _shader(path: String) -> void:
 	assert_eq(shader.code.strip_edges(), "shader_type canvas_item;")
 
 func test_stub_scenes_and_shaders() -> void:
-	for p in ["res://scenes/Body.tscn", "res://scenes/Carrier.tscn", "res://scenes/Field.tscn"]:
+	for p in ["res://scenes/Carrier.tscn", "res://scenes/Field.tscn"]:
 		_single_root(p, "Node2D")
 	for p in ["res://ui/HUD.tscn", "res://ui/TuningPanel.tscn"]:
 		_single_root(p, "Control")
