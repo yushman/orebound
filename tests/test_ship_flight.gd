@@ -286,3 +286,35 @@ func test_brake_does_not_block_rotation() -> void:
 	var out := ShipFlight.step(_state(), inp, 0.0, DT)
 	assert_gt(out.ang_vel, 0.0)
 	assert_gt(out.rot, 0.0)
+
+
+func _max_heading_overshoot(target: float) -> float:
+	var inp := ShipInput.new()
+	inp.has_heading = true
+	inp.target_heading = target
+	var s := _state()
+	var peak := 0.0
+	for i in 300:
+		s = ShipFlight.step(s, inp, 0.0, DT)
+		peak = maxf(peak, s.rot - target)
+	return peak / target
+
+
+func test_target_heading_overshoot_is_small() -> void:
+	for target in [0.3, 1.0, 2.0, 3.0]:
+		assert_lt(_max_heading_overshoot(target), 0.05, "target %s" % target)
+
+
+func test_rotation_stays_wrapped() -> void:
+	var s := _state(Vector2(600, 0), Vector2.ZERO, 10.0 * PI)
+	s.ang_vel = 5.0
+	for i in 600:
+		s = ShipFlight.step(s, ShipInput.new(), 0.0, DT)
+		assert_between(s.rot, -PI, PI)
+
+
+func test_brake_on_almost_radial_velocity_falls_back_to_spawn_direction() -> void:
+	_planet_field(1.0)
+	var s := _state(Vector2(600, 0), Vector2(10.0, -1e-9))
+	var out := ShipFlight.step(s, _brake_input(), 0.0, DT)
+	assert_gt(out.vel.y, 0.0)

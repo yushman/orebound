@@ -10,7 +10,7 @@ func _ready() -> void:
 	var path := "res://presets/p4.tres"
 	var preset := load_preset(path) if ResourceLoader.exists(path) else null
 	if preset == null:
-		push_warning("Tuning: %s missing, using code defaults" % path)
+		push_warning("Tuning: cannot load %s, using code defaults" % path)
 		return
 	apply(preset)
 

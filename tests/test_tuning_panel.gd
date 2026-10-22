@@ -53,6 +53,10 @@ func test_mass_sliders_and_predict_every_ranges() -> void:
 	assert_eq(_panel.sliders["ship.predict_every"].min_value, 1.0)
 
 
+func test_fade_width_slider_min_is_positive() -> void:
+	assert_gt(_panel.sliders["field.fade_width"].min_value, 0.0)
+
+
 func test_ship_slider_writes_to_current_ship_object() -> void:
 	Tuning.ship = Tuning.ship.duplicate(true)
 	var s: HSlider = _panel.sliders["ship.thrust_accel"]
@@ -74,6 +78,13 @@ func test_load_p2_sets_all_p_and_sliders_follow() -> void:
 	for i in 3:
 		assert_eq(Tuning.field.bodies[i].p, 1.0)
 		assert_eq(_panel.sliders["body%d.p" % i].value, 1.0)
+
+
+func test_preset_list_shows_full_names_matching_files() -> void:
+	for i in 4:
+		var preset := Tuning.load_preset("res://presets/p%d.tres" % (i + 1))
+		assert_eq(_panel.preset_select.get_item_text(i), preset.name)
+		assert_true(preset.name.length() > 2)
 
 
 func test_sync_does_not_write_back() -> void:

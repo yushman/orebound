@@ -14,7 +14,10 @@ func respawn() -> void:
 	var pos := Vector2(Tuning.ship.spawn_radius, 0.0)
 	var t := GravityField.time()
 	state.pos = pos
-	state.vel = Vector2(0.0, GravityField.circular_speed(GravityField.dominant(pos, t), pos, t))
+	var ref := GravityField.dominant(pos, t)
+	var r_rel := pos - GravityField.body_pos(ref, t)
+	var tangent := Vector2(-r_rel.y, r_rel.x).normalized()
+	state.vel = GravityField.body_vel(ref, t) + tangent * GravityField.circular_speed(ref, pos, t)
 	position = pos
 	rotation = 0.0
 

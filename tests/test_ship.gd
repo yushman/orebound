@@ -96,21 +96,38 @@ func test_spawn_speed_uses_dominant_body_pull_not_full_accel() -> void:
 	f.bodies = bodies
 	Tuning.field = f
 	var ship = _make()
-	Tuning.field = saved
 	var s: ShipState = ship.state
 	var r: float = Tuning.ship.spawn_radius
-	f_check(f, s, r)
-
-
-func f_check(f: FieldParams, s: ShipState, r: float) -> void:
-	var saved = Tuning.field
-	Tuning.field = f
 	var full := GravityField.accel(s.pos, 0.0).length()
 	var own := GravityField.accel_of(0, s.pos, 0.0).length()
 	Tuning.field = saved
 	assert_ne(full, own)
 	assert_almost_eq(s.vel.length(), sqrt(r * own), 0.01)
 	assert_gt(absf(s.vel.length() - sqrt(r * full)), 0.01)
+
+
+func test_spawn_near_moon_adds_moon_velocity() -> void:
+	var saved = Tuning.field
+	var f := FieldParams.new()
+	f.k = 1000.0
+	f.eps = 1.0
+	var planet := BodyParams.new()
+	planet.mass = 1000.0
+	planet.p = 1.0
+	var moon := BodyParams.new()
+	moon.mass = 100000.0
+	moon.p = 2.0
+	moon.parent = 0
+	moon.orbit_radius = Tuning.ship.spawn_radius - 20.0
+	moon.angular_speed = 0.1
+	var bodies: Array[BodyParams] = [planet, moon]
+	f.bodies = bodies
+	Tuning.field = f
+	var ship = _make()
+	var pos: Vector2 = ship.state.pos
+	var expected := GravityField.body_vel(1, 0.0) + Vector2(0.0, GravityField.circular_speed(1, pos, 0.0))
+	Tuning.field = saved
+	assert_almost_eq(ship.state.vel, expected, Vector2(0.01, 0.01))
 
 
 func test_preset_applied_respawns_on_circular_orbit_of_new_field() -> void:
@@ -148,11 +165,13 @@ func test_preset_applied_respawns_on_circular_orbit_of_new_field() -> void:
 	Tuning.ship = saved_ship
 
 
-func test_direct_field_change_does_not_move_ship() -> void:
+func test_direct_field_change_does_not_respawn_ship() -> void:
 	var saved_p: float = Tuning.field.bodies[0].p
 	var ship = _make()
-	var start: Vector2 = ship.state.pos
+	var before: ShipState = ship.state.copy()
 	Tuning.field.bodies[0].p = saved_p + 0.5
-	assert_eq(ship.state.pos, start)
-	assert_eq(ship.position, start)
+	var expected := ShipFlight.step(before, ShipInput.new(), GravityField.time(), GravityField.DT)
+	ship._physics_process(GravityField.DT)
 	Tuning.field.bodies[0].p = saved_p
+	assert_eq(ship.state.pos, expected.pos)
+	assert_eq(ship.state.vel, expected.vel)

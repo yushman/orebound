@@ -20,7 +20,7 @@ func _check(thrust: bool, brake := false) -> void:
 	var ship = _make()
 	GravityField.tick = 50
 	if brake:
-		ship.state.vel *= Vector2(0.6, 1.4)
+		ship.state.vel = ship.state.vel * 1.4 + Vector2(ship.state.vel.y * 0.3, 0)
 		Input.action_press("ship_brake")
 	if thrust:
 		Input.action_press("ship_thrust")
@@ -107,4 +107,19 @@ func test_predict_every_zero_updates_line() -> void:
 	ship._physics_process(GravityField.DT)
 	line._physics_process(GravityField.DT)
 	Tuning.ship.predict_every = saved
+	assert_eq(line.points, ShipPrediction.run(ship.state, ship.input, GravityField.tick, Tuning.ship.predict_short_steps))
+
+
+func test_preset_applied_refreshes_line_immediately() -> void:
+	var nodes := _run_scene()
+	var ship = nodes[0]
+	var line: Line2D = nodes[1]
+	GravityField.tick = Tuning.ship.predict_every * 5
+	ship.state.pos = Vector2(5000.0, 300.0)
+	line._physics_process(GravityField.DT)
+	GravityField.tick += 1
+	var preset := TuningPreset.new()
+	preset.field = Tuning.field.duplicate(true)
+	preset.ship = Tuning.ship.duplicate(true)
+	Tuning.apply(preset)
 	assert_eq(line.points, ShipPrediction.run(ship.state, ship.input, GravityField.tick, Tuning.ship.predict_short_steps))

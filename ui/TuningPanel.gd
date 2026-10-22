@@ -3,7 +3,7 @@ extends Control
 const ROWS := [
 	["field", "k", 1.0, 10000.0, 1.0],
 	["field", "eps", 0.01, 10.0, 0.01],
-	["field", "fade_width", 0.0, 2.0, 0.01],
+	["field", "fade_width", 0.01, 2.0, 0.01],
 	[0, "p", 0.5, 3.0, 0.01],
 	[1, "p", 0.5, 3.0, 0.01],
 	[2, "p", 0.5, 3.0, 0.01],
@@ -60,7 +60,7 @@ func _add_header() -> void:
 	hb.focus_mode = Control.FOCUS_NONE
 	preset_select = OptionButton.new()
 	preset_select.focus_mode = Control.FOCUS_NONE
-	for n in ["P1", "P2", "P3", "P4"]:
+	for n in ["P1 Ньютон", "P2 Плоский 2D", "P3 Компромисс", "P4 Смешанный"]:
 		preset_select.add_item(n)
 	preset_select.select(3)
 	load_button = Button.new()

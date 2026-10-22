@@ -40,6 +40,6 @@ script = ExtResource("4_542v7")
 
 [resource]
 script = ExtResource("3_43h5y")
-name = "P3"
+name = "P3 Компромисс"
 field = SubResource("Resource_umwoa")
 ship = SubResource("Resource_grls0")

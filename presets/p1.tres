@@ -37,6 +37,6 @@ script = ExtResource("4_ieyp7")
 
 [resource]
 script = ExtResource("3_esxg5")
-name = "P1"
+name = "P1 Ньютон"
 field = SubResource("Resource_kysrc")
 ship = SubResource("Resource_76408")
