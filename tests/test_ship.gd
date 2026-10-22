@@ -16,8 +16,8 @@ func test_spawns_on_circular_orbit_at_spawn_radius() -> void:
 	var r: float = Tuning.ship.spawn_radius
 	var s: ShipState = ship.state
 	assert_eq(s.pos, Vector2(r, 0.0))
-	var a := GravityField.accel(s.pos, GravityField.time()).length()
-	assert_almost_eq(s.vel.length(), sqrt(r * a), 0.01)
+	var t := GravityField.time()
+	assert_almost_eq(s.vel.length(), GravityField.circular_speed(GravityField.dominant(s.pos, t), s.pos, t), 0.01)
 	assert_almost_eq(s.vel.dot(s.pos), 0.0, 0.01)
 	assert_eq(s.rot, 0.0)
 	assert_eq(s.ang_vel, 0.0)
@@ -77,3 +77,37 @@ func test_physics_process_steps_with_dt_regardless_of_delta_and_stores_input() -
 	assert_eq(ship.state.rot, expected.rot)
 	assert_not_null(ship.input)
 	assert_true(ship.input.thrust)
+
+
+func test_spawn_speed_uses_dominant_body_pull_not_full_accel() -> void:
+	var saved = Tuning.field
+	var f := FieldParams.new()
+	f.k = 1000.0
+	f.eps = 1.0
+	var planet := BodyParams.new()
+	planet.mass = 1000.0
+	planet.p = 1.0
+	var moon := BodyParams.new()
+	moon.mass = 100.0
+	moon.p = 2.0
+	moon.parent = 0
+	moon.orbit_radius = Tuning.ship.spawn_radius - 30.0
+	var bodies: Array[BodyParams] = [planet, moon]
+	f.bodies = bodies
+	Tuning.field = f
+	var ship = _make()
+	Tuning.field = saved
+	var s: ShipState = ship.state
+	var r: float = Tuning.ship.spawn_radius
+	f_check(f, s, r)
+
+
+func f_check(f: FieldParams, s: ShipState, r: float) -> void:
+	var saved = Tuning.field
+	Tuning.field = f
+	var full := GravityField.accel(s.pos, 0.0).length()
+	var own := GravityField.accel_of(0, s.pos, 0.0).length()
+	Tuning.field = saved
+	assert_ne(full, own)
+	assert_almost_eq(s.vel.length(), sqrt(r * own), 0.01)
+	assert_gt(absf(s.vel.length() - sqrt(r * full)), 0.01)

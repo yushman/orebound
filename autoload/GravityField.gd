@@ -25,16 +25,20 @@ func body_pos(i: int, t: float) -> Vector2:
 
 
 func accel(pos: Vector2, t: float) -> Vector2:
-	var f: FieldParams = Tuning.field
 	var sum := Vector2.ZERO
-	for i in f.bodies.size():
-		var b: BodyParams = f.bodies[i]
-		var d := body_pos(i, t) - pos
-		var r := d.length()
-		if r == 0.0:
-			continue
-		sum += d / r * (f.k * b.mass / (pow(r, b.p) + f.eps)) * _fade(b, f.fade_width, r)
+	for i in Tuning.field.bodies.size():
+		sum += accel_of(i, pos, t)
 	return sum
+
+
+func accel_of(i: int, pos: Vector2, t: float) -> Vector2:
+	var f: FieldParams = Tuning.field
+	var b: BodyParams = f.bodies[i]
+	var d := body_pos(i, t) - pos
+	var r := d.length()
+	if r == 0.0:
+		return Vector2.ZERO
+	return d / r * (f.k * b.mass / (pow(r, b.p) + f.eps)) * _fade(b, f.fade_width, r)
 
 
 func potential(pos: Vector2, t: float) -> float:
@@ -81,3 +85,27 @@ func _fade_integral(b: BodyParams, km: float, w: float, from: float, to: float) 
 		var wt := 1.0 if j == 0 or j == N else (4.0 if j % 2 == 1 else 2.0)
 		sum += wt * km / pow(x, b.p) * _fade(b, w, x)
 	return sum * h / 3.0
+
+
+func dominant(pos: Vector2, t: float) -> int:
+	var best := 0
+	var best_a := -1.0
+	for i in Tuning.field.bodies.size():
+		var a := accel_of(i, pos, t).length()
+		if a > best_a:
+			best_a = a
+			best = i
+	return best
+
+
+func body_vel(i: int, t: float) -> Vector2:
+	var b: BodyParams = Tuning.field.bodies[i]
+	if b.parent < 0:
+		return Vector2.ZERO
+	var a := b.phase + b.angular_speed * t
+	return body_vel(b.parent, t) + Vector2(-sin(a), cos(a)) * (b.orbit_radius * b.angular_speed)
+
+
+func circular_speed(i: int, pos: Vector2, t: float) -> float:
+	var r := (pos - body_pos(i, t)).length()
+	return sqrt(r * accel_of(i, pos, t).length())

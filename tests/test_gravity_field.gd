@@ -165,3 +165,68 @@ func test_time_at_is_tick_over_60_and_dt_is_1_60():
 	GravityField.tick = 77
 	assert_eq(GravityField.time(), GravityField.time_at(77))
 	GravityField.tick = 0
+
+
+func _three_bodies() -> void:
+	var planet := _static_body(50.0, 1.0)
+	var m1 := _body(0, 300.0, 0.5, 1.0)
+	m1.mass = 5.0
+	m1.p = 2.0
+	m1.influence_radius = 60.0
+	var m2 := _body(0, 500.0, -0.3, 2.0)
+	m2.mass = 5.0
+	m2.p = 2.0
+	m2.influence_radius = 60.0
+	Tuning.field = _field([planet, m1, m2])
+
+
+func test_accel_equals_sum_of_accel_of():
+	_three_bodies()
+	var t := 2.5
+	for pos in [Vector2(600, 0), GravityField.body_pos(1, t) + Vector2(30, 0), Vector2(-100, 200)]:
+		var sum := Vector2.ZERO
+		for i in 3:
+			sum += GravityField.accel_of(i, pos, t)
+		assert_almost_eq(GravityField.accel(pos, t), sum, Vector2(1e-9, 1e-9))
+		assert_ne(GravityField.accel_of(0, pos, t), Vector2.ZERO)
+
+
+func test_dominant_returns_moon_next_to_moon1_and_planet_far_from_it():
+	_three_bodies()
+	var t := 1.0
+	assert_eq(GravityField.dominant(GravityField.body_pos(1, t) + Vector2(3, 0), t), 1)
+	assert_eq(GravityField.dominant(GravityField.body_pos(2, t) + Vector2(0, 3), t), 2)
+	assert_eq(GravityField.dominant(Vector2(600, 0), t), 0)
+
+
+func test_body_vel_matches_finite_difference_of_body_pos():
+	_three_bodies()
+	var h := 1e-2
+	for t in [0.0, 3.3]:
+		assert_eq(GravityField.body_vel(0, t), Vector2.ZERO)
+		for i in [1, 2]:
+			var fd: Vector2 = (GravityField.body_pos(i, t + h) - GravityField.body_pos(i, t - h)) / (2 * h)
+			assert_almost_eq(GravityField.body_vel(i, t), fd, Vector2(0.1, 0.1))
+			assert_gt(GravityField.body_vel(i, t).length(), 0.0)
+
+
+func test_body_vel_of_nested_moon_adds_parent_velocity():
+	var m1 := _body(0, 300.0, 0.5, 1.0)
+	var m2 := _body(1, 50.0, 2.0, 0.3)
+	Tuning.field = _field([_static_body(1.0, 1.0), m1, m2])
+	var h := 1e-2
+	var fd: Vector2 = (GravityField.body_pos(2, 2.0 + h) - GravityField.body_pos(2, 2.0 - h)) / (2 * h)
+	assert_almost_eq(GravityField.body_vel(2, 2.0), fd, Vector2(0.1, 0.1))
+
+
+func test_circular_speed_is_sqrt_r_times_own_pull_relative_to_body():
+	_three_bodies()
+	var t := 1.7
+	var pos := GravityField.body_pos(1, t) + Vector2(0, 4)
+	var expected := sqrt(4.0 * GravityField.accel_of(1, pos, t).length())
+	assert_gt(expected, 0.0)
+	assert_almost_eq(GravityField.circular_speed(1, pos, t), expected, 1e-6)
+	var far := Vector2(600, 0)
+	var r := (far - GravityField.body_pos(0, t)).length()
+	assert_almost_eq(GravityField.circular_speed(0, far, t), sqrt(r * GravityField.accel_of(0, far, t).length()), 1e-6)
+	assert_eq(GravityField.circular_speed(1, GravityField.body_pos(1, t), t), 0.0)

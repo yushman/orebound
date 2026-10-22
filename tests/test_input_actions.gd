@@ -50,3 +50,10 @@ func test_full_trajectory_bindings():
 		if e is InputEventJoypadButton and e.button_index == JOY_BUTTON_LEFT_STICK:
 			has_stick = true
 	assert_true(has_stick)
+
+
+func test_brake_bindings():
+	assert_true(InputMap.has_action("ship_brake"))
+	assert_true(_has_key("ship_brake", KEY_S))
+	assert_true(_has_axis("ship_brake", JOY_AXIS_TRIGGER_LEFT))
+	assert_almost_eq(InputMap.action_get_deadzone("ship_brake"), 0.5, 0.001)

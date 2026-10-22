@@ -12,6 +12,8 @@ func test_tuning_ship_defaults() -> void:
 	assert_eq(s.fuel_per_dv, 0.001)
 	assert_eq(s.boost_fuel_mult, 3.5)
 	assert_eq(s.spawn_radius, 600.0)
+	assert_eq(s.brake_accel, 200.0)
+	assert_eq(s.brake_fuel_mult, 1.25)
 
 
 func test_tuning_ship_prediction_defaults() -> void:

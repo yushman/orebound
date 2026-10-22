@@ -30,3 +30,19 @@ func test_run_has_planet_and_two_moons():
 			indices.append(c.index)
 	indices.sort()
 	assert_eq(indices, [0, 1, 2])
+
+
+func test_run_has_reference_marker_on_reference_body():
+	var run = load("res://scenes/Run.tscn").instantiate()
+	add_child_autofree(run)
+	var marker = run.get_node_or_null("ReferenceMarker")
+	assert_not_null(marker, "has ReferenceMarker")
+	assert_true(marker is Node2D)
+	var ship = run.get_node("Ship")
+	var t := GravityField.time()
+	ship.state.pos = GravityField.body_pos(1, t) + Vector2(3.0, 0.0)
+	marker._physics_process(0.0)
+	var ref := ShipFlight.reference_body(ship.state.pos, t)
+	assert_eq(ref, 1, "moon dominates near it")
+	assert_ne(GravityField.body_pos(ref, t), Vector2.ZERO)
+	assert_eq(marker.position, GravityField.body_pos(ref, t))

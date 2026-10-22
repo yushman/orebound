@@ -7,6 +7,7 @@ var rot: float
 var ang_vel: float
 var fuel_engine: float
 var fuel_boost: float
+var fuel_brake: float
 
 
 func copy() -> ShipState:
@@ -17,4 +18,5 @@ func copy() -> ShipState:
 	c.ang_vel = ang_vel
 	c.fuel_engine = fuel_engine
 	c.fuel_boost = fuel_boost
+	c.fuel_brake = fuel_brake
 	return c

@@ -9,6 +9,7 @@ func test_state_copy_is_independent_and_equal() -> void:
 	s.ang_vel = 0.6
 	s.fuel_engine = 0.7
 	s.fuel_boost = 0.8
+	s.fuel_brake = 0.9
 	var c := s.copy()
 	assert_not_null(c)
 	assert_ne(c, s)
@@ -18,10 +19,13 @@ func test_state_copy_is_independent_and_equal() -> void:
 	assert_eq(c.ang_vel, s.ang_vel)
 	assert_eq(c.fuel_engine, s.fuel_engine)
 	assert_eq(c.fuel_boost, s.fuel_boost)
+	assert_eq(c.fuel_brake, s.fuel_brake)
 	c.pos = Vector2(9, 9)
 	c.fuel_boost = 5.0
+	c.fuel_brake = 6.0
 	assert_eq(s.pos, Vector2(1, 2))
 	assert_eq(s.fuel_boost, 0.8)
+	assert_eq(s.fuel_brake, 0.9)
 
 
 func test_input_copy_is_independent_and_equal() -> void:
@@ -31,6 +35,7 @@ func test_input_copy_is_independent_and_equal() -> void:
 	i.target_heading = 1.5
 	i.thrust = true
 	i.boost = true
+	i.brake = true
 	var c := i.copy()
 	assert_not_null(c)
 	assert_ne(c, i)
@@ -39,7 +44,10 @@ func test_input_copy_is_independent_and_equal() -> void:
 	assert_eq(c.target_heading, 1.5)
 	assert_true(c.thrust)
 	assert_true(c.boost)
+	assert_true(c.brake)
 	c.turn = 1.0
 	c.thrust = false
+	c.brake = false
 	assert_eq(i.turn, -1.0)
 	assert_true(i.thrust)
+	assert_true(i.brake)

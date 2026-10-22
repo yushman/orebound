@@ -6,6 +6,7 @@ const N := 120
 func after_each() -> void:
 	GravityField.tick = 0
 	Input.action_release("ship_thrust")
+	Input.action_release("ship_brake")
 	Input.action_release("ship_full_trajectory")
 
 
@@ -15,9 +16,12 @@ func _make() -> Node:
 	return ship
 
 
-func _check(thrust: bool) -> void:
+func _check(thrust: bool, brake := false) -> void:
 	var ship = _make()
 	GravityField.tick = 50
+	if brake:
+		ship.state.vel *= Vector2(0.6, 1.4)
+		Input.action_press("ship_brake")
 	if thrust:
 		Input.action_press("ship_thrust")
 	ship._physics_process(GravityField.DT)
@@ -27,6 +31,7 @@ func _check(thrust: bool) -> void:
 	var pts := ShipPrediction.run(ship.state, inp, start_tick, N)
 	assert_eq(pts.size(), N)
 	assert_eq(ship.input.thrust, thrust)
+	assert_eq(ship.input.brake, brake)
 	assert_eq(ship.state.pos, start.pos)
 	assert_eq(ship.state.vel, start.vel)
 	for i in N:
@@ -41,6 +46,10 @@ func test_predicted_points_equal_flight_with_thrust() -> void:
 
 func test_predicted_points_equal_flight_without_thrust() -> void:
 	_check(false)
+
+
+func test_predicted_points_equal_flight_with_brake_on_perturbed_orbit() -> void:
+	_check(false, true)
 
 
 func _run_scene() -> Array:

@@ -6,10 +6,9 @@ var input := ShipInput.new()
 
 func _ready() -> void:
 	var pos := Vector2(Tuning.ship.spawn_radius, 0.0)
-	var a := GravityField.accel(pos, GravityField.time()).length()
-	state = ShipState.new()
+	var t := GravityField.time()
 	state.pos = pos
-	state.vel = Vector2(0.0, sqrt(pos.length() * a))
+	state.vel = Vector2(0.0, GravityField.circular_speed(GravityField.dominant(pos, t), pos, t))
 	position = pos
 
 
@@ -29,4 +28,5 @@ func _read_input() -> ShipInput:
 		inp.target_heading = stick.angle() + PI / 2
 	inp.thrust = Input.is_action_pressed("ship_thrust")
 	inp.boost = Input.is_action_pressed("ship_boost")
+	inp.brake = Input.is_action_pressed("ship_brake")
 	return inp

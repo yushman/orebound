@@ -175,3 +175,114 @@ func test_circular_orbit_keeps_radius_within_1_percent_over_several_orbits() -> 
 		prev = a
 	assert_lt(max_dev, 0.01)
 	assert_gt(absf(angle), 4.5 * TAU)
+
+
+func test_reference_body_returns_dominant_body_near_moon1_and_planet_at_spawn() -> void:
+	var t := 0.0
+	var spawn := Vector2(Tuning.ship.spawn_radius, 0.0)
+	assert_eq(ShipFlight.reference_body(spawn, t), GravityField.dominant(spawn, t))
+	assert_eq(ShipFlight.reference_body(spawn, t), 0)
+	var near_moon := GravityField.body_pos(1, t) + Vector2(2, 0)
+	assert_eq(ShipFlight.reference_body(near_moon, t), GravityField.dominant(near_moon, t))
+	assert_eq(ShipFlight.reference_body(near_moon, t), 1)
+
+
+func _planet_field(p: float) -> void:
+	var f := FieldParams.new()
+	f.k = 1000.0
+	f.eps = 1.0
+	var planet := BodyParams.new()
+	planet.mass = 1000.0
+	planet.p = p
+	var bodies: Array[BodyParams] = [planet]
+	f.bodies = bodies
+	Tuning.field = f
+
+
+func _brake_input() -> ShipInput:
+	var inp := ShipInput.new()
+	inp.brake = true
+	return inp
+
+
+func _check_brake_converges(p: float) -> void:
+	_planet_field(p)
+	var r := 600.0
+	var v := GravityField.circular_speed(0, Vector2(r, 0), 0.0)
+	var s := _state(Vector2(r, 0), Vector2(v * 0.3, v * 1.3))
+	var inp := _brake_input()
+	for i in 900:
+		s = ShipFlight.step(s, inp, i * DT, DT)
+	var target := GravityField.circular_speed(0, s.pos, 900 * DT)
+	assert_almost_eq(s.vel.length(), target, target * 0.03)
+	assert_almost_eq(s.vel.dot(s.pos.normalized()), 0.0, target * 0.05)
+
+
+func test_held_brake_from_perturbed_velocity_converges_to_circular_speed_p1() -> void:
+	_check_brake_converges(1.0)
+
+
+func test_held_brake_from_perturbed_velocity_converges_to_circular_speed_p2() -> void:
+	_check_brake_converges(2.0)
+
+
+func test_brake_accel_per_step_is_clamped_below_thrust_accel() -> void:
+	_planet_field(1.0)
+	var p: ShipParams = Tuning.ship
+	assert_lt(p.brake_accel, p.thrust_accel)
+	var s := _state(Vector2(600, 0), Vector2(900, 1800))
+	var inp := _brake_input()
+	var max_ab := 0.0
+	for i in 120:
+		var g := GravityField.accel(s.pos, i * DT)
+		var out := ShipFlight.step(s, inp, i * DT, DT)
+		max_ab = maxf(max_ab, ((out.vel - s.vel) / DT - g).length())
+		s = out
+	assert_lte(max_ab, p.brake_accel + 1e-2)
+	assert_gt(max_ab, p.brake_accel - 1.0)
+
+
+func test_brake_keeps_a_retrograde_orbit_retrograde() -> void:
+	_planet_field(1.0)
+	var v := GravityField.circular_speed(0, Vector2(600, 0), 0.0)
+	var s := _state(Vector2(600, 0), Vector2(v * 0.2, -v * 1.2))
+	var inp := _brake_input()
+	for i in 600:
+		s = ShipFlight.step(s, inp, i * DT, DT)
+		assert_lt(s.pos.cross(s.vel), 0.0)
+
+
+func test_held_brake_ignores_thrust_and_boost_and_accrues_fuel_brake_only() -> void:
+	_planet_field(1.0)
+	var p: ShipParams = Tuning.ship
+	var v := GravityField.circular_speed(0, Vector2(600, 0), 0.0)
+	var start := _state(Vector2(600, 0), Vector2(0, v * 1.2))
+	var brake := _brake_input()
+	var all := _brake_input()
+	all.thrust = true
+	all.boost = true
+	var a := start
+	var b := start
+	var dv := 0.0
+	for i in 30:
+		var out := ShipFlight.step(a, brake, i * DT, DT)
+		dv += ((out.vel - a.vel) / DT - GravityField.accel(a.pos, i * DT)).length() * DT
+		a = out
+		b = ShipFlight.step(b, all, i * DT, DT)
+	assert_true(_same(a, b))
+	assert_eq(a.fuel_engine, 0.0)
+	assert_eq(a.fuel_boost, 0.0)
+	assert_gt(a.fuel_brake, 0.0)
+	assert_almost_eq(a.fuel_brake, dv * p.fuel_per_dv * p.brake_fuel_mult, 1e-6)
+	var coast := start
+	for i in 30:
+		coast = ShipFlight.step(coast, ShipInput.new(), i * DT, DT)
+	assert_eq(coast.fuel_brake, 0.0)
+
+
+func test_brake_does_not_block_rotation() -> void:
+	var inp := _brake_input()
+	inp.turn = 1.0
+	var out := ShipFlight.step(_state(), inp, 0.0, DT)
+	assert_gt(out.ang_vel, 0.0)
+	assert_gt(out.rot, 0.0)
