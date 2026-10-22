@@ -46,3 +46,14 @@ func test_run_has_reference_marker_on_reference_body():
 	assert_eq(ref, 1, "moon dominates near it")
 	assert_ne(GravityField.body_pos(ref, t), Vector2.ZERO)
 	assert_eq(marker.position, GravityField.body_pos(ref, t))
+
+
+func test_run_has_hidden_tuning_panel_on_canvas_layer():
+	var run = load("res://scenes/Run.tscn").instantiate()
+	add_child_autofree(run)
+	var layers: Array = run.find_children("*", "CanvasLayer", false, false)
+	assert_eq(layers.size(), 1, "has CanvasLayer")
+	var panel = layers[0].get_node_or_null("TuningPanel")
+	assert_not_null(panel, "layer holds TuningPanel")
+	assert_eq(panel.scene_file_path, "res://ui/TuningPanel.tscn")
+	assert_false(panel.visible)

@@ -21,7 +21,7 @@ func _shader(path: String) -> void:
 func test_stub_scenes_and_shaders() -> void:
 	for p in ["res://scenes/Carrier.tscn", "res://scenes/Field.tscn"]:
 		_single_root(p, "Node2D")
-	for p in ["res://ui/HUD.tscn", "res://ui/TuningPanel.tscn"]:
+	for p in ["res://ui/HUD.tscn"]:
 		_single_root(p, "Control")
 	_shader("res://shaders/isolines.gdshader")
 	_shader("res://shaders/atmosphere.gdshader")

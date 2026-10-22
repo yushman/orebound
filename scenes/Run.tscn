@@ -4,6 +4,7 @@
 [ext_resource type="PackedScene" path="res://scenes/Body.tscn" id="2_body"]
 [ext_resource type="Script" path="res://scenes/Prediction.gd" id="3_pred"]
 [ext_resource type="Script" path="res://scenes/ReferenceMarker.gd" id="4_marker"]
+[ext_resource type="PackedScene" path="res://ui/TuningPanel.tscn" id="5_panel"]
 
 [node name="Run" type="Node2D"]
 
@@ -23,3 +24,7 @@ index = 1
 
 [node name="Moon2" parent="." instance=ExtResource("2_body")]
 index = 2
+
+[node name="CanvasLayer" type="CanvasLayer" parent="."]
+
+[node name="TuningPanel" parent="CanvasLayer" instance=ExtResource("5_panel")]

@@ -57,3 +57,8 @@ func test_brake_bindings():
 	assert_true(_has_key("ship_brake", KEY_S))
 	assert_true(_has_axis("ship_brake", JOY_AXIS_TRIGGER_LEFT))
 	assert_almost_eq(InputMap.action_get_deadzone("ship_brake"), 0.5, 0.001)
+
+
+func test_debug_tuning_panel_binding():
+	assert_true(InputMap.has_action("debug_tuning_panel"))
+	assert_true(_has_key("debug_tuning_panel", KEY_F1))

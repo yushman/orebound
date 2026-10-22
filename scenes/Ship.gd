@@ -5,11 +5,18 @@ var input := ShipInput.new()
 
 
 func _ready() -> void:
+	respawn()
+	Tuning.preset_applied.connect(respawn)
+
+
+func respawn() -> void:
+	state = ShipState.new()
 	var pos := Vector2(Tuning.ship.spawn_radius, 0.0)
 	var t := GravityField.time()
 	state.pos = pos
 	state.vel = Vector2(0.0, GravityField.circular_speed(GravityField.dominant(pos, t), pos, t))
 	position = pos
+	rotation = 0.0
 
 
 func _physics_process(_delta: float) -> void:

@@ -16,7 +16,6 @@
 | # | Что | Где | Как чинить |
 |---|---|---|---|
 | 6 | Не замерена стоимость полной линии: 1800 шагов (каждый копирует `ShipState`) раз в `predict_every` тиков, пока зажат Shift | `scenes/ShipPrediction.gd`, `scenes/Prediction.gd` | замерить `Time.get_ticks_usec()`; если > ~4 мс на Steam Deck — поднять `predict_every` или прореживать точки |
-| 7 | `predict_every = 0` даёт деление по модулю на ноль каждый тик (S5 выведет параметр на панель) | `scenes/Prediction.gd:8` | `@export_range(1, 60)` в `ShipParams` или `maxi(p.predict_every, 1)` |
 
 ## Тормоз (S4)
 
@@ -26,3 +25,13 @@
 | 9 | Стартовая скорость направлена по мировой +Y и не учитывает скорость тела — орбита круговая, только пока на `spawn_radius` доминирует планета в начале координат | `scenes/Ship.gd` (`_ready`) | строить как `v_target` тормоза: `body_vel(ref) + tangent * circular_speed`; тест спавна у луны |
 | 10 | Возмущение орбиты в тесте предсказания с тормозом без радиальной составляющей: у стартовой скорости x = 0, множитель 0.6 ничего не делает | `tests/test_ship_prediction.gd` | добавить радиальную часть, например `vel * 1.4 + Vector2(vel.y * 0.3, 0)` |
 | 11 | Публичный хелпер `f_check` нарушает соглашение `_helper` и второй раз сохраняет/восстанавливает `Tuning.field` | `tests/test_ship.gd` | посчитать `full`/`own` внутри теста до восстановления поля, удалить `f_check` |
+
+## Панель тюнинга (S5)
+
+| # | Что | Где | Как чинить |
+|---|---|---|---|
+| 12 | У слайдера `fade_width` минимум 0: `_fade` делит на `influence_radius * 0`, на границе R получается NaN, а `potential()` — NaN везде за R | `ui/TuningPanel.gd` (ROWS), `autoload/GravityField.gd` (`_fade`) | минимум слайдера 0.01 и assert в `test_tuning_panel` |
+| 13 | После респавна по `preset_applied` линия предсказания показывает старый путь до следующего тика `predict_every` | `scenes/Prediction.gd` | подписать Prediction на `Tuning.preset_applied` и пересчитать сразу; тест: первая точка у `(spawn_radius, 0)` сразу после `apply` |
+| 14 | Предупреждение в `_ready` пишет «missing», даже когда `p4.tres` есть, но не загрузился как `TuningPreset` | `autoload/Tuning.gd` (`_ready`) | текст «cannot load %s, using code defaults» |
+| 15 | `test_direct_field_change_does_not_move_ship` ничего не проверяет: между правкой поля и assert нет шага физики | `tests/test_ship.gd` | вызвать `_physics_process` один раз и сравнить с ожидаемым шагом, или удалить тест |
+| 16 | В списке пресетов на панели и в `name` файлов `.tres` только «P1»..«P4», без «Ньютон» / «Плоский 2D» / «Компромисс» / «Смешанный» | `ui/TuningPanel.gd`, `presets/p*.tres` | показывать полные названия в OptionButton и записать их в `name` пресетов |

@@ -95,3 +95,16 @@ func test_prediction_line_full_while_held() -> void:
 	ship._physics_process(GravityField.DT)
 	line._physics_process(GravityField.DT)
 	assert_eq(line.points, ShipPrediction.run(ship.state, ship.input, GravityField.tick, Tuning.ship.predict_short_steps))
+
+
+func test_predict_every_zero_updates_line() -> void:
+	var nodes := _run_scene()
+	var ship = nodes[0]
+	var line: Line2D = nodes[1]
+	var saved: int = Tuning.ship.predict_every
+	Tuning.ship.predict_every = 0
+	GravityField.tick = 7
+	ship._physics_process(GravityField.DT)
+	line._physics_process(GravityField.DT)
+	Tuning.ship.predict_every = saved
+	assert_eq(line.points, ShipPrediction.run(ship.state, ship.input, GravityField.tick, Tuning.ship.predict_short_steps))

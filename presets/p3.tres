@@ -1,0 +1,45 @@
+[gd_resource type="Resource" script_class="TuningPreset" format=3]
+
+[ext_resource type="Script" path="res://autoload/BodyParams.gd" id="1_qdqkg"]
+[ext_resource type="Script" path="res://autoload/FieldParams.gd" id="2_8pm6e"]
+[ext_resource type="Script" path="res://autoload/TuningPreset.gd" id="3_43h5y"]
+[ext_resource type="Script" path="res://autoload/ShipParams.gd" id="4_542v7"]
+
+[sub_resource type="Resource" id="Resource_n0hal"]
+script = ExtResource("1_qdqkg")
+mass = 24455.804420464337
+p = 1.5
+
+[sub_resource type="Resource" id="Resource_xo5ao"]
+script = ExtResource("1_qdqkg")
+mass = 1570.9609412529783
+p = 1.5
+influence_radius = 80.0
+parent = 0
+orbit_radius = 250.0
+angular_speed = 0.6
+
+[sub_resource type="Resource" id="Resource_wnmre"]
+script = ExtResource("1_qdqkg")
+mass = 776.3203753084591
+p = 1.5
+influence_radius = 80.0
+parent = 0
+orbit_radius = 400.0
+angular_speed = -0.4
+phase = 3.141592653589793
+
+[sub_resource type="Resource" id="Resource_umwoa"]
+script = ExtResource("2_8pm6e")
+k = 1000.0
+fade_width = 0.5
+bodies = Array[ExtResource("1_qdqkg")]([SubResource("Resource_n0hal"), SubResource("Resource_xo5ao"), SubResource("Resource_wnmre")])
+
+[sub_resource type="Resource" id="Resource_grls0"]
+script = ExtResource("4_542v7")
+
+[resource]
+script = ExtResource("3_43h5y")
+name = "P3"
+field = SubResource("Resource_umwoa")
+ship = SubResource("Resource_grls0")

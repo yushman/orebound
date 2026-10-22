@@ -111,3 +111,48 @@ func f_check(f: FieldParams, s: ShipState, r: float) -> void:
 	assert_ne(full, own)
 	assert_almost_eq(s.vel.length(), sqrt(r * own), 0.01)
 	assert_gt(absf(s.vel.length() - sqrt(r * full)), 0.01)
+
+
+func test_preset_applied_respawns_on_circular_orbit_of_new_field() -> void:
+	var saved_field = Tuning.field
+	var saved_ship = Tuning.ship
+	var ship = _make()
+	ship.state.pos = Vector2(5000.0, 300.0)
+	ship.state.vel = Vector2(7.0, 9.0)
+	ship.state.rot = 1.2
+	ship.state.ang_vel = 0.7
+	ship.state.fuel_engine = 3.0
+	ship.state.fuel_boost = 2.0
+	ship.state.fuel_brake = 1.0
+	ship.rotation = 1.2
+	var preset := TuningPreset.new()
+	preset.field = Tuning.field.duplicate(true)
+	preset.ship = Tuning.ship.duplicate(true)
+	preset.field.bodies[0].p = 2.0
+	preset.field.bodies[0].mass = 50000.0
+	Tuning.apply(preset)
+	var r: float = Tuning.ship.spawn_radius
+	var t := GravityField.time()
+	var pos := Vector2(r, 0.0)
+	assert_eq(ship.state.pos, pos)
+	assert_eq(ship.position, pos)
+	assert_almost_eq(ship.state.vel.length(), GravityField.circular_speed(GravityField.dominant(pos, t), pos, t), 0.01)
+	assert_almost_eq(ship.state.vel.dot(pos), 0.0, 0.01)
+	assert_eq(ship.state.rot, 0.0)
+	assert_eq(ship.state.ang_vel, 0.0)
+	assert_eq(ship.state.fuel_engine, 0.0)
+	assert_eq(ship.state.fuel_boost, 0.0)
+	assert_eq(ship.state.fuel_brake, 0.0)
+	assert_eq(ship.rotation, 0.0)
+	Tuning.field = saved_field
+	Tuning.ship = saved_ship
+
+
+func test_direct_field_change_does_not_move_ship() -> void:
+	var saved_p: float = Tuning.field.bodies[0].p
+	var ship = _make()
+	var start: Vector2 = ship.state.pos
+	Tuning.field.bodies[0].p = saved_p + 0.5
+	assert_eq(ship.state.pos, start)
+	assert_eq(ship.position, start)
+	Tuning.field.bodies[0].p = saved_p

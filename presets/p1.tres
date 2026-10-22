@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="TuningPreset" format=3]
+
+[ext_resource type="Script" path="res://autoload/BodyParams.gd" id="1_d24aw"]
+[ext_resource type="Script" path="res://autoload/FieldParams.gd" id="2_bqn1v"]
+[ext_resource type="Script" path="res://autoload/TuningPreset.gd" id="3_esxg5"]
+[ext_resource type="Script" path="res://autoload/ShipParams.gd" id="4_ieyp7"]
+
+[sub_resource type="Resource" id="Resource_411p7"]
+script = ExtResource("1_d24aw")
+mass = 599003.3277870216
+
+[sub_resource type="Resource" id="Resource_4uvu6"]
+script = ExtResource("1_d24aw")
+mass = 15343.823743412451
+influence_radius = 80.0
+parent = 0
+orbit_radius = 250.0
+angular_speed = 0.6
+
+[sub_resource type="Resource" id="Resource_gnl7d"]
+script = ExtResource("1_d24aw")
+mass = 5993.739587796462
+influence_radius = 80.0
+parent = 0
+orbit_radius = 400.0
+angular_speed = -0.4
+phase = 3.141592653589793
+
+[sub_resource type="Resource" id="Resource_kysrc"]
+script = ExtResource("2_bqn1v")
+k = 1000.0
+fade_width = 0.5
+bodies = Array[ExtResource("1_d24aw")]([SubResource("Resource_411p7"), SubResource("Resource_4uvu6"), SubResource("Resource_gnl7d")])
+
+[sub_resource type="Resource" id="Resource_76408"]
+script = ExtResource("4_ieyp7")
+
+[resource]
+script = ExtResource("3_esxg5")
+name = "P1"
+field = SubResource("Resource_kysrc")
+ship = SubResource("Resource_76408")
