@@ -1,6 +1,7 @@
 extends Node
 
 var field: FieldParams = _default_field()
+var ship: ShipParams = ShipParams.new()
 
 
 func _default_field() -> FieldParams:

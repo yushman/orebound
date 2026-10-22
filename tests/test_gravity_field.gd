@@ -156,3 +156,12 @@ func test_moon_fade_zone_gradient_matches_accel():
 func test_unlimited_body_has_no_fade():
 	Tuning.field = _field([_static_body(3.0, 2.0)], 2.0, 0.0)
 	assert_ne(GravityField.accel(Vector2(1000, 0), 0.0), Vector2.ZERO)
+
+
+func test_time_at_is_tick_over_60_and_dt_is_1_60():
+	assert_eq(GravityField.DT, 1.0 / 60.0)
+	for n in [0, 1, 7, 90, 12345]:
+		assert_eq(GravityField.time_at(n), n / 60.0)
+	GravityField.tick = 77
+	assert_eq(GravityField.time(), GravityField.time_at(77))
+	GravityField.tick = 0

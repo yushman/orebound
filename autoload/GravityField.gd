@@ -1,10 +1,16 @@
 extends Node
 
+const DT := 1.0 / 60.0
+
 var tick: int = 0
 
 
+func time_at(n: int) -> float:
+	return n / 60.0
+
+
 func time() -> float:
-	return tick / 60.0
+	return time_at(tick)
 
 
 func _physics_process(_delta: float) -> void:

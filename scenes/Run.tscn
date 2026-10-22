@@ -2,12 +2,15 @@
 
 [ext_resource type="PackedScene" path="res://scenes/Ship.tscn" id="1_ship"]
 [ext_resource type="PackedScene" path="res://scenes/Body.tscn" id="2_body"]
+[ext_resource type="Script" path="res://scenes/Prediction.gd" id="3_pred"]
 
 [node name="Run" type="Node2D"]
 
-[node name="Camera2D" type="Camera2D" parent="."]
-
 [node name="Ship" parent="." instance=ExtResource("1_ship")]
+
+[node name="Prediction" type="Line2D" parent="."]
+width = 2.0
+script = ExtResource("3_pred")
 
 [node name="Planet" parent="." instance=ExtResource("2_body")]
 
