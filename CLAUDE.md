@@ -3,7 +3,7 @@
 Godot 4.7 2D game; stage 0 skeleton with placeholder ship and stub modules.
 
 ## Project
-- Main scene is `res://scenes/Run.tscn`. Renderer `gl_compatibility` (2D, canvas_item shaders; targets Windows, macOS, Steam Deck).
+- Main scene is `res://scenes/Run.tscn`. Renderer `gl_compatibility` (2D, canvas_item shaders; targets Windows, macOS; Steam Deck secondary, see D34 in docs/decisions.md).
 - Base viewport 1280x800 (Steam Deck 16:10), stretch mode `canvas_items`, aspect `expand`. Physics 60 ticks/s.
 - Autoloads: `GravityField`, `Tuning`, `Telemetry` (see `autoload/`).
 - Known deferred issues (review nits, small bugs left for later) go to `docs/production/tech-debt.md`; remove a row once fixed.
