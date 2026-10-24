@@ -69,6 +69,12 @@ func test_camera_follows_ship_local_vertical():
 	assert_almost_eq(cam.rotation, 0.0, 1e-4)
 
 
+func test_camera_applies_rotation():
+	var run = _run()
+	var cam = run.get_node("FlightCamera")
+	assert_false(cam.ignore_rotation, "Camera2D must not ignore its rotation")
+
+
 func test_zoom_vector_maps_semantic_zoom_to_camera_zoom():
 	var FlightCameraScript = load("res://scenes/FlightCamera.gd")
 	assert_eq(FlightCameraScript.zoom_vector(1.0), Vector2.ONE)
@@ -228,14 +234,14 @@ func test_marker_tracks_sync_reference_body_or_carrier():
 
 
 func test_marker_screen_radius_constant():
-	# Радиус кольца маркера — постоянный ЭКРАННЫЙ размер: мир = 28 px / s.
+	# Радиус кольца маркера — постоянный ЭКРАННЫЙ размер: мир = 28 px · s.
 	var run = _run()
 	var marker = run.get_node_or_null("ReferenceMarker")
 	assert_not_null(marker, "has ReferenceMarker")
 	if marker == null:
 		return
 	assert_eq(marker.screen_radius(1.0), 28.0)
-	assert_almost_eq(marker.screen_radius(22.0), 28.0 / 22.0, 1e-9)
+	assert_almost_eq(marker.screen_radius(22.0), 28.0 * 22.0, 1e-9)
 
 
 func test_run_has_hidden_tuning_panel_on_canvas_layer():
@@ -284,9 +290,9 @@ func test_flight_vector_length_equals_speed():
 	var tip: Vector2 = FlightVectorScript.shaft_end(Vector2.ZERO, Vector2(3.0, 4.0))
 	assert_almost_eq(tip.x, 3.0, 1e-5)
 	assert_almost_eq(tip.y, 4.0, 1e-5)
-	# Головка и штрих остаются экранного размера: мир = px / s.
-	assert_eq(FlightVectorScript.screen_px(8.0, 4.0), 2.0)
-	assert_eq(FlightVectorScript.screen_px(2.0, 4.0), 0.5)
+	# Головка и штрих остаются экранного размера: мир = px · s.
+	assert_eq(FlightVectorScript.screen_px(8.0, 4.0), 32.0)
+	assert_eq(FlightVectorScript.screen_px(2.0, 4.0), 8.0)
 
 
 func test_run_scene_contains_flight_vector():

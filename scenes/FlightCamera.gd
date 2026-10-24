@@ -48,6 +48,10 @@ static func discretize_zoom(z: float) -> float:
 	return best
 
 
+func _ready() -> void:
+	ignore_rotation = false
+
+
 func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("camera_zoom_in"):
 		_target_zoom = discretize_zoom(clamp_zoom(_target_zoom / ZOOM_STEP))

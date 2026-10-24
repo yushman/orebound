@@ -12,7 +12,7 @@ const ORBIT_COLOR := Color(1.0, 1.0, 1.0, 0.3)
 const ORBIT_HIGHLIGHT_COLOR := Color(1.0, 1.0, 1.0, 0.8)
 const CARRIER_ORBIT_COLOR := Color(1.0, 1.0, 1.0, 0.55)
 const CARRIER_MARKER_COLOR := Color(1.0, 1.0, 1.0, 0.6)
-# Stroke sizes are constant SCREEN pixels: world width = px / semantic zoom.
+# Stroke sizes are constant SCREEN pixels: world width = px * semantic zoom s.
 const SURFACE_PX := 2.0
 const ATMOSPHERE_PX := 1.5
 const ORBIT_PX := 1.0
@@ -65,7 +65,7 @@ static func semantic_zoom(cam_zoom: float) -> float:
 
 ## World stroke size that renders as `px` screen pixels at semantic zoom s.
 static func screen_px(px: float, s: float) -> float:
-	return px if s <= 0.0 else px / s
+	return px if s <= 0.0 else px * s
 
 
 ## Carrier point (D35): the frame origin, read from Tuning on every call.
@@ -106,25 +106,30 @@ func _camera_zoom() -> float:
 	return cam.zoom.x if cam != null else 1.0
 
 
-func _visible_span() -> float:
-	# Conservative bound: circle points visible through the view rect lie
-	# within the rect's circumscribed circle as seen from the origin.
-	var cam := _camera()
-	if cam == null:
+## Angular span (centered on the camera direction) of the circle of `radius`
+## inside the visible disc of radius h around the camera; TAU = whole circle,
+## 0 = nothing visible.
+static func visible_span(cam_pos: Vector2, cam_zoom: float, radius: float) -> float:
+	var d := cam_pos.length()
+	var h := visible_half_extent(cam_zoom) * VIEW_MARGIN
+	if d <= 0.0 or radius <= 0.0:
 		return TAU
-	var d := cam.position.length()
-	var h := visible_half_extent(cam.zoom.x) * VIEW_MARGIN
-	if d <= 0.0 or h >= d:
+	var c := (radius * radius + d * d - h * h) / (2.0 * radius * d)
+	if c <= -1.0:
 		return TAU
-	return 2.0 * asin(clampf(h / d, 0.0, 1.0))
+	if c >= 1.0:
+		return 0.0
+	return 2.0 * acos(c)
 
 
 func _draw_ring(radius: float, color: Color, width: float) -> void:
-	var span := _visible_span()
+	var cam := _camera()
+	var span := TAU if cam == null else visible_span(cam.position, cam.zoom.x, radius)
 	if span >= TAU:
 		draw_arc(Vector2.ZERO, radius, 0.0, TAU, _segments(radius, TAU), color, width)
 		return
-	var cam := _camera()
+	if span <= 0.0:
+		return
 	var mid: float = cam.position.angle()
 	draw_arc(Vector2.ZERO, radius, mid - span * 0.5, mid + span * 0.5,
 			_segments(radius, span), color, width)

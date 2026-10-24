@@ -45,3 +45,12 @@ func test_body_follows_field_position() -> void:
 	# same point from the orbit formula: phase + (angular_speed - frame_omega)*t
 	var a := (0.1 - GravityField.frame_omega()) * t
 	assert_eq(body.position, Vector2(cos(a), sin(a)) * 480.0)
+
+
+func test_visual_scale_keeps_constant_screen_size() -> void:
+	var BodyScript = load("res://scenes/Body.gd")
+	assert_almost_eq(BodyScript.visual_scale(0, 1.0), 1.0, 1e-9)
+	assert_almost_eq(BodyScript.visual_scale(0, 40.0), 40.0, 1e-9)
+	# moons use a smaller marker than the planet, still scaled by s
+	assert_almost_eq(BodyScript.visual_scale(1, 40.0), 40.0 * BodyScript.MOON_SCALE, 1e-9)
+	assert_lt(BodyScript.MOON_SCALE, 1.0)

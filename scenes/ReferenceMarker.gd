@@ -1,6 +1,6 @@
 extends Node2D
 
-# Ring size is a constant SCREEN value: world radius = px / semantic zoom s.
+# Ring size is a constant SCREEN value: world radius = px * semantic zoom s.
 const RING_PX := 28.0
 const RING_STROKE_PX := 2.0
 
@@ -17,7 +17,7 @@ func _physics_process(_delta: float) -> void:
 
 ## World ring radius that renders as RING_PX screen pixels at semantic zoom s.
 static func screen_radius(s: float) -> float:
-	return RING_PX / s
+	return RING_PX * s
 
 
 func marker_pos(pos: Vector2, t: float) -> Vector2:
@@ -41,4 +41,4 @@ func _draw() -> void:
 	var s := 1.0 / _camera_zoom()
 	draw_arc(Vector2.ZERO, screen_radius(s), 0.0, TAU, 48,
 			Color(1.0, 1.0, 1.0, alpha_for(ship.input.drift_sync)),
-			RING_STROKE_PX / s)
+			RING_STROKE_PX * s)

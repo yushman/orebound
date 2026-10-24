@@ -129,7 +129,7 @@ func test_preset_applied_refreshes_line_immediately() -> void:
 
 
 func test_prediction_line_screen_width() -> void:
-	# Толщина линии — постоянные ЭКРАННЫЕ 2 px: мир = 2.0 / s = 2.0·cam.zoom.x.
+	# Толщина линии — постоянные ЭКРАННЫЕ 2 px: мир = 2.0 · s = 2.0 / cam.zoom.x.
 	var run = load("res://scenes/Run.tscn").instantiate()
 	add_child_autofree(run)
 	var ship = run.get_node("Ship")
@@ -141,7 +141,7 @@ func test_prediction_line_screen_width() -> void:
 	cam._process(1.0)
 	cam._process(1.0)
 	line._update()
-	assert_almost_eq(line.width, 2.0 * cam.zoom.x, 1e-6,
+	assert_almost_eq(line.width, 2.0 / cam.zoom.x, 1e-6,
 			"world width renders as 2 screen px at any zoom")
 	cam._target_zoom = 1.0
 	cam._process(1.0)

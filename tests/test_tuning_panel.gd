@@ -192,3 +192,19 @@ func test_other_events_do_not_toggle() -> void:
 	assert_false(_panel.visible)
 	_panel._unhandled_input(_key_event("debug_tuning_panel", false))
 	assert_false(_panel.visible)
+
+
+func test_space_never_triggers_a_preset_load() -> void:
+	_panel.visible = true
+	var fired := [0]
+	Tuning.preset_applied.connect(func(): fired[0] += 1)
+	var ev := InputEventKey.new()
+	ev.keycode = KEY_SPACE
+	ev.physical_keycode = KEY_SPACE
+	ev.pressed = true
+	get_viewport().push_input(ev)
+	ev = ev.duplicate()
+	ev.pressed = false
+	get_viewport().push_input(ev)
+	assert_null(get_viewport().gui_get_focus_owner())
+	assert_eq(fired[0], 0, "Space (ui_accept) must not press a panel button")

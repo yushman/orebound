@@ -4,7 +4,7 @@ extends Node2D
 ## WORLD units (honest 1:1 speed scale), head and stroke keep a constant
 ## SCREEN size. View-only — never writes to flight state.
 
-# Playtest-tunable screen sizes; world size = px / semantic zoom s.
+# Playtest-tunable screen sizes; world size = px * semantic zoom s.
 const STROKE_PX := 2.0
 const HEAD_PX := 8.0
 const MIN_SPEED := 1.0
@@ -39,7 +39,7 @@ static func vector_visible(vel: Vector2) -> bool:
 
 ## World size that renders as `px` screen pixels at semantic zoom s.
 static func screen_px(px: float, s: float) -> float:
-	return px if s <= 0.0 else px / s
+	return px if s <= 0.0 else px * s
 
 
 func _draw() -> void:

@@ -77,10 +77,10 @@ func test_semantic_zoom_inverts_camera_zoom():
 
 func test_screen_px_scales_with_semantic_zoom():
 	var WellViewScript = load("res://scenes/WellView.gd")
-	# stroke targets are SCREEN pixels: world width = px / semantic zoom s
+	# stroke targets are SCREEN pixels: world width = px * semantic zoom s
 	assert_almost_eq(WellViewScript.screen_px(2.0, 1.0), 2.0, 1e-9)
-	assert_almost_eq(WellViewScript.screen_px(2.0, 22.0), 2.0 / 22.0, 1e-9)
-	assert_almost_eq(WellViewScript.screen_px(2.0, 40.0), 2.0 / 40.0, 1e-9)
+	assert_almost_eq(WellViewScript.screen_px(2.0, 22.0), 2.0 * 22.0, 1e-9)
+	assert_almost_eq(WellViewScript.screen_px(2.0, 40.0), 2.0 * 40.0, 1e-9)
 	# degenerate s must not blow the width up
 	assert_almost_eq(WellViewScript.screen_px(2.0, 0.0), 2.0, 1e-9)
 	assert_almost_eq(WellViewScript.screen_px(2.0, -1.0), 2.0, 1e-9)
@@ -127,3 +127,22 @@ func test_carrier_orbit_has_own_style():
 	var hi: Dictionary = WellViewScript.orbit_style(130000.0, true)
 	assert_eq(hi["color"], WellViewScript.ORBIT_HIGHLIGHT_COLOR)
 	assert_eq(hi["px"], WellViewScript.ORBIT_HIGHLIGHT_PX)
+
+
+func test_visible_span_covers_view_for_any_radius():
+	var WellViewScript = load("res://scenes/WellView.gd")
+	var cam_pos := Vector2(121500.0, 0.0)
+	var cam_zoom := 1.0 / 40.0
+	var h: float = WellViewScript.visible_half_extent(cam_zoom) * WellViewScript.VIEW_MARGIN
+	# arcs both inside and outside the camera radius: the span edges must
+	# reach the edge of the visible disc (never cut the arc short on screen)
+	for r in [100000.0, 118500.0, 121500.0, 130000.0]:
+		var span: float = WellViewScript.visible_span(cam_pos, cam_zoom, r)
+		assert_gt(span, 0.0)
+		assert_lt(span, TAU)
+		var edge: Vector2 = Vector2.from_angle(cam_pos.angle() + span * 0.5) * r
+		assert_gte(edge.distance_to(cam_pos), h * 0.999, "r=%s edge reaches the view edge" % r)
+	# the whole circle is visible when the view reaches around it
+	assert_eq(WellViewScript.visible_span(Vector2(10.0, 0.0), 0.001, 100.0), TAU)
+	# an arc entirely outside the view has no visible span
+	assert_eq(WellViewScript.visible_span(cam_pos, 1.0, 50000.0), 0.0)

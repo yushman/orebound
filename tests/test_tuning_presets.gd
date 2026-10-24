@@ -152,7 +152,7 @@ func test_preset_common_params() -> void:
 	const layout := [
 		[-1, 0.0, 0.0, 0.0],
 		[0, 118500.0, 0.0, 2000.0, 500.0],
-		[0, 103500.0, PI, 700.0, 70.0],
+		[0, 103500.0, -0.1, 700.0, 70.0],
 	]
 	for n in PRESET_P:
 		var pr := _load_n(n)
