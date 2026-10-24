@@ -96,6 +96,8 @@ godot --headless --import && godot --headless -s addons/gut/gut_cmdln.gd -gconfi
 
 ## Лицензия
 
-Код — MIT ([LICENSE](LICENSE)). Документы в `docs/`, название «Orebound», арт,
-аудио и прочие ассеты — все права защищены ([LICENSE-ASSETS](LICENSE-ASSETS)).
-Сторонние плагины в `addons/` сохраняют свои лицензии.
+Код — MIT ([LICENSE](LICENSE)): GDScript, сцены `.tscn`, шейдеры, тесты,
+конфигурация (`project.godot`, `.gutconfig.json`, пресеты `.tres`). Документы
+в `docs/`, название «Orebound», арт, аудио и прочие ассеты — все права
+защищены ([LICENSE-ASSETS](LICENSE-ASSETS)). Сторонние плагины в `addons/`
+сохраняют свои лицензии (`addons/gut` — MIT, см. `addons/gut/LICENSE.md`).

@@ -1,16 +1,3 @@
-Scope
-
-This license applies to the source code of this repository: GDScript, scenes
-(.tscn), shaders, tests, and configuration (project.godot, .gutconfig.json,
-presets .tres).
-
-It does NOT apply to the game design documents in docs/, the name "Orebound",
-art, audio and other assets; those are covered by LICENSE-ASSETS (all rights
-reserved). Third-party code under addons/ keeps its own license (addons/gut is
-MIT, see addons/gut/LICENSE.md).
-
-----------------------------------------------------------------------------
-
 MIT License
 
 Copyright (c) 2026 Ivan Yushenkov
