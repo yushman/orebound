@@ -5,8 +5,14 @@
 [ext_resource type="Script" path="res://scenes/Prediction.gd" id="3_pred"]
 [ext_resource type="Script" path="res://scenes/ReferenceMarker.gd" id="4_marker"]
 [ext_resource type="PackedScene" path="res://ui/TuningPanel.tscn" id="5_panel"]
+[ext_resource type="Script" path="res://scenes/FlightCamera.gd" id="6_camera"]
+[ext_resource type="Script" path="res://scenes/WellView.gd" id="7_well"]
+[ext_resource type="Script" path="res://scenes/FlightVector.gd" id="8_vector"]
 
 [node name="Run" type="Node2D"]
+
+[node name="WellView" type="Node2D" parent="."]
+script = ExtResource("7_well")
 
 [node name="Ship" parent="." instance=ExtResource("1_ship")]
 
@@ -17,6 +23,9 @@ script = ExtResource("3_pred")
 [node name="ReferenceMarker" type="Node2D" parent="."]
 script = ExtResource("4_marker")
 
+[node name="FlightVector" type="Node2D" parent="."]
+script = ExtResource("8_vector")
+
 [node name="Planet" parent="." instance=ExtResource("2_body")]
 
 [node name="Moon1" parent="." instance=ExtResource("2_body")]
@@ -24,6 +33,9 @@ index = 1
 
 [node name="Moon2" parent="." instance=ExtResource("2_body")]
 index = 2
+
+[node name="FlightCamera" type="Camera2D" parent="."]
+script = ExtResource("6_camera")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="."]
 

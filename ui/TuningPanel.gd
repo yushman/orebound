@@ -7,23 +7,32 @@ const ROWS := [
 	[0, "p", 0.5, 3.0, 0.01],
 	[1, "p", 0.5, 3.0, 0.01],
 	[2, "p", 0.5, 3.0, 0.01],
-	[0, "mass", 1.0, 1e7, 0.01],
-	[1, "mass", 1.0, 1e7, 0.01],
-	[2, "mass", 1.0, 1e7, 0.01],
-	[1, "influence_radius", 0.0, 400.0, 1.0],
-	[2, "influence_radius", 0.0, 400.0, 1.0],
-	["ship", "thrust_accel", 0.0, 2000.0, 1.0],
+	[0, "mass", 1.0, 2e7, 0.01],
+	[1, "mass", 1.0, 2e7, 0.01],
+	[2, "mass", 1.0, 2e7, 0.01],
+	[1, "influence_radius", 0.0, 20000.0, 10.0],
+	[2, "influence_radius", 0.0, 20000.0, 10.0],
+	["ship", "thrust_accel", 0.0, 50.0, 0.5],
 	["ship", "boost_accel_mult", 1.0, 10.0, 0.05],
 	["ship", "boost_fuel_mult", 0.0, 10.0, 0.05],
-	["ship", "brake_accel", 0.0, 1000.0, 1.0],
+	["ship", "brake_accel", 0.0, 50.0, 0.1],
 	["ship", "brake_fuel_mult", 0.0, 10.0, 0.05],
 	["ship", "fuel_per_dv", 0.0, 0.01, 0.0001],
+	["ship", "ramp_time", 0.0, 5.0, 0.05],
+	["ship", "ramp_min_fraction", 0.0, 1.0, 0.01],
+	["ship", "heat_growth_engine", 0.0, 0.5, 0.005],
+	["ship", "heat_growth_boost", 0.0, 1.0, 0.01],
+	["ship", "heat_threshold", 0.0, 1.0, 0.01],
+	["ship", "heat_cooldown", 0.0, 0.5, 0.005],
+	["ship", "min_thrust_fraction", 0.0, 1.0, 0.01],
+	["ship", "sync_accel", 0.0, 30.0, 0.1],
+	["ship", "sync_fuel_mult", 0.0, 10.0, 0.05],
 	["ship", "predict_every", 1.0, 30.0, 1.0],
-	["ship", "predict_short_steps", 10.0, 600.0, 1.0],
-	["ship", "predict_full_steps", 100.0, 6000.0, 1.0],
+	["ship", "predict_short_steps", 300.0, 1800.0, 1.0],
 ]
 
 var sliders := {}
+var row_boxes := {}
 var presets_dir := "res://presets"
 var preset_select: OptionButton
 var load_button: Button
@@ -131,6 +140,7 @@ func _add_row(row: Array) -> void:
 	hb.add_child(s)
 	hb.add_child(val)
 	_box.add_child(hb)
+	row_boxes[id] = hb
 	sliders[id] = s
 	_values[id] = val
 	s.value_changed.connect(_on_changed.bind(target, prop, val))
@@ -147,8 +157,15 @@ func _fmt(v: float) -> String:
 
 
 func _sync() -> void:
+	# Fields with fewer bodies than a row targets (D35 default is planet-only,
+	# presets are 3-body) keep the row hidden and unsynced.
+	var body_count := Tuning.field.bodies.size()
 	for row in ROWS:
 		var id := _id(row[0], row[1])
+		if row[0] is int and row[0] >= body_count:
+			row_boxes[id].visible = false
+			continue
+		row_boxes[id].visible = true
 		var v: float = _holder(row[0]).get(row[1])
 		var s: HSlider = sliders[id]
 		s.allow_lesser = true

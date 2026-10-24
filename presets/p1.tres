@@ -7,33 +7,62 @@
 
 [sub_resource type="Resource" id="Resource_411p7"]
 script = ExtResource("1_d24aw")
-mass = 599003.3277870216
+mass = 11662970.970937502
+p = 2.0
 
 [sub_resource type="Resource" id="Resource_4uvu6"]
 script = ExtResource("1_d24aw")
-mass = 15343.823743412451
-influence_radius = 80.0
+mass = 500.0
+p = 2.0
+influence_radius = 2000.0
 parent = 0
-orbit_radius = 250.0
-angular_speed = 0.6
+orbit_radius = 118500.0
+angular_speed = 0.00264744576373666
+phase = 0.0
 
 [sub_resource type="Resource" id="Resource_gnl7d"]
 script = ExtResource("1_d24aw")
-mass = 5993.739587796462
-influence_radius = 80.0
+mass = 70.0
+p = 2.0
+influence_radius = 700.0
 parent = 0
-orbit_radius = 400.0
-angular_speed = -0.4
+orbit_radius = 103500.0
+angular_speed = 0.0032433519070050013
 phase = 3.141592653589793
 
 [sub_resource type="Resource" id="Resource_kysrc"]
 script = ExtResource("2_bqn1v")
 k = 1000.0
+eps = 1.0
 fade_width = 0.5
+planet_surface_radius = 100000.0
+atmosphere_edge = 101500.0
+carrier_orbit_radius = 121500.0
 bodies = Array[ExtResource("1_d24aw")]([SubResource("Resource_411p7"), SubResource("Resource_4uvu6"), SubResource("Resource_gnl7d")])
 
 [sub_resource type="Resource" id="Resource_76408"]
 script = ExtResource("4_ieyp7")
+thrust_accel = 9.0
+boost_accel_mult = 2.5
+turn_accel = 12.0
+spin_damping = 4.0
+heading_gain = 30.0
+fuel_per_dv = 0.001
+boost_fuel_mult = 3.5
+brake_accel = 3.0
+brake_fuel_mult = 1.0
+ramp_time = 1.5
+ramp_min_fraction = 0.15
+heat_growth_engine = 0.04
+heat_growth_boost = 0.12
+heat_threshold = 0.8
+heat_cooldown = 0.06
+min_thrust_fraction = 0.2
+sync_accel = 6.0
+sync_fuel_mult = 2.0
+sync_radius = 3000.0
+predict_short_steps = 900
+predict_every = 4
 
 [resource]
 script = ExtResource("3_esxg5")

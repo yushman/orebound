@@ -32,6 +32,9 @@ func _assert_field_eq(a: FieldParams, b: FieldParams) -> void:
 	assert_eq(a.k, b.k)
 	assert_eq(a.eps, b.eps)
 	assert_eq(a.fade_width, b.fade_width)
+	assert_eq(a.planet_surface_radius, b.planet_surface_radius)
+	assert_eq(a.atmosphere_edge, b.atmosphere_edge)
+	assert_eq(a.carrier_orbit_radius, b.carrier_orbit_radius)
 	assert_eq(a.bodies.size(), b.bodies.size())
 	for i in mini(a.bodies.size(), b.bodies.size()):
 		_assert_body_eq(a.bodies[i], b.bodies[i])
@@ -48,6 +51,9 @@ func test_save_load_round_trip() -> void:
 	f.k = 7.0
 	f.eps = 0.3
 	f.fade_width = 0.7
+	f.planet_surface_radius = 120.0
+	f.atmosphere_edge = 170.0
+	f.carrier_orbit_radius = 450.0
 	var bodies: Array[BodyParams] = []
 	for i in 3:
 		var b := BodyParams.new()
@@ -68,11 +74,9 @@ func test_save_load_round_trip() -> void:
 	s.heading_gain = 9.0
 	s.fuel_per_dv = 0.5
 	s.boost_fuel_mult = 2.0
-	s.spawn_radius = 321.0
 	s.brake_accel = 77.0
 	s.brake_fuel_mult = 1.1
 	s.predict_short_steps = 11
-	s.predict_full_steps = 22
 	s.predict_every = 3
 	Tuning.field = f
 	Tuning.ship = s
@@ -91,9 +95,23 @@ func _preset_with(n_bodies: int) -> TuningPreset:
 	pr.field = Tuning._default_field()
 	pr.field.k = 42.0
 	pr.field.bodies.resize(n_bodies)
+	for i in n_bodies:
+		if pr.field.bodies[i] == null:
+			pr.field.bodies[i] = BodyParams.new()
 	pr.ship = ShipParams.new()
 	pr.ship.thrust_accel = 99.0
 	return pr
+
+
+func test_apply_accepts_preset_with_any_body_count() -> void:
+	var pr := _preset_with(3)
+	watch_signals(Tuning)
+	Tuning.apply(pr)
+	assert_push_error_count(0)
+	assert_eq(Tuning.field.bodies.size(), 3, "3-body preset applied on 1-body default")
+	assert_signal_emit_count(Tuning, "preset_applied", 1)
+	assert_eq(Tuning.field.k, 42.0)
+	assert_eq(Tuning.ship.thrust_accel, 99.0)
 
 
 func test_apply_deep_copies_and_emits() -> void:
@@ -110,18 +128,7 @@ func test_apply_deep_copies_and_emits() -> void:
 	assert_eq(pr.ship.thrust_accel, 99.0)
 
 
-func test_apply_rejects_body_count_mismatch() -> void:
-	var f := Tuning.field
-	var s := Tuning.ship
-	watch_signals(Tuning)
-	Tuning.apply(_preset_with(2))
-	assert_push_error_count(1)
-	assert_same(Tuning.field, f)
-	assert_same(Tuning.ship, s)
-	assert_signal_not_emitted(Tuning, "preset_applied")
-
-
-const PRESET_P := {1: [2.0, 2.0, 2.0], 2: [1.0, 1.0, 1.0], 3: [1.5, 1.5, 1.5], 4: [1.0, 2.0, 2.0]}
+const PRESET_P := {1: [2.0, 2.0, 2.0], 2: [1.0, 2.0, 2.0], 3: [1.5, 2.0, 2.0], 4: [1.0, 2.0, 2.0]}
 
 
 func _load_n(n: int) -> TuningPreset:
@@ -139,7 +146,14 @@ func test_preset_p_values() -> void:
 
 
 func test_preset_common_params() -> void:
-	var d := Tuning._default_field()
+	# R5 layout: planet + two moons on D35-scale orbits; moon angular speeds
+	# are circular along the preset's own planet curve, so they are derived
+	# from the loaded planet mass instead of tabulated literals.
+	const layout := [
+		[-1, 0.0, 0.0, 0.0],
+		[0, 118500.0, 0.0, 2000.0, 500.0],
+		[0, 103500.0, PI, 700.0, 70.0],
+	]
 	for n in PRESET_P:
 		var pr := _load_n(n)
 		if pr == null:
@@ -149,19 +163,58 @@ func test_preset_common_params() -> void:
 		assert_eq(pr.field.eps, 1.0)
 		assert_eq(pr.field.fade_width, 0.5)
 		_assert_ship_eq(pr.ship, ShipParams.new())
+		var pl := pr.field.bodies[0]
+		assert_eq(pl.angular_speed, 0.0, "p%d planet static" % n)
 		for i in 3:
 			var b := pr.field.bodies[i]
-			var e := d.bodies[i]
-			assert_eq(b.parent, e.parent)
-			assert_eq(b.orbit_radius, e.orbit_radius)
-			assert_eq(b.angular_speed, e.angular_speed)
-			assert_eq(b.phase, e.phase)
-			assert_eq(b.influence_radius, 80.0 if i > 0 else 0.0)
+			var e: Array = layout[i]
+			assert_eq(b.parent, e[0], "p%d body %d parent" % [n, i])
+			assert_eq(b.orbit_radius, e[1], "p%d body %d orbit" % [n, i])
+			assert_eq(b.phase, e[2], "p%d body %d phase" % [n, i])
+			assert_eq(b.influence_radius, e[3], "p%d body %d influence" % [n, i])
+			if i > 0:
+				assert_eq(b.mass, e[4], "p%d body %d mass" % [n, i])
+				var want := sqrt(pr.field.k * pl.mass / (pow(b.orbit_radius, pl.p) + pr.field.eps) / b.orbit_radius)
+				assert_almost_eq(b.angular_speed / want, 1.0, 1e-9, "p%d body %d circular speed" % [n, i])
 
 
-func test_preset_masses_comparable() -> void:
-	var r := 600.0
-	var ref := 1000.0 * 1000.0 * r / (r + 1.0)
+func test_presets_pin_d35_frame_radii() -> void:
+	# R5: the D35 radii are written into the .tres explicitly (they used to
+	# come from script defaults by omission).
+	for n in PRESET_P:
+		var pr := _load_n(n)
+		if pr == null:
+			fail_test("p%d missing" % n)
+			continue
+		assert_eq(pr.field.planet_surface_radius, 100000.0, "p%d planet_surface_radius" % n)
+		assert_eq(pr.field.atmosphere_edge, 101500.0, "p%d atmosphere_edge" % n)
+		assert_eq(pr.field.carrier_orbit_radius, 121500.0, "p%d carrier_orbit_radius" % n)
+
+
+func _phi_unit(p: float, r: float) -> float:
+	# Antiderivative of g = μ/r^p per unit μ (ε → 0), the same shape as
+	# GravityField._phi_raw.
+	if absf(p - 1.0) < 1e-4:
+		return log(r)
+	return -pow(r, 1.0 - p) / (p - 1.0)
+
+
+func _c_of_p(p: float) -> float:
+	# ΔΦ_eff per unit μ for the carrier → edge swing: the gravity swing
+	# Φ(r_c) − Φ(r_e) minus the centrifugal term at Ω_f² = μ/r_c^(p+1).
+	var rc := 121500.0
+	var re := 101500.0
+	return (_phi_unit(p, rc) - _phi_unit(p, re)) - 0.5 * (rc * rc - re * re) / pow(rc, p + 1.0)
+
+
+func _target_swing() -> float:
+	# D35 reference recipe (p = 2): μ₂ = Ω_f²·r_c³ with Ω_f = 0.00255.
+	return pow(0.00255, 2.0) * pow(121500.0, 3.0) * _c_of_p(2.0)
+
+
+func test_preset_planet_masses_equal_swing() -> void:
+	# μ(p) = ΔΦ_target/C(p), mass = μ(p)/k — every planet curve gives the
+	# same full carrier → edge swing.
 	for n in PRESET_P:
 		var pr := _load_n(n)
 		if pr == null:
@@ -169,18 +222,49 @@ func test_preset_masses_comparable() -> void:
 			continue
 		var f := pr.field
 		var pl := f.bodies[0]
-		var v2 := f.k * pl.mass * r / (pow(r, pl.p) + f.eps)
-		assert_almost_eq(v2 / ref, 1.0, 0.002, "p%d planet speed" % n)
-		for i in [1, 2]:
-			var m := f.bodies[i]
-			var g := f.k * pl.mass / (pow(m.orbit_radius, pl.p) + f.eps)
-			var want := g * (pow(40.0, m.p) + f.eps) / f.k
-			assert_almost_eq(m.mass / want, 1.0, 0.01, "p%d moon %d mass" % [n, i])
+		var want := _target_swing() / _c_of_p(pl.p) / f.k
+		assert_almost_eq(pl.mass / want, 1.0, 1e-9, "p%d planet mass = μ(p)/k" % n)
 
 
-func test_fresh_tuning_holds_p4() -> void:
+func test_equal_d35_delta_phi_eff_across_presets() -> void:
+	# Planet-only fields built from each preset's planet (moons would add
+	# phase noise): the full Φ_eff swing carrier → atmosphere edge is the
+	# same in all four presets (D29/D35 «честное сравнение»).
+	var swings := {}
+	for n in PRESET_P:
+		var pr := _load_n(n)
+		if pr == null:
+			fail_test("p%d missing" % n)
+			continue
+		var f := FieldParams.new()
+		f.k = pr.field.k
+		f.eps = pr.field.eps
+		f.fade_width = pr.field.fade_width
+		f.planet_surface_radius = pr.field.planet_surface_radius
+		f.atmosphere_edge = pr.field.atmosphere_edge
+		f.carrier_orbit_radius = pr.field.carrier_orbit_radius
+		f.bodies = [pr.field.bodies[0].duplicate()]
+		Tuning.field = f
+		var swing: float = GravityField.potential_eff(Vector2(121500.0, 0.0), 0.0) - GravityField.potential_eff(Vector2(101500.0, 0.0), 0.0)
+		swings[n] = swing
+		assert_almost_eq(swing / _target_swing(), 1.0, 0.02, "p%d swing vs target" % n)
+	var ref: float = swings[1]
+	for n in swings:
+		assert_almost_eq(float(swings[n]) / ref, 1.0, 0.02, "p%d swing vs p1" % n)
+	assert_almost_eq(ref / 4409.0, 1.0, 0.02, "known-good R1 magnitude")
+
+
+func test_defaults_are_d35() -> void:
 	var t: Node = autofree(load("res://autoload/Tuning.gd").new())
 	add_child(t)
-	var p4 := _load_n(4)
-	_assert_field_eq(t.field, p4.field)
-	_assert_ship_eq(t.ship, p4.ship)
+	assert_eq(t.field.bodies.size(), 1, "single planet, no moons")
+	var pl: BodyParams = t.field.bodies[0]
+	assert_eq(pl.p, 2.0)
+	assert_eq(pl.parent, -1)
+	assert_almost_eq(pl.mass, pow(0.00255, 2.0) * pow(121500.0, 3.0) / 1000.0, 1.0)
+	assert_eq(t.field.k, 1000.0)
+	assert_eq(t.field.planet_surface_radius, 100000.0)
+	assert_eq(t.field.atmosphere_edge, 101500.0)
+	assert_eq(t.field.carrier_orbit_radius, 121500.0)
+	Tuning.field = t.field
+	assert_almost_eq(GravityField.frame_omega(), 0.00255, 1e-6, "frame omega on defaults")

@@ -47,14 +47,24 @@ reworked. Read this before touching code or docs.
   Stage lists have a single source: `docs/production/scope.md`.
 - A design change updates `decisions.md` **and** propagates to the design docs,
   glossary and production docs in one commit; wrap prose at ~76 chars.
-- **Current gap:** the code implements the rejected week-1 setup (north-up
-  camera, tiny planet, inertial frame — see `docs/production/stage1-week1.md`).
-  The target model is D35/D36: rotating carrier frame, local-vertical camera,
-  ramped thrust with overheat, soft brake. Rework happens as slices R1–R5,
-  each a slimspec change (`/slimspec:slimspec`); prompts are in
-  `docs/production/stage1-week1.md`, «Промпты (1′)».
+- **Rework (1′) complete:** slices R1–R5 have all landed — rotating carrier
+  frame (Ω_f, Φ_eff, band drift), local-vertical camera with 1×…40× zoom
+  and honest arcs at D35 defaults, D36 controls (thrust ramp + overheat,
+  soft brake, drift sync; playtest hypotheses in `ShipParams`), short
+  prediction line (15 s horizon, full line removed), presets rescaled per
+  D29/D35 (equal ΔΦ_eff, per-p μ) and the panel with sliders for every
+  live parameter. Deferred follow-ups live in
+  `docs/production/tech-debt.md` (#6 prediction cost, #7 Coriolis scheme,
+  #11 float32 precision at the carrier radius). Next stages are
+  week 2 per `docs/production/scope.md`; the slice prompts (R1–R5) remain
+  in `docs/production/stage1-week1.md`, «Промпты (1′)».
 - Small deferred issues go to `docs/production/tech-debt.md` (remove the row
   once fixed), not to TODO comments.
+
+## Communication
+
+- Chat with the user is in Russian; `docs/` is in Russian. Code, comments,
+  module `CLAUDE.md` specs, test names and commits are in English.
 
 ## Commits
 

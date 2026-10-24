@@ -13,6 +13,3 @@ polygon = PackedVector2Array(0, -16, 12, 12, -12, 12)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_ship")
-
-[node name="Camera2D" type="Camera2D" parent="."]
-ignore_rotation = true

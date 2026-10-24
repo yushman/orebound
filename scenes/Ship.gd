@@ -11,15 +11,13 @@ func _ready() -> void:
 
 func respawn() -> void:
 	state = ShipState.new()
-	var pos := Vector2(Tuning.ship.spawn_radius, 0.0)
-	var t := GravityField.time()
+	# The carrier is a fixed point of the rotating frame, so rest there is stable.
+	var pos := Vector2(Tuning.field.carrier_orbit_radius, 0.0)
 	state.pos = pos
-	var ref := GravityField.dominant(pos, t)
-	var r_rel := pos - GravityField.body_pos(ref, t)
-	var tangent := Vector2(-r_rel.y, r_rel.x).normalized()
-	state.vel = GravityField.body_vel(ref, t) + tangent * GravityField.circular_speed(ref, pos, t)
+	state.vel = Vector2.ZERO
+	state.rot = FlightCamera.rotation_for(pos)
 	position = pos
-	rotation = 0.0
+	rotation = state.rot
 
 
 func _physics_process(_delta: float) -> void:
@@ -35,8 +33,9 @@ func _read_input() -> ShipInput:
 	var stick := Input.get_vector("ship_heading_left", "ship_heading_right", "ship_heading_up", "ship_heading_down")
 	if stick != Vector2.ZERO:
 		inp.has_heading = true
-		inp.target_heading = stick.angle() + PI / 2
+		inp.target_heading = ShipInput.screen_heading(stick, state.pos)
 	inp.thrust = Input.is_action_pressed("ship_thrust")
 	inp.boost = Input.is_action_pressed("ship_boost")
-	inp.brake = Input.is_action_pressed("ship_brake")
+	inp.soft_brake = Input.is_action_pressed("ship_brake")
+	inp.drift_sync = Input.is_action_pressed("ship_drift_sync")
 	return inp

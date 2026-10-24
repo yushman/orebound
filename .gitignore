@@ -5,4 +5,5 @@ export_presets.cfg
 .idea/
 .DS_Store
 .slimspec/changes/
+.zcode/
 .tmp/

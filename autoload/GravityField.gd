@@ -20,7 +20,7 @@ func _physics_process(_delta: float) -> void:
 func body_pos(i: int, t: float) -> Vector2:
 	var b: BodyParams = Tuning.field.bodies[i]
 	var origin := Vector2.ZERO if b.parent < 0 else body_pos(b.parent, t)
-	var a := b.phase + b.angular_speed * t
+	var a := b.phase + (b.angular_speed - frame_omega()) * t
 	return origin + Vector2(cos(a), sin(a)) * b.orbit_radius
 
 
@@ -49,6 +49,11 @@ func potential(pos: Vector2, t: float) -> float:
 		var r := (pos - body_pos(i, t)).length()
 		sum += _phi_body(b, f.k * b.mass, f.fade_width, r)
 	return sum
+
+
+func potential_eff(pos: Vector2, t: float) -> float:
+	var om := frame_omega()
+	return potential(pos, t) - 0.5 * om * om * pos.length_squared()
 
 
 func _phi_raw(km: float, p: float, r: float) -> float:
@@ -102,10 +107,23 @@ func body_vel(i: int, t: float) -> Vector2:
 	var b: BodyParams = Tuning.field.bodies[i]
 	if b.parent < 0:
 		return Vector2.ZERO
-	var a := b.phase + b.angular_speed * t
-	return body_vel(b.parent, t) + Vector2(-sin(a), cos(a)) * (b.orbit_radius * b.angular_speed)
+	var a := b.phase + (b.angular_speed - frame_omega()) * t
+	return body_vel(b.parent, t) + Vector2(-sin(a), cos(a)) * (b.orbit_radius * (b.angular_speed - frame_omega()))
 
 
 func circular_speed(i: int, pos: Vector2, t: float) -> float:
 	var r := (pos - body_pos(i, t)).length()
 	return sqrt(r * accel_of(i, pos, t).length())
+
+
+func frame_omega() -> float:
+	var f: FieldParams = Tuning.field
+	var b: BodyParams = f.bodies[0]
+	var rc := f.carrier_orbit_radius
+	var g := f.k * b.mass / (pow(rc, b.p) + f.eps) * _fade(b, f.fade_width, rc)
+	return sqrt(g / rc)
+
+
+func frame_accel(pos: Vector2, vel: Vector2) -> Vector2:
+	var om := frame_omega()
+	return pos * (om * om) - Vector2(-vel.y, vel.x) * (2.0 * om)

@@ -6,7 +6,14 @@ var has_heading: bool
 var target_heading: float
 var thrust: bool
 var boost: bool
-var brake: bool
+var soft_brake: bool
+var drift_sync: bool
+
+
+## Gamepad stick heading in world axes: the camera rotates by
+## FlightCamera.rotation_for(pos), so stick-up means screen-up.
+static func screen_heading(stick: Vector2, pos: Vector2) -> float:
+	return wrapf(stick.angle() + PI / 2 + FlightCamera.rotation_for(pos), -PI, PI)
 
 
 func copy() -> ShipInput:
@@ -16,5 +23,6 @@ func copy() -> ShipInput:
 	c.target_heading = target_heading
 	c.thrust = thrust
 	c.boost = boost
-	c.brake = brake
+	c.soft_brake = soft_brake
+	c.drift_sync = drift_sync
 	return c

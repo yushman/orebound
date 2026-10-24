@@ -25,9 +25,10 @@ func test_moon_body_pos_follows_parent_orbit():
 	f.bodies = [_body(-1, 0.0, 0.0, 0.0), _body(0, 300.0, 0.5, 1.0), _body(1, 50.0, 2.0, 0.3)]
 	Tuning.field = f
 	var t := 3.7
-	var a1 := 1.0 + 0.5 * t
+	var om: float = GravityField.frame_omega()
+	var a1 := 1.0 + (0.5 - om) * t
 	var p1 := Vector2(cos(a1), sin(a1)) * 300.0
-	var a2 := 0.3 + 2.0 * t
+	var a2 := 0.3 + (2.0 - om) * t
 	var p2 := p1 + Vector2(cos(a2), sin(a2)) * 50.0
 	assert_eq(GravityField.body_pos(0, t), Vector2.ZERO)
 	assert_almost_eq(GravityField.body_pos(1, t), p1, Vector2(1e-3, 1e-3))
@@ -42,22 +43,20 @@ func test_time_advances_one_sixtieth_per_tick():
 	assert_almost_eq(GravityField.time(), (start + 2) / 60.0, 1e-9)
 
 
-func test_default_field_has_planet_and_two_moons():
+func test_default_field_is_single_d35_planet() -> void:
 	var f: FieldParams = _saved_field
 	assert_not_null(f)
 	assert_gt(f.fade_width, 0.0)
-	assert_eq(f.bodies.size(), 3)
+	assert_eq(f.bodies.size(), 1)
+	assert_eq(f.planet_surface_radius, 100000.0)
+	assert_eq(f.atmosphere_edge, 101500.0)
+	assert_eq(f.carrier_orbit_radius, 121500.0)
 	var planet := f.bodies[0]
-	assert_eq(planet.p, 1.0)
+	assert_eq(planet.p, 2.0)
 	assert_eq(planet.parent, -1)
 	assert_eq(planet.orbit_radius, 0.0)
 	assert_eq(planet.influence_radius, 0.0)
-	for i in [1, 2]:
-		var m := f.bodies[i]
-		assert_eq(m.p, 2.0)
-		assert_eq(m.parent, 0)
-		assert_between(m.orbit_radius, 100.0, 600.0)
-		assert_gt(m.influence_radius, 0.0)
+	assert_almost_eq(GravityField.frame_omega(), 0.00255, 1e-6)
 
 
 func _field(bodies: Array, k := 2.0, eps := 0.001, fade := 0.5) -> FieldParams:
@@ -230,3 +229,81 @@ func test_circular_speed_is_sqrt_r_times_own_pull_relative_to_body():
 	var r := (far - GravityField.body_pos(0, t)).length()
 	assert_almost_eq(GravityField.circular_speed(0, far, t), sqrt(r * GravityField.accel_of(0, far, t).length()), 1e-6)
 	assert_eq(GravityField.circular_speed(1, GravityField.body_pos(1, t), t), 0.0)
+
+
+func test_frame_omega_is_sqrt_planet_pull_at_carrier_radius():
+	var f := _field([_static_body(3.0, 2.0)], 2.0, 0.0)
+	var rc := 450.0
+	f.carrier_orbit_radius = rc
+	Tuning.field = f
+	var expected := sqrt(2.0 * 3.0 / (rc * rc) / rc)
+	assert_almost_eq(GravityField.frame_omega(), expected, 1e-10)
+	var g: float = GravityField.accel_of(0, Vector2(rc, 0), 0.0).length()
+	var om: float = GravityField.frame_omega()
+	assert_almost_eq(g, om * om * rc, 1e-9)
+
+
+func test_frame_accel_is_centrifugal_plus_coriolis():
+	Tuning.field = _field([_static_body(3.0, 2.0)])
+	var om: float = GravityField.frame_omega()
+	var pos := Vector2(3, 4)
+	assert_almost_eq(GravityField.frame_accel(pos, Vector2.ZERO), pos * (om * om), Vector2(1e-12, 1e-12))
+	var vel := Vector2(5, -7)
+	var cor: Vector2 = GravityField.frame_accel(Vector2.ZERO, vel)
+	assert_almost_eq(cor.dot(vel), 0.0, 1e-9)
+	assert_almost_eq(cor.length(), 2.0 * om * vel.length(), 1e-8)
+
+
+func test_potential_eff_peaks_at_carrier_radius():
+	var f := _field([_static_body(3.0, 2.0)], 2.0, 0.0)
+	var rc := 450.0
+	f.carrier_orbit_radius = rc
+	Tuning.field = f
+	var peak: float = GravityField.potential_eff(Vector2(rc, 0), 0.0)
+	for dr in [10.0, 50.0, 150.0]:
+		assert_gt(peak, GravityField.potential_eff(Vector2(rc - dr, 0), 0.0), "below by %s" % dr)
+		assert_gt(peak, GravityField.potential_eff(Vector2(rc + dr, 0), 0.0), "above by %s" % dr)
+
+
+func test_d35_calibration_numbers():
+	var f := FieldParams.new()
+	f.k = 1.0
+	f.eps = 1.0
+	f.planet_surface_radius = 100000.0
+	f.atmosphere_edge = 101500.0
+	f.carrier_orbit_radius = 121500.0
+	var planet := BodyParams.new()
+	planet.mass = pow(0.00255, 2.0) * pow(121500.0, 3.0)
+	planet.p = 2.0
+	f.bodies = [planet]
+	Tuning.field = f
+	var om: float = GravityField.frame_omega()
+	assert_almost_eq(om / 0.00255, 1.0, 0.001)
+	var bottom := Vector2(101500.0, 0.0)
+	var drift: float = GravityField.circular_speed(0, bottom, 0.0) - om * 101500.0
+	assert_almost_eq(drift / 80.0, 1.0, 0.03)
+	var r := 116500.0
+	var g_eff: float = GravityField.accel(Vector2(r, 0), 0.0).length() - om * om * r
+	assert_almost_eq(g_eff / 0.10, 1.0, 0.05)
+	var d_phi: float = GravityField.potential_eff(Vector2(121500.0, 0.0), 0.0) - GravityField.potential_eff(bottom, 0.0)
+	assert_almost_eq(d_phi / 4400.0, 1.0, 0.02)
+	assert_almost_eq(sqrt(2.0 * d_phi) / 94.0, 1.0, 0.02)
+
+
+func test_jacobi_integral_conserved_in_free_flight():
+	Tuning.field = _field([_static_body(1000.0, 1.0)], 1000.0, 1.0)
+	var r := 450.0
+	var band: float = GravityField.circular_speed(0, Vector2(r, 0), 0.0) - GravityField.frame_omega() * r
+	var s := ShipState.new()
+	s.pos = Vector2(r, 0)
+	s.vel = Vector2(0, band * 1.05)
+	var scale := 0.5 * pow(GravityField.circular_speed(0, Vector2(r, 0), 0.0), 2.0)
+	var j0 := 0.5 * s.vel.length_squared() + GravityField.potential_eff(s.pos, 0.0)
+	var dt := GravityField.DT
+	var max_drift := 0.0
+	for i in 900:
+		s = ShipFlight.step(s, ShipInput.new(), i * dt, dt)
+		var j := 0.5 * s.vel.length_squared() + GravityField.potential_eff(s.pos, 0.0)
+		max_drift = maxf(max_drift, absf(j - j0))
+	assert_gt(absf(band), 1.0)
+	assert_lt(max_drift, 0.01 * scale)

@@ -6,19 +6,7 @@ var field: FieldParams = _default_field()
 var ship: ShipParams = ShipParams.new()
 
 
-func _ready() -> void:
-	var path := "res://presets/p4.tres"
-	var preset := load_preset(path) if ResourceLoader.exists(path) else null
-	if preset == null:
-		push_warning("Tuning: cannot load %s, using code defaults" % path)
-		return
-	apply(preset)
-
-
 func apply(preset: TuningPreset) -> void:
-	if preset.field.bodies.size() != field.bodies.size():
-		push_error("Tuning.apply: preset has %d bodies, expected %d" % [preset.field.bodies.size(), field.bodies.size()])
-		return
 	field = preset.field.duplicate(true)
 	ship = preset.ship.duplicate(true)
 	preset_applied.emit()
@@ -37,23 +25,17 @@ func load_preset(path: String) -> TuningPreset:
 
 
 func _default_field() -> FieldParams:
+	# D35 defaults: single planet at the origin; mu = frame_omega^2 * r_c^3
+	# with frame_omega = 0.00255 and r_c = 121500, mass = mu / k.
 	var f := FieldParams.new()
 	f.k = 1000.0
 	f.eps = 1.0
 	f.fade_width = 0.5
+	f.planet_surface_radius = 100000.0
+	f.atmosphere_edge = 101500.0
+	f.carrier_orbit_radius = 121500.0
 	var planet := BodyParams.new()
-	planet.mass = 1000.0
-	planet.p = 1.0
-	var bodies: Array[BodyParams] = [planet]
-	for spec in [[250.0, 0.6, 0.0], [400.0, -0.4, PI]]:
-		var m := BodyParams.new()
-		m.mass = 100.0
-		m.p = 2.0
-		m.influence_radius = 80.0
-		m.parent = 0
-		m.orbit_radius = spec[0]
-		m.angular_speed = spec[1]
-		m.phase = spec[2]
-		bodies.append(m)
-	f.bodies = bodies
+	planet.p = 2.0
+	planet.mass = pow(0.00255, 2.0) * pow(121500.0, 3.0) / f.k
+	f.bodies = [planet]
 	return f
