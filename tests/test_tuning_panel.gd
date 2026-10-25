@@ -51,7 +51,8 @@ func test_slider_set_covers_all_parameters() -> void:
 			"heat_growth_boost", "heat_threshold", "heat_cooldown", "min_thrust_fraction",
 			"sync_accel", "sync_fuel_mult", "predict_every", "predict_short_steps", "hull_max"]:
 		expect.append("ship." + p)
-	for p in ["atmosphere_drag", "atmosphere_damage", "density_shape"]:
+	for p in ["atmosphere_drag", "atmosphere_damage", "density_shape", "moon_mass_k", "moon_mass_exp",
+			"moon_influence_k", "moon_margin", "moon_bounce", "moon_impact_damage"]:
 		expect.append("planet." + p)
 	for p in ["halo_alpha", "ring_count", "ring_period", "ring_px", "ring_alpha"]:
 		expect.append("view." + p)
@@ -152,6 +153,8 @@ func test_controls_have_no_focus() -> void:
 	for c in _panel.find_children("*", "Control", true, false):
 		if c.get_window() != get_tree().root:
 			continue
+		if c == _panel.seed_box.get_line_edit():
+			continue
 		assert_eq(c.focus_mode, Control.FOCUS_NONE, str(c.name))
 
 
@@ -160,11 +163,11 @@ func test_load_p2_sets_all_p_and_sliders_follow() -> void:
 	_panel.preset_select.select(1)
 	_panel.load_button.pressed.emit()
 	assert_eq(Tuning.field.bodies[0].p, 1.0, "planet p = 1")
-	assert_eq(Tuning.field.bodies[1].p, 2.0, "moon p = 2")
-	assert_eq(Tuning.field.bodies[2].p, 2.0, "moon p = 2")
-	for i in 3:
-		assert_eq(_panel.sliders["body%d.p" % i].value, Tuning.field.bodies[i].p, "body%d slider follows" % i)
-		assert_true(_panel.sliders["body%d.p" % i].get_parent().visible, "body%d row back after 3-body load" % i)
+	assert_between(Tuning.field.bodies.size(), 3, 4, "planet plus generated moons")
+	assert_eq(_panel.sliders["body0.p"].value, 1.0, "planet slider follows")
+	assert_true(_panel.sliders["body0.p"].get_parent().visible, "planet row visible")
+	for i in range(1, 3):
+		assert_true(_panel.sliders["body%d.p" % i].get_parent().visible, "body%d row visible" % i)
 
 
 func test_preset_list_shows_full_names_matching_files() -> void:
@@ -303,3 +306,72 @@ func test_sync_sets_view_sliders_without_write_back() -> void:
 	_panel._sync()
 	assert_eq(_panel.sliders["view.ring_alpha"].value, 0.12)
 	assert_eq(Tuning.view.ring_alpha, 0.12)
+
+
+func test_seed_typed_regenerates_and_next_seed_uses_used_plus_one() -> void:
+	var old_seed := Telemetry.seed
+	var old_flight := Telemetry.flight
+	_panel.seed_box.value = 7
+	var expect := WellGenerator.picture(7, 1)
+	assert_eq(Telemetry.seed, expect["seed"])
+	assert_eq(Tuning.field.bodies.size(), 1 + expect["moons"].size())
+	assert_eq(_panel.seed_box.value, float(Telemetry.seed), "field shows used seed")
+	var used := Telemetry.seed
+	_panel.next_seed_button.pressed.emit()
+	assert_eq(Telemetry.seed, WellGenerator.picture(used + 1, Telemetry.flight)["seed"])
+	assert_eq(_panel.seed_box.value, float(Telemetry.seed))
+	Telemetry.seed = old_seed
+	Telemetry.flight = old_flight
+
+
+func test_seed_line_edit_takes_focus_and_typed_seed_regenerates() -> void:
+	var old_seed := Telemetry.seed
+	var old_flight := Telemetry.flight
+	var le: LineEdit = _panel.seed_box.get_line_edit()
+	assert_ne(le.focus_mode, Control.FOCUS_NONE)
+	le.grab_focus()
+	assert_eq(get_viewport().gui_get_focus_owner(), le)
+	le.text = ""
+	le.insert_text_at_caret("42")
+	le.text_submitted.emit(le.text)
+	assert_eq(Telemetry.seed, WellGenerator.picture(42, 1)["seed"])
+	assert_null(get_viewport().gui_get_focus_owner())
+	Telemetry.seed = old_seed
+	Telemetry.flight = old_flight
+
+
+func test_preset_load_regenerates_moons_with_current_seed() -> void:
+	var old_seed := Telemetry.seed
+	var old_flight := Telemetry.flight
+	Telemetry.seed = 5
+	_panel.preset_select.select(1)
+	_panel.load_button.pressed.emit()
+	assert_eq(Tuning.field.bodies[0].p, 1.0)
+	var n := Tuning.field.bodies.size()
+	assert_between(n, 3, 4, "2-3 moons")
+	for i in range(1, 4):
+		var row: Control = _panel.sliders["body%d.p" % i].get_parent() if i < 3 else null
+		if row == null:
+			continue
+		assert_eq(row.visible, i < n, "body%d row" % i)
+		if i < n:
+			assert_almost_eq(_panel.sliders["body%d.mass" % i].value, Tuning.field.bodies[i].mass, 0.01)
+	Telemetry.seed = old_seed
+	Telemetry.flight = old_flight
+
+
+func test_moon_mass_k_slider_regenerates_moons_with_new_mass() -> void:
+	var old_seed := Telemetry.seed
+	var old_flight := Telemetry.flight
+	Tuning.regenerate(3, 1)
+	var used := Telemetry.seed
+	var before: float = Tuning.field.bodies[1].mass
+	_panel.sliders["planet.moon_mass_k"].value = Tuning.planet.moon_mass_k * 2.0
+	assert_almost_eq(Tuning.field.bodies[1].mass, before * 2.0, before * 0.01)
+	assert_eq(Telemetry.seed, used)
+	var n := Tuning.field.bodies.size()
+	_panel.sliders["planet.moon_bounce"].value = 0.25
+	assert_eq(Tuning.planet.moon_bounce, 0.25)
+	assert_eq(Tuning.field.bodies.size(), n)
+	Telemetry.seed = old_seed
+	Telemetry.flight = old_flight

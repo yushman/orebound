@@ -11,8 +11,10 @@
 [ext_resource type="Script" path="res://scenes/AtmosphereView.gd" id="9_atmo"]
 
 [ext_resource type="Script" path="res://scenes/GravityHaloView.gd" id="10_halo"]
+[ext_resource type="Script" path="res://scenes/Run.gd" id="11_run"]
 
 [node name="Run" type="Node2D"]
+script = ExtResource("11_run")
 
 [node name="AtmosphereView" type="Node2D" parent="."]
 script = ExtResource("9_atmo")
@@ -42,6 +44,9 @@ index = 1
 
 [node name="Moon2" parent="." instance=ExtResource("2_body")]
 index = 2
+
+[node name="Moon3" parent="." instance=ExtResource("2_body")]
+index = 3
 
 [node name="FlightCamera" type="Camera2D" parent="."]
 script = ExtResource("6_camera")

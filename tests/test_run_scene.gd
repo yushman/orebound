@@ -1,14 +1,21 @@
 extends GutTest
 
 var _saved_field
+var _saved_seed := 0
+var _saved_flight := 0
 
 
 func before_each():
 	_saved_field = Tuning.field
+	_saved_seed = Telemetry.seed
+	_saved_flight = Telemetry.flight
+	Tuning.field = _saved_field.duplicate(true)
 
 
 func after_each():
 	Tuning.field = _saved_field
+	Telemetry.seed = _saved_seed
+	Telemetry.flight = _saved_flight
 
 
 func _three_body_field() -> FieldParams:
@@ -145,26 +152,40 @@ func test_run_scene_is_main_scene_with_ship():
 	assert_true(cs[0].shape is CircleShape2D)
 
 
-func test_run_has_planet_and_two_moon_bodies():
+func test_run_start_regenerates_moons_with_telemetry_seed():
+	Telemetry.seed = 7
+	Telemetry.flight = 1
+	var expected := WellGenerator.picture(7, 1)
+	_run()
+	var bodies: Array = Tuning.field.bodies
+	assert_eq(bodies.size(), 1 + expected["moons"].size())
+	for i in expected["moons"].size():
+		assert_eq(bodies[i + 1].orbit_radius, expected["moons"][i].orbit_radius)
+		assert_eq(bodies[i + 1].radius, expected["moons"][i].radius)
+	assert_eq(Telemetry.seed, expected["seed"])
+
+
+func test_run_has_planet_and_three_moon_bodies():
 	var run = _run()
 	var indices := []
 	for c in run.get_children():
 		if c.scene_file_path == "res://scenes/Body.tscn":
 			indices.append(c.index)
 	indices.sort()
-	assert_eq(indices, [0, 1, 2])
+	assert_eq(indices, [0, 1, 2, 3])
 
 
 func test_body_nodes_follow_preset_and_hide_without_body():
-	Tuning.field = _three_body_field()
 	var run = _run()
+	Tuning.field = _three_body_field()
 	var t := GravityField.time()
 	for c in run.get_children():
 		if c.scene_file_path != "res://scenes/Body.tscn":
 			continue
 		c._physics_process(0.0)
-		assert_true(c.visible, "body %d visible" % c.index)
-		assert_eq(c.position, GravityField.body_pos(c.index, t))
+		assert_eq(c.visible, c.index < 3, "body %d visible" % c.index)
+		if c.visible:
+			assert_eq(c.position, GravityField.body_pos(c.index, t))
 	Tuning.field = _three_body_field()
 	var field_two: FieldParams = Tuning.field
 	field_two.bodies = [field_two.bodies[0], field_two.bodies[1]]
@@ -176,8 +197,8 @@ func test_body_nodes_follow_preset_and_hide_without_body():
 
 func test_run_has_reference_marker_on_reference_body():
 	# Needs its own 3-body field: the marker tracks bodies[1] (a moon).
-	Tuning.field = _three_body_field()
 	var run = _run()
+	Tuning.field = _three_body_field()
 	var marker = run.get_node_or_null("ReferenceMarker")
 	assert_not_null(marker, "has ReferenceMarker")
 	assert_true(marker is Node2D)
@@ -194,8 +215,8 @@ func test_run_has_reference_marker_on_reference_body():
 func test_marker_tracks_sync_reference_body_or_carrier():
 	# Маркер стоит на ориентире синхронизации: у луны — луна, у матки — точка
 	# матки, вне sync_radius — доминантное тело; яркость — чистым хелпером.
-	Tuning.field = _three_body_field()
 	var run = _run()
+	Tuning.field = _three_body_field()
 	var marker = run.get_node("ReferenceMarker")
 	var ship = run.get_node("Ship")
 	var t := GravityField.time()

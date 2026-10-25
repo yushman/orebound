@@ -14,10 +14,21 @@ func apply(preset: TuningPreset) -> void:
 	preset_applied.emit()
 
 
+func regenerate(seed: int, flight: int) -> void:
+	var pic := WellGenerator.picture(seed, flight)
+	var bodies: Array[BodyParams] = [field.bodies[0]]
+	bodies.append_array(pic["moons"])
+	field.bodies = bodies
+	Telemetry.seed = pic["seed"]
+	Telemetry.flight = pic["flight"]
+	preset_applied.emit()
+
+
 func save_preset(path: String, preset_name: String) -> Error:
 	var preset := TuningPreset.new()
 	preset.name = preset_name
 	preset.field = field.duplicate(true)
+	preset.field.bodies = [preset.field.bodies[0]]
 	preset.ship = ship.duplicate(true)
 	return ResourceSaver.save(preset, path)
 

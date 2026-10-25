@@ -33,3 +33,55 @@ static func _radius_at(target: float, r_lo: float, r_hi: float, phi_tol: float) 
 		else:
 			hi = mid
 	return mid
+
+
+static func picture(seed: int, flight: int) -> Dictionary:
+	var pl: PlanetParams = Tuning.planet
+	for i in pl.max_tries:
+		var pic := _build(seed + i, flight)
+		if check(pic["moons"]):
+			return pic
+	return _build(pl.fallback_seed, flight)
+
+
+static func _build(seed: int, flight: int) -> Dictionary:
+	var pl: PlanetParams = Tuning.planet
+	var b: Array[float] = tiers()["boundaries"]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([seed, flight])
+	var n := maxi(1, rng.randi_range(pl.moon_count_min, pl.moon_count_max))
+	var moons: Array[BodyParams] = [_moon(rng, pl.moon_large_radius_min, pl.moon_large_radius_max, b[3], b[4])]
+	for i in n - 1:
+		moons.append(_moon(rng, pl.moon_small_radius_min, pl.moon_small_radius_max, b[1], b[3]))
+	return {"seed": seed, "flight": flight, "moons": moons}
+
+
+static func _moon(rng: RandomNumberGenerator, r_min: float, r_max: float, o_min: float, o_max: float) -> BodyParams:
+	var pl: PlanetParams = Tuning.planet
+	var m := BodyParams.new()
+	m.radius = rng.randf_range(r_min, r_max)
+	m.orbit_radius = rng.randf_range(o_min, o_max)
+	m.phase = rng.randf_range(0.0, TAU)
+	m.parent = 0
+	m.p = 2.0
+	m.mass = pl.moon_mass_k * pow(m.radius, pl.moon_mass_exp)
+	m.influence_radius = pl.moon_influence_k * m.radius
+	var g: float = GravityField.accel_of(0, Vector2(m.orbit_radius, 0.0), 0.0).length()
+	m.angular_speed = sqrt(m.orbit_radius * g) / m.orbit_radius
+	return m
+
+
+static func check(moons: Array) -> bool:
+	var f: FieldParams = Tuning.field
+	var margin: float = Tuning.planet.moon_margin
+	for i in moons.size():
+		var a: BodyParams = moons[i]
+		if a.orbit_radius - a.radius <= f.atmosphere_edge:
+			return false
+		if absf(f.carrier_orbit_radius - a.orbit_radius) <= a.influence_radius + margin:
+			return false
+		for j in range(i + 1, moons.size()):
+			var b: BodyParams = moons[j]
+			if absf(a.orbit_radius - b.orbit_radius) <= a.influence_radius + b.influence_radius + margin:
+				return false
+	return true

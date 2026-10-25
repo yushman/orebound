@@ -86,7 +86,10 @@ func test_save_load_round_trip() -> void:
 	if loaded == null:
 		return
 	assert_eq(loaded.name, "X")
-	_assert_field_eq(loaded.field, f)
+	assert_eq(loaded.field.bodies.size(), 1, "save keeps only the planet")
+	var expected: FieldParams = f.duplicate(true)
+	expected.bodies = [f.bodies[0]]
+	_assert_field_eq(loaded.field, expected)
 	_assert_ship_eq(loaded.ship, s)
 
 
@@ -128,7 +131,7 @@ func test_apply_deep_copies_and_emits() -> void:
 	assert_eq(pr.ship.thrust_accel, 99.0)
 
 
-const PRESET_P := {1: [2.0, 2.0, 2.0], 2: [1.0, 2.0, 2.0], 3: [1.5, 2.0, 2.0], 4: [1.0, 2.0, 2.0]}
+const PRESET_P := {1: 2.0, 2: 1.0, 3: 1.5, 4: 1.0}
 
 
 func _load_n(n: int) -> TuningPreset:
@@ -141,19 +144,10 @@ func test_preset_p_values() -> void:
 		assert_not_null(pr, "p%d" % n)
 		if pr == null:
 			continue
-		for i in 3:
-			assert_eq(pr.field.bodies[i].p, PRESET_P[n][i], "p%d body %d" % [n, i])
+		assert_eq(pr.field.bodies[0].p, PRESET_P[n], "p%d planet" % n)
 
 
 func test_preset_common_params() -> void:
-	# R5 layout: planet + two moons on D35-scale orbits; moon angular speeds
-	# are circular along the preset's own planet curve, so they are derived
-	# from the loaded planet mass instead of tabulated literals.
-	const layout := [
-		[-1, 0.0, 0.0, 0.0],
-		[0, 118500.0, 0.0, 2000.0, 500.0],
-		[0, 103500.0, -0.1, 700.0, 70.0],
-	]
 	for n in PRESET_P:
 		var pr := _load_n(n)
 		if pr == null:
@@ -163,19 +157,11 @@ func test_preset_common_params() -> void:
 		assert_eq(pr.field.eps, 1.0)
 		assert_eq(pr.field.fade_width, 0.5)
 		_assert_ship_eq(pr.ship, ShipParams.new())
+		assert_eq(pr.field.bodies.size(), 1, "p%d presets carry only the planet" % n)
 		var pl := pr.field.bodies[0]
 		assert_eq(pl.angular_speed, 0.0, "p%d planet static" % n)
-		for i in 3:
-			var b := pr.field.bodies[i]
-			var e: Array = layout[i]
-			assert_eq(b.parent, e[0], "p%d body %d parent" % [n, i])
-			assert_eq(b.orbit_radius, e[1], "p%d body %d orbit" % [n, i])
-			assert_eq(b.phase, e[2], "p%d body %d phase" % [n, i])
-			assert_eq(b.influence_radius, e[3], "p%d body %d influence" % [n, i])
-			if i > 0:
-				assert_eq(b.mass, e[4], "p%d body %d mass" % [n, i])
-				var want := sqrt(pr.field.k * pl.mass / (pow(b.orbit_radius, pl.p) + pr.field.eps) / b.orbit_radius)
-				assert_almost_eq(b.angular_speed / want, 1.0, 1e-9, "p%d body %d circular speed" % [n, i])
+		assert_eq(pl.parent, -1, "p%d planet parent" % n)
+		assert_eq(pl.orbit_radius, 0.0, "p%d planet orbit" % n)
 
 
 func test_presets_pin_d35_frame_radii() -> void:

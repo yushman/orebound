@@ -54,3 +54,29 @@ func test_visual_scale_keeps_constant_screen_size() -> void:
 	# moons use a smaller marker than the planet, still scaled by s
 	assert_almost_eq(BodyScript.visual_scale(1, 40.0), 40.0 * BodyScript.MOON_SCALE, 1e-9)
 	assert_lt(BodyScript.MOON_SCALE, 1.0)
+
+
+func test_moon_visual_is_disc_of_world_radius_at_any_zoom() -> void:
+	var f := _field_with_moon()
+	f.bodies[1].radius = 500.0
+	Tuning.field = f
+	var body = load("res://scenes/Body.tscn").instantiate()
+	body.index = 1
+	add_child_autofree(body)
+	var visual: Polygon2D = body.get_node("Visual")
+	var extent := 0.0
+	for v in visual.polygon:
+		extent = maxf(extent, v.length())
+	assert_gt(visual.polygon.size(), 8, "disc polygon")
+	for zoom in [1.0, 8.0, 40.0]:
+		var cam := Camera2D.new()
+		add_child_autofree(cam)
+		cam.zoom = Vector2(1.0 / zoom, 1.0 / zoom)
+		cam.make_current()
+		body._process(0.0)
+		assert_almost_eq(extent * visual.scale.x, 500.0, 0.01, "zoom %s" % zoom)
+
+
+func test_planet_keeps_constant_screen_marker() -> void:
+	var BodyScript = load("res://scenes/Body.gd")
+	assert_almost_eq(BodyScript.visual_scale(0, 40.0, 0.0), 40.0, 1e-9)

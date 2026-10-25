@@ -14,8 +14,24 @@ func after_each():
 	Tuning.view = _saved_view
 
 
+func _moon_field() -> FieldParams:
+	var f := Tuning.load_preset("res://presets/p1.tres").field
+	var specs := [[118500.0, 2000.0, 500.0, 0.0], [103500.0, 700.0, 70.0, -0.1]]
+	for sp in specs:
+		var b := BodyParams.new()
+		b.mass = sp[2]
+		b.p = 2.0
+		b.influence_radius = sp[1]
+		b.parent = 0
+		b.orbit_radius = sp[0]
+		b.angular_speed = 0.003
+		b.phase = sp[3]
+		f.bodies.append(b)
+	return f
+
+
 func test_build_uniforms_packs_moons_only_padded():
-	Tuning.field = Tuning.load_preset("res://presets/p1.tres").field
+	Tuning.field = _moon_field()
 	var f: FieldParams = Tuning.field
 	var cam := Vector2(121500.0, 3000.0)
 	var t := 2.5
@@ -39,7 +55,7 @@ func test_build_uniforms_packs_moons_only_padded():
 
 
 func test_build_uniforms_skips_zero_radius_moon_and_reads_field_per_call():
-	Tuning.field = Tuning.load_preset("res://presets/p1.tres").field
+	Tuning.field = _moon_field()
 	var f: FieldParams = Tuning.field
 	var before: int = GravityHaloView.build_uniforms(Vector2.ZERO, 0.0)["moon_count"]
 	f.bodies[1].influence_radius = 0.0
@@ -98,7 +114,7 @@ func _view() -> GravityHaloView:
 
 
 func test_view_pushes_uniforms_and_view_knobs():
-	Tuning.field = Tuning.load_preset("res://presets/p1.tres").field
+	Tuning.field = _moon_field()
 	var v := _view()
 	v.refresh()
 	var m := v.material as ShaderMaterial

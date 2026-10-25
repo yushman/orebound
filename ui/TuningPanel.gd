@@ -1,5 +1,7 @@
 extends Control
 
+const REGEN_PROPS := ["moon_mass_k", "moon_mass_exp", "moon_influence_k", "moon_margin"]
+
 const ROWS := [
 	["field", "k", 1.0, 10000.0, 1.0],
 	["field", "eps", 0.01, 10.0, 0.01],
@@ -33,6 +35,12 @@ const ROWS := [
 	["planet", "atmosphere_drag", 0.0, 2.0, 0.005],
 	["planet", "atmosphere_damage", 0.0, 100.0, 0.1],
 	["planet", "density_shape", 0.5, 5.0, 0.05],
+	["planet", "moon_mass_k", 0.0001, 0.01, 0.00001],
+	["planet", "moon_mass_exp", 1.0, 3.0, 0.01],
+	["planet", "moon_influence_k", 1.0, 3.0, 0.01],
+	["planet", "moon_margin", 0.0, 1000.0, 10.0],
+	["planet", "moon_bounce", 0.0, 1.0, 0.01],
+	["planet", "moon_impact_damage", 0.0, 1.0, 0.005],
 	["view", "halo_alpha", 0.0, 1.0, 0.01],
 	["view", "ring_count", 1.0, 12.0, 1.0],
 	["view", "ring_period", 0.2, 10.0, 0.1],
@@ -46,6 +54,8 @@ var presets_dir := "res://presets"
 var preset_select: OptionButton
 var load_button: Button
 var save_button: Button
+var seed_box: SpinBox
+var next_seed_button: Button
 var _values := {}
 var readout: Label
 var ship: Node
@@ -111,6 +121,27 @@ func _add_header() -> void:
 	hb.add_child(load_button)
 	hb.add_child(save_button)
 	_box.add_child(hb)
+	var sb := HBoxContainer.new()
+	sb.focus_mode = Control.FOCUS_NONE
+	seed_box = SpinBox.new()
+	seed_box.min_value = 0
+	seed_box.max_value = 2147483647
+	seed_box.rounded = true
+	seed_box.value = Telemetry.seed
+	seed_box.value_changed.connect(func(v: float) -> void: Tuning.regenerate(int(v), 1))
+	seed_box.focus_mode = Control.FOCUS_NONE
+	var seed_edit := seed_box.get_line_edit()
+	seed_edit.focus_mode = Control.FOCUS_CLICK
+	seed_edit.text_submitted.connect(func(_t: String) -> void:
+		seed_box.apply()
+		seed_edit.release_focus())
+	next_seed_button = Button.new()
+	next_seed_button.text = "Next seed"
+	next_seed_button.focus_mode = Control.FOCUS_NONE
+	next_seed_button.pressed.connect(func() -> void: Tuning.regenerate(Telemetry.seed + 1, Telemetry.flight))
+	sb.add_child(seed_box)
+	sb.add_child(next_seed_button)
+	_box.add_child(sb)
 
 
 func _preset_path() -> String:
@@ -123,6 +154,7 @@ func _on_load() -> void:
 		push_error("TuningPanel: cannot load %s" % _preset_path())
 		return
 	Tuning.apply(preset)
+	Tuning.regenerate(Telemetry.seed, Telemetry.flight)
 
 
 func _on_save() -> void:
@@ -181,6 +213,8 @@ func _on_changed(v: float, target: Variant, prop: String, val: Label) -> void:
 	var holder := _holder(target)
 	holder.set(prop, int(v) if holder.get(prop) is int else v)
 	val.text = _fmt(v)
+	if target is String and target == "planet" and prop in REGEN_PROPS:
+		Tuning.regenerate(Telemetry.seed, Telemetry.flight)
 
 
 func _fmt(v: float) -> String:
@@ -188,6 +222,7 @@ func _fmt(v: float) -> String:
 
 
 func _sync() -> void:
+	seed_box.set_value_no_signal(Telemetry.seed)
 	# Fields with fewer bodies than a row targets (D35 default is planet-only,
 	# presets are 3-body) keep the row hidden and unsynced.
 	var body_count := Tuning.field.bodies.size()

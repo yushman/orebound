@@ -40,3 +40,15 @@ func test_default_planet_atmosphere():
 	assert_eq(p.get("atmosphere_drag"), 0.5)
 	assert_eq(p.get("atmosphere_damage"), 5.0)
 	assert_eq(p.get("density_shape"), 2.0)
+
+
+func test_default_moon_generation_knobs():
+	var p: PlanetParams = Tuning.planet
+	assert_gt(p.get("moon_influence_k"), 1.0)
+	assert_almost_eq(p.get("moon_mass_k") * pow(1500.0, p.get("moon_mass_exp")), 500.0, 25.0)
+	assert_almost_eq(p.get("moon_mass_k") * pow(500.0, p.get("moon_mass_exp")), 70.0, 5.0)
+	assert_gt(p.get("moon_margin"), 0.0)
+	assert_eq(p.get("max_tries"), 8)
+	assert_gt(p.get("moon_bounce"), 0.0)
+	assert_gt(p.get("moon_impact_damage"), 0.0)
+	assert_not_null(p.get("fallback_seed"))

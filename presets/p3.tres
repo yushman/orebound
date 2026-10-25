@@ -10,26 +10,6 @@ script = ExtResource("1_qdqkg")
 mass = 41438.42589612417
 p = 1.5
 
-[sub_resource type="Resource" id="Resource_xo5ao"]
-script = ExtResource("1_qdqkg")
-mass = 500.0
-p = 2.0
-influence_radius = 2000.0
-parent = 0
-orbit_radius = 118500.0
-angular_speed = 0.0029278827541307875
-phase = 0.0
-
-[sub_resource type="Resource" id="Resource_wnmre"]
-script = ExtResource("1_qdqkg")
-mass = 70.0
-p = 2.0
-influence_radius = 700.0
-parent = 0
-orbit_radius = 103500.0
-angular_speed = 0.003467577538260689
-phase = -0.1
-
 [sub_resource type="Resource" id="Resource_umwoa"]
 script = ExtResource("2_8pm6e")
 k = 1000.0
@@ -38,7 +18,7 @@ fade_width = 0.5
 planet_surface_radius = 100000.0
 atmosphere_edge = 101500.0
 carrier_orbit_radius = 121500.0
-bodies = Array[ExtResource("1_qdqkg")]([SubResource("Resource_n0hal"), SubResource("Resource_xo5ao"), SubResource("Resource_wnmre")])
+bodies = Array[ExtResource("1_qdqkg")]([SubResource("Resource_n0hal")])
 
 [sub_resource type="Resource" id="Resource_grls0"]
 script = ExtResource("4_542v7")

@@ -753,3 +753,46 @@ func test_hull_ticks_only_inside_the_atmosphere_and_crash_on_surface_or_zero_hul
 	assert_true(touch.crashed)
 	var rising := _state(Vector2(f.planet_surface_radius + 1.0, 0), Vector2(0, 0))
 	assert_false(ShipFlight.step(rising, ShipInput.new(), 1.0, DT).crashed)
+
+
+func _moon_field(radius: float) -> FieldParams:
+	var f := FieldParams.new()
+	f.k = 0.0
+	f.carrier_orbit_radius = 500.0
+	var planet := BodyParams.new()
+	planet.mass = 1000.0
+	planet.p = 1.0
+	var moon := BodyParams.new()
+	moon.mass = 1.0
+	moon.p = 2.0
+	moon.parent = 0
+	moon.orbit_radius = 1000.0
+	moon.radius = radius
+	var bodies: Array[BodyParams] = [planet, moon]
+	f.bodies = bodies
+	return f
+
+
+func test_moon_disc_pushes_ship_out_and_damages_hull() -> void:
+	Tuning.field = _moon_field(50.0)
+	var s := _state(Vector2(1030, 0), Vector2(-10, 0))
+	var out := ShipFlight.step(s, ShipInput.new(), 0.0, DT)
+	assert_almost_eq(out.pos, Vector2(1050, 0), Vector2(0.01, 0.01))
+	assert_almost_eq(out.vel.x, 10.0 * Tuning.planet.moon_bounce, 0.01)
+	assert_almost_eq(out.hull, s.hull - Tuning.planet.moon_impact_damage * 10.0, 0.01)
+
+
+func test_ship_outside_moon_disc_is_unchanged() -> void:
+	Tuning.field = _moon_field(50.0)
+	var s := _state(Vector2(1100, 0), Vector2(-10, 0))
+	var out := ShipFlight.step(s, ShipInput.new(), 0.0, DT)
+	assert_almost_eq(out.vel, Vector2(-10, 0), Vector2(0.001, 0.001))
+	assert_eq(out.hull, s.hull)
+
+
+func test_zero_radius_body_never_collides() -> void:
+	Tuning.field = _moon_field(0.0)
+	var s := _state(Vector2(1000.5, 0), Vector2(-10, 0))
+	var out := ShipFlight.step(s, ShipInput.new(), 0.0, DT)
+	assert_almost_eq(out.vel, Vector2(-10, 0), Vector2(0.001, 0.001))
+	assert_eq(out.hull, s.hull)

@@ -80,9 +80,29 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float) -> Shi
 	s.vel *= exp(-Tuning.planet.atmosphere_drag * atmosphere_density(s.pos) * dt)
 	s.vel += (GravityField.accel(s.pos, t) + GravityField.frame_accel(s.pos, s.vel) + nose * thr + a_b) * dt
 	s.pos += s.vel * dt
+	_moon_contact(s, t)
 	s.hull = maxf(s.hull - Tuning.planet.atmosphere_damage * atmosphere_density(s.pos) * dt, 0.0)
 	s.crashed = s.pos.length() <= Tuning.field.planet_surface_radius or s.hull <= 0.0
 	return s
+
+
+static func _moon_contact(s: ShipState, t: float) -> void:
+	var pl: PlanetParams = Tuning.planet
+	for i in Tuning.field.bodies.size():
+		var radius: float = Tuning.field.bodies[i].radius
+		if radius <= 0.0:
+			continue
+		var center := GravityField.body_pos(i, t)
+		var d := s.pos - center
+		if d.length() >= radius:
+			continue
+		var n := d.normalized() if d.length() > 0.0 else Vector2.RIGHT
+		s.pos = center + n * radius
+		var v_rel := s.vel - GravityField.body_vel(i, t)
+		var v_n := v_rel.dot(n)
+		if v_n < 0.0:
+			s.vel -= n * v_n * (1.0 + pl.moon_bounce)
+			s.hull = maxf(s.hull + pl.moon_impact_damage * v_n, 0.0)
 
 
 static func _soft_brake_accel(vel: Vector2, nose: Vector2, p: ShipParams) -> Vector2:

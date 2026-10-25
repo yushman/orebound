@@ -51,6 +51,40 @@ func test_predicted_points_equal_flight_with_brake_on_perturbed_orbit() -> void:
 	_check(false, true)
 
 
+func test_predicted_points_equal_flight_through_moon_bounce() -> void:
+	var saved: FieldParams = Tuning.field
+	var f := FieldParams.new()
+	f.k = 0.0
+	f.carrier_orbit_radius = 500.0
+	f.planet_surface_radius = 10.0
+	f.atmosphere_edge = 20.0
+	var planet := BodyParams.new()
+	planet.mass = 1000.0
+	planet.p = 1.0
+	var moon := BodyParams.new()
+	moon.mass = 1.0
+	moon.p = 2.0
+	moon.parent = 0
+	moon.orbit_radius = 1000.0
+	moon.radius = 50.0
+	var bodies: Array[BodyParams] = [planet, moon]
+	f.bodies = bodies
+	Tuning.field = f
+	var ship = _make()
+	ship.state.pos = Vector2(1100.0, 0.0)
+	ship.state.vel = Vector2(-30.0, 0.0)
+	var start_tick := GravityField.tick
+	var pts := ShipPrediction.run(ship.state, ship.input, start_tick, N)
+	var bounced := false
+	for i in N:
+		GravityField.tick += 1
+		ship._physics_process(GravityField.DT)
+		assert_eq(pts[i], ship.state.pos, "point %d" % i)
+		bounced = bounced or ship.state.vel.x > 0.0
+	Tuning.field = saved
+	assert_true(bounced, "ship bounced off the moon")
+
+
 func _run_scene() -> Array:
 	var run = load("res://scenes/Run.tscn").instantiate()
 	add_child_autofree(run)
