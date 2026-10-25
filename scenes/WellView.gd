@@ -7,20 +7,13 @@ const HIGHLIGHT_ZOOM := 22.0
 
 # Playtest-tunable stroke colors.
 const SURFACE_COLOR := Color(0.75, 0.55, 0.35, 0.9)
-const ATMOSPHERE_COLOR := Color(0.45, 0.75, 1.0, 0.35)
+const ATMOSPHERE_COLOR := Color(1.0, 0.55, 0.15, 0.35)
 const ORBIT_COLOR := Color(1.0, 1.0, 1.0, 0.3)
 const ORBIT_HIGHLIGHT_COLOR := Color(1.0, 1.0, 1.0, 0.8)
 const CARRIER_ORBIT_COLOR := Color(1.0, 1.0, 1.0, 0.55)
 const CARRIER_MARKER_COLOR := Color(1.0, 1.0, 1.0, 0.6)
 const TOW_COLOR := Color(1.0, 0.85, 0.2, 0.7)
 const CEILING_COLOR := Color(1.0, 0.25, 0.2, 0.7)
-# Placeholder tier tints, bottom to top.
-const TIER_COLORS: Array[Color] = [
-	Color(0.9, 0.3, 0.2, 0.18),
-	Color(0.95, 0.75, 0.2, 0.18),
-	Color(0.3, 0.8, 0.4, 0.18),
-	Color(0.3, 0.5, 0.95, 0.18),
-]
 # Stroke sizes are constant SCREEN pixels: world width = px * semantic zoom s.
 const SURFACE_PX := 2.0
 const ATMOSPHERE_PX := 1.5
@@ -83,28 +76,6 @@ static func special_rings() -> Array:
 	]
 
 
-## The 4 tier bands bottom to top on the generator boundaries.
-static func tier_bands() -> Array:
-	var b: Array = WellGenerator.tiers()["boundaries"]
-	var bands := []
-	for i in b.size() - 1:
-		bands.append({"r_in": b[i], "r_out": b[i + 1], "color": TIER_COLORS[i]})
-	return bands
-
-
-## Tier band polygon: outer arc a0 -> a1, then inner arc a1 -> a0.
-static func annulus_points(r_in: float, r_out: float, a0: float, a1: float) -> PackedVector2Array:
-	var pts := PackedVector2Array()
-	var span := a1 - a0
-	var n := _segments(r_out, absf(span))
-	for i in n + 1:
-		pts.append(Vector2.from_angle(a0 + span * i / n) * r_out)
-	var m := _segments(r_in, absf(span))
-	for i in m + 1:
-		pts.append(Vector2.from_angle(a1 - span * i / m) * r_in)
-	return pts
-
-
 ## World half extent visible through the viewport at a Camera2D.zoom value
 ## (zoom < 1 shows more world, so divide).
 static func visible_half_extent(cam_zoom: float) -> float:
@@ -138,8 +109,6 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	var f: FieldParams = Tuning.field
 	var s := semantic_zoom(_camera_zoom())
-	for band: Dictionary in tier_bands():
-		_draw_band(band["r_in"], band["r_out"], band["color"])
 	_draw_ring(f.planet_surface_radius, SURFACE_COLOR, screen_px(SURFACE_PX, s))
 	for ring: Dictionary in special_rings():
 		var bs := boundary_style(ring["kind"])
@@ -176,28 +145,6 @@ static func visible_span(cam_pos: Vector2, cam_zoom: float, radius: float) -> fl
 	if c >= 1.0:
 		return 0.0
 	return 2.0 * acos(c)
-
-
-static func band_span(cam_pos: Vector2, cam_zoom: float, r_in: float, r_out: float) -> float:
-	var h := visible_half_extent(cam_zoom) * VIEW_MARGIN
-	var r_near := clampf(sqrt(maxf(cam_pos.length_squared() - h * h, 0.0)), r_in, r_out)
-	return maxf(visible_span(cam_pos, cam_zoom, r_near), maxf(visible_span(cam_pos, cam_zoom, r_in), visible_span(cam_pos, cam_zoom, r_out)))
-
-
-static func band_polygons(r_in: float, r_out: float, mid: float, span: float) -> Array:
-	if span >= TAU:
-		return [annulus_points(r_in, r_out, mid - PI, mid), annulus_points(r_in, r_out, mid, mid + PI)]
-	return [annulus_points(r_in, r_out, mid - span * 0.5, mid + span * 0.5)]
-
-
-func _draw_band(r_in: float, r_out: float, color: Color) -> void:
-	var cam := _camera()
-	var span := TAU if cam == null else band_span(cam.position, cam.zoom.x, r_in, r_out)
-	if span <= 0.0:
-		return
-	var mid: float = 0.0 if cam == null else cam.position.angle()
-	for pts: PackedVector2Array in band_polygons(r_in, r_out, mid, span):
-		draw_colored_polygon(pts, color)
 
 
 func _draw_ring(radius: float, color: Color, width: float) -> void:

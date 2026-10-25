@@ -8,8 +8,17 @@
 [ext_resource type="Script" path="res://scenes/FlightCamera.gd" id="6_camera"]
 [ext_resource type="Script" path="res://scenes/WellView.gd" id="7_well"]
 [ext_resource type="Script" path="res://scenes/FlightVector.gd" id="8_vector"]
+[ext_resource type="Script" path="res://scenes/AtmosphereView.gd" id="9_atmo"]
+
+[ext_resource type="Script" path="res://scenes/GravityHaloView.gd" id="10_halo"]
 
 [node name="Run" type="Node2D"]
+
+[node name="AtmosphereView" type="Node2D" parent="."]
+script = ExtResource("9_atmo")
+
+[node name="GravityHaloView" type="Node2D" parent="."]
+script = ExtResource("10_halo")
 
 [node name="WellView" type="Node2D" parent="."]
 script = ExtResource("7_well")

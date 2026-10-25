@@ -16,13 +16,12 @@ func _shader(path: String) -> void:
 	if shader == null:
 		return
 	assert_eq(shader.get_mode(), Shader.MODE_CANVAS_ITEM)
-	assert_eq(shader.code.strip_edges(), "shader_type canvas_item;")
 
 func test_stub_scenes_and_shaders() -> void:
 	for p in ["res://scenes/Carrier.tscn", "res://scenes/Field.tscn"]:
 		_single_root(p, "Node2D")
 	for p in ["res://ui/HUD.tscn"]:
 		_single_root(p, "Control")
-	_shader("res://shaders/isolines.gdshader")
 	_shader("res://shaders/atmosphere.gdshader")
+	_shader("res://shaders/gravity_halo.gdshader")
 	assert_true(FileAccess.file_exists("res://presets/.gitkeep"))

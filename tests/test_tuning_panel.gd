@@ -5,6 +5,7 @@ const PANEL := preload("res://ui/TuningPanel.tscn")
 var _field: FieldParams
 var _ship: ShipParams
 var _planet: PlanetParams
+var _view: ViewParams
 var _panel: Control
 
 
@@ -15,6 +16,8 @@ func before_each() -> void:
 	Tuning.ship = _ship.duplicate(true)
 	_planet = Tuning.planet
 	Tuning.planet = _planet.duplicate(true)
+	_view = Tuning.view
+	Tuning.view = _view.duplicate(true)
 	_panel = PANEL.instantiate()
 	add_child_autofree(_panel)
 
@@ -23,6 +26,7 @@ func after_each() -> void:
 	Tuning.field = _field
 	Tuning.ship = _ship
 	Tuning.planet = _planet
+	Tuning.view = _view
 
 
 func test_k_slider_changes_accel_on_next_call() -> void:
@@ -49,6 +53,8 @@ func test_slider_set_covers_all_parameters() -> void:
 		expect.append("ship." + p)
 	for p in ["atmosphere_drag", "atmosphere_damage", "density_shape"]:
 		expect.append("planet." + p)
+	for p in ["halo_alpha", "ring_count", "ring_period", "ring_px", "ring_alpha"]:
+		expect.append("view." + p)
 	for id in expect:
 		assert_true(ids.has(id), id)
 	assert_eq(ids.size(), expect.size(), "no extra sliders (no orbit sliders)")
@@ -265,3 +271,35 @@ func test_readout_without_ship_does_not_error() -> void:
 	_panel.visible = true
 	_panel._process(0.0)
 	assert_not_null(_panel.readout)
+
+
+func test_view_defaults_fit_slider_ranges() -> void:
+	for row in _panel.ROWS:
+		if not (row[0] is String and row[0] == "view"):
+			continue
+		var s: HSlider = _panel.sliders["view." + row[1]]
+		var d: float = Tuning.view.get(row[1])
+		assert_between(d, s.min_value, s.max_value, row[1])
+		assert_almost_eq(snappedf(d - s.min_value, s.step), d - s.min_value, 1e-6, row[1] + " on grid")
+
+
+func test_view_sliders_write_into_current_tuning_view() -> void:
+	Tuning.view = Tuning.view.duplicate(true)
+	_panel.sliders["view.halo_alpha"].value = 0.4
+	_panel.sliders["view.ring_count"].value = 7.0
+	_panel.sliders["view.ring_period"].value = 3.5
+	_panel.sliders["view.ring_px"].value = 2.5
+	_panel.sliders["view.ring_alpha"].value = 0.8
+	assert_eq(Tuning.view.halo_alpha, 0.4)
+	assert_eq(Tuning.view.ring_count, 7)
+	assert_true(Tuning.view.ring_count is int)
+	assert_eq(Tuning.view.ring_period, 3.5)
+	assert_eq(Tuning.view.ring_px, 2.5)
+	assert_eq(Tuning.view.ring_alpha, 0.8)
+
+
+func test_sync_sets_view_sliders_without_write_back() -> void:
+	Tuning.view.ring_alpha = 0.12
+	_panel._sync()
+	assert_eq(_panel.sliders["view.ring_alpha"].value, 0.12)
+	assert_eq(Tuning.view.ring_alpha, 0.12)

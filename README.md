@@ -16,8 +16,8 @@ A single-player 2D space mining game where gravity is the main skill: descend in
 перегревом, мягкий тормоз и синхронизация дрейфа (D36), всегда включённое
 короткое предсказание траектории, совпадающее с полётом, панель тюнинга (F1) с
 пресетами гравитации p1–p4.
-**Следующий шаг:** неделя 2 — колодец с ярусами по Φ_eff, атмосфера, шейдер
-изолиний, кадр стиля, генерация ([docs/production/plan.md](docs/production/plan.md)).
+**Следующий шаг:** неделя 2 — колодец с ярусами по Φ_eff, атмосфера, шейдеры
+ореола и атмосферы, кадр стиля, генерация ([docs/production/plan.md](docs/production/plan.md)).
 
 ## Запуск
 
@@ -50,7 +50,7 @@ godot --headless --import && godot --headless -s addons/gut/gut_cmdln.gd -gconfi
 - `autoload/` — `GravityField`, `Tuning`, `Telemetry`
 - `scenes/` — сцены (главная `Run.tscn`)
 - `ui/` — HUD и панель тюнинга
-- `shaders/` — изолинии, атмосфера
+- `shaders/` — ореол гравитации, атмосфера
 - `presets/` — пресеты гравитации `p1`–`p4`
 - `tests/` — GUT-тесты
 - `addons/` — сторонние плагины (GUT)
@@ -78,7 +78,7 @@ godot --headless --import && godot --headless -s addons/gut/gut_cmdln.gd -gconfi
 | [docs/design/onboarding.md](docs/design/onboarding.md) | Первые смены, демо-крючок |
 | **Подача** | |
 | [docs/presentation/positioning.md](docs/presentation/positioning.md) | Позиционирование, тексты Steam, теги, трейлер, цена |
-| [docs/presentation/visual-style.md](docs/presentation/visual-style.md) | Стиль изолиний, палитра, ИИ-иллюстрации |
+| [docs/presentation/visual-style.md](docs/presentation/visual-style.md) | Стиль навигационного прибора, палитра, ИИ-иллюстрации |
 | [docs/presentation/audio.md](docs/presentation/audio.md) | Звук через корпус, музыка по глубине |
 | **Производство** | |
 | [docs/production/scope.md](docs/production/scope.md) | Что входит в прототип, срез, EA и после |

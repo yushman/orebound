@@ -85,3 +85,10 @@ func test_zoom_actions_bound():
 	assert_true(InputMap.has_action("camera_zoom_out"))
 	assert_true(_has_mouse_button("camera_zoom_out", MOUSE_BUTTON_WHEEL_DOWN))
 	assert_true(_has_joy_button("camera_zoom_out", JOY_BUTTON_DPAD_RIGHT))
+
+
+func test_zoom_actions_bound_to_keys():
+	assert_true(_has_key("camera_zoom_in", KEY_EQUAL))
+	assert_true(_has_key("camera_zoom_in", KEY_KP_ADD))
+	assert_true(_has_key("camera_zoom_out", KEY_MINUS))
+	assert_true(_has_key("camera_zoom_out", KEY_KP_SUBTRACT))

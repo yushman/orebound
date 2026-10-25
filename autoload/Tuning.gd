@@ -5,6 +5,7 @@ signal preset_applied
 var field: FieldParams = _default_field()
 var ship: ShipParams = ShipParams.new()
 var planet: PlanetParams = _default_planet()
+var view: ViewParams = ViewParams.new()
 
 
 func apply(preset: TuningPreset) -> void:

@@ -303,3 +303,30 @@ func test_run_scene_contains_flight_vector():
 		return
 	assert_true(fv is Node2D)
 	assert_eq(fv.script.resource_path, "res://scenes/FlightVector.gd")
+
+
+func test_run_has_atmosphere_and_halo_before_well_view():
+	var run = _run()
+	var names: Array = []
+	for c in run.get_children():
+		names.append(str(c.name))
+	assert_eq(names.slice(0, 3), ["AtmosphereView", "GravityHaloView", "WellView"])
+	var atmo = run.get_node_or_null("AtmosphereView")
+	if atmo == null:
+		return
+	assert_eq(atmo.script.resource_path, "res://scenes/AtmosphereView.gd")
+	assert_eq(atmo.material.shader.resource_path, "res://shaders/atmosphere.gdshader")
+	var halo = run.get_node_or_null("GravityHaloView")
+	assert_not_null(halo, "has GravityHaloView")
+	if halo == null:
+		return
+	assert_eq(halo.script.resource_path, "res://scenes/GravityHaloView.gd")
+	assert_eq(halo.material.shader.resource_path, "res://shaders/gravity_halo.gdshader")
+	await get_tree().process_frame
+
+
+func test_isoline_layer_is_gone():
+	var run = _run()
+	assert_null(run.get_node_or_null("IsolineView"))
+	assert_false(ResourceLoader.exists("res://scenes/IsolineView.gd"))
+	assert_false(ResourceLoader.exists("res://shaders/isolines.gdshader"))

@@ -43,7 +43,7 @@ Change: field in the carrier's rotating frame — slice R1 of the rework (1′) 
 
 Scope:
 - Physics moves into the frame rotating with the carrier's angular speed Ω_f (D35): acceleration = gravity + centrifugal + Coriolis; bodies move with relative angular speed (Ω_body − Ω_f); the carrier is stationary in the frame. Honest central gravity g(r) = k·M / (r^p + ε) is unchanged.
-- GravityField: body positions/velocities in the rotating frame (carrier's Ω = Ω_f ⇒ fixed point); new potential_eff(pos) = Φ(pos) − ½·Ω_f²·r² — the single function later reused for tiers, isolines and return margin (D18/D30); the carrier's orbit is its maximum (g_eff = 0 there).
+- GravityField: body positions/velocities in the rotating frame (carrier's Ω = Ω_f ⇒ fixed point); new potential_eff(pos) = Φ(pos) − ½·Ω_f²·r² — the single function later reused for tiers and return margin (D18/D30); the carrier's orbit is its maximum (g_eff = 0 there).
 - ShipFlight.step: centrifugal and Coriolis (velocity-dependent) terms; ShipPrediction reuses the same step, so prediction keeps matching flight bit-identically. Strict 60 Hz step unchanged.
 - Parameters in Tuning resources (read per call, never cached): planet surface radius, atmosphere edge, Ω_f (from the carrier's orbit, not a constant in code). Calibration target for p = 2: the D35 reference numbers (bottom drift = 80); rescaling the presets themselves is R5.
 - Existing controls keep working in the new frame: thrust/boost unchanged; the existing brake still converges to a stable orbit at the current altitude — i.e. to the band-drift velocity of that depth — via relative velocities.
@@ -70,7 +70,7 @@ Scope:
 - Check Vector2 float precision at r up to ~126 500 (prototype-tech "Технические ловушки"); if visible jitter shows up, add a row to docs/production/tech-debt.md instead of redesigning now.
 - Unit checks where the math is pure (camera angle toward the planet center, zoom discretization above ~22×, respawn at the carrier at rest); visual acceptance is a manual playtest — the slice table has no TDD row.
 
-Non-goals: thrust ramp, overheat, soft brake, drift sync (R3); short-line horizon and full-line removal (R4); rescaling presets and the tuning panel (R5); camera autoscale (later, with playtest); isoline and atmosphere shaders, style frame (week 2); atmosphere drag/damage and surface collision (week 2); random moons; ceiling and tow; HUD; git commit.
+Non-goals: thrust ramp, overheat, soft brake, drift sync (R3); short-line horizon and full-line removal (R4); rescaling presets and the tuning panel (R5); camera autoscale (later, with playtest); gravity halo and atmosphere shaders, style frame (week 2); atmosphere drag/damage and surface collision (week 2); random moons; ceiling and tow; HUD; git commit.
 
 Context: CLAUDE.md and module CLAUDE.md files, docs/production/stage1-week1.md, docs/decisions.md D35 (reference numbers table), docs/design/controls.md ("Камера"), docs/design/flight.md, docs/production/prototype-tech.md ("Камера и звук", "Технические ловушки"). Test command is in .slimspec/config.yaml.
 ```
@@ -107,7 +107,7 @@ Scope:
 - ShipPrediction stays a pure static function over the same ShipFlight.step; prediction == flight keeps holding (the existing test stays green).
 - Tech-debt #6 (docs/production/tech-debt.md): measure the short line's cost on the dev machine (Time.get_ticks_usec around ShipPrediction.run at 600–1200 steps, every predict_every ticks); clearly above ~4 ms — raise predict_every or thin the points; update or remove the row once measured.
 
-Non-goals: return-margin arrow and color (week 4); Отрыв scene and its full trajectory (outside the prototype); predicting future input changes (the line replays the current input); isolines; HUD; git commit.
+Non-goals: return-margin arrow and color (week 4); Отрыв scene and its full trajectory (outside the prototype); predicting future input changes (the line replays the current input); gravity halo; HUD; git commit.
 
 Context: CLAUDE.md and module CLAUDE.md files, docs/production/stage1-week1.md, docs/production/tech-debt.md (#6), docs/production/prototype-tech.md ("Предсказание траектории"), docs/design/controls.md ("Траектория на экране"), docs/design/flight.md. Test command is in .slimspec/config.yaml.
 ```
@@ -180,7 +180,7 @@ Scope:
 - scenes/Body.tscn: planet/moon on a fixed orbit, position = formula of t; bodies register with GravityField; a planet and a couple of moons placed in scenes/Run.tscn.
 - Field/body parameters live in a Resource held by autoload Tuning (panel and .tres presets come in S5).
 
-Non-goals: ship, trajectory prediction, brake, tuning panel UI, tiers by potential, atmosphere and its pull ceiling, isolines, HUD, git commit.
+Non-goals: ship, trajectory prediction, brake, tuning panel UI, tiers by potential, atmosphere and its pull ceiling, gravity halo, HUD, git commit.
 
 Context: CLAUDE.md, autoload/CLAUDE.md, scenes/CLAUDE.md, tests/CLAUDE.md, docs/production/stage1-week1.md, docs/production/prototype-tech.md, docs/design/flight.md ("Модель гравитации"), docs/design/gravity-well.md, docs/decisions.md. Test command is in .slimspec/config.yaml.
 ```

@@ -1,7 +1,7 @@
 # Этап 1, неделя 2 — декомпозиция
 
-Неделя 2 из [plan.md](plan.md): колодец с ярусами по Φ_eff, атмосфера, шейдер
-изолиний, кадр стиля, генерация (этапы 1–5 с простыми кольцами, угловые
+Неделя 2 из [plan.md](plan.md): колодец с ярусами по Φ_eff, атмосфера, шейдеры
+ореола гравитации и атмосферы, кадр стиля, генерация (этапы 1–5 с простыми кольцами, угловые
 чанки, плотность по высоте, случайные луны + геометрическая проверка —
 [well-generator.md](well-generator.md)); HUD: шкала колодца. Результат недели —
 **колодец читается, кадр стиля собран**. Техническая основа —
@@ -17,7 +17,7 @@ W1 Ярусы и константы планеты
  │
  ├──────────────┬──────────────┐
  ▼              ▼              ▼
-W2 Атмосфера   W3 Изолинии    W4 Генератор: луны, прибытие, проверка
+W2 Атмосфера   W3 Ореол/атм.  W4 Генератор: луны, прибытие, проверка
                                │
                                ▼
                               W5 Кольцо и поля, угловые чанки
@@ -56,9 +56,9 @@ W7 Кадр стиля
 
 | # | Срез | Суть | Проверка (TDD) |
 |---|---|---|---|
-| W1 | Ярусы и константы планеты | `PlanetParams` «Обода»; радиусы границ ярусов из долей перепада Φ_eff (этап 1 генератора); граница буксира = низ среднего яруса; потолок = матка + 5 000; особые окружности в `WellView` | ΔΦ_eff между соседними границами = доле × полный перепад; границы упорядочены от кромки к матке; потолок и буксир на своих местах; для всех p пресетов |
+| W1 | Ярусы и константы планеты | `PlanetParams` «Обода»; радиусы границ ярусов из долей перепада Φ_eff (этап 1 генератора); граница буксира = низ среднего яруса; потолок = матка + 5 000; особые окружности в `WellView`; цветовая подсветка ярусов снята D37 | ΔΦ_eff между соседними границами = доле × полный перепад; границы упорядочены от кромки к матке; потолок и буксир на своих местах; для всех p пресетов |
 | W2 | Атмосфера | плотность от кромки к поверхности; торможение против скорости во вращающейся системе и тикающий урон в `step`; корпус в `ShipState`; касание поверхности и корпус 0 → респаун | над кромкой эффекта нет; ниже — торможение растёт к поверхности; спираль: без тяги орбита у дна в атмосфере снижается; урон тикает только в атмосфере; предсказание == полёт с атмосферой |
-| W3 | Изолинии и атмосфера в шейдерах | `canvas_item`-шейдер Φ_eff по uniform-массиву тел (до 16), `fwidth`, плотность линий от масштаба, приглушённо и ярче у корабля; радиальный градиент атмосферы | Φ_eff в шейдере совпадает с `GravityField.potential_eff` (сверка формулы на CPU-копии); шаг уровней от масштаба; остальное — плейтест |
+| W3 | Ореол гравитации и атмосфера в шейдерах | сделано (D37): `canvas_item`-шейдер `gravity_halo` — ореол и сжимающиеся к луне кольца в зоне влияния каждой луны (uniform-массив до 16, позиции относительно камеры считаются на CPU); свечение атмосферы по плотности W2; зум клавиатурой (`+`/`−`) | CPU-зеркало плотности атмосферы совпадает с `ShipFlight.atmosphere_density`; чистая `ring_phase` и `build_uniforms` под тестами; остальное — плейтест |
 | W4 | Генератор: луны, прибытие, проверка | чистая функция → картина вылета: луны «Обода» по D35 (крупные 1 000–2 000 чуть ниже матки, малые 300–700 низко), фазы; геометрическая проверка; повтор с новым зерном, затем запасное; зерно на панели | одно зерно → одна картина; луны в диапазонах; проверка отбраковывает луну у матки и наложения; после N провалов — запасное зерно |
 | W5 | Кольцо и поля, угловые чанки | кольцо в своём ярусе (`MultiMesh`, без щелей); поля астероидов: число по плотности высоты, Poisson disk, состав по ярусу (цветом); жёсткое вращение полосы; ленивые угловые чанки вокруг корабля; астероид — ориентир синхронизации и столкновение | положение объекта — формула от t и полосы; чанк — чистая функция (зерно, полоса, номер чанка); плотность падает к матке и выше неё; Shift у астероида гасит относительную скорость; кольцо не пересекает орбиты лун |
 | W6 | Шкала колодца | вертикальная шкала сбоку: сегменты по долям перепада, матка сверху, кромка атмосферы снизу (красная), граница буксира, маркер корабля по Φ_eff | положение маркера = доля перепада Φ_eff от кромки; выше матки — над шкалой до потолка |
@@ -75,11 +75,11 @@ Change: well tiers by Φ_eff and planet constants — slice W1 of docs/productio
 Scope:
 - PlanetParams Resource held by Tuning (read per call, never cached), values for «Обод»: tier shares of the full Φ_eff swing 25/40/25/10 (top/middle/lower/bottom, from the carrier down to the atmosphere edge), atmosphere edge and surface radius, ceiling offset +5 000 over the carrier, moon count/size ranges and ring parameters as data for W4/W5 (unused here).
 - Generator stage 1 as a pure function: tier boundary radii from the shares via GravityField.potential_eff (root-find r for a target Φ_eff on the planet's radial profile); tow boundary = bottom of the middle tier; ceiling = carrier orbit + 5 000.
-- WellView draws the special boundaries as their own circles (tow boundary, atmosphere edge, ceiling), distinct from regular orbit arcs; tiers tinted as colour placeholders (scope.md: 4 tiers with colour stubs). Constant screen stroke sizes as today.
+- WellView draws the special boundaries as their own circles (tow boundary, atmosphere edge, ceiling), distinct from regular orbit arcs; tier tint removed later by D37 (no tier colours in the world). Constant screen stroke sizes as today.
 - Works for every preset p (radii differ, shares hold).
 - TDD: Φ_eff difference between adjacent boundaries = share × full swing (tolerance); boundaries ordered from the atmosphere edge up to the carrier; tow boundary and ceiling where specified; for each preset p1–p4.
 
-Non-goals: atmosphere physics (W2); isoline shader (W3); generator stages 2–5 (W4, W5); well scale HUD (W6); ceiling alarm and tow (week 4); other planets; git commit.
+Non-goals: atmosphere physics (W2); halo and atmosphere shaders (W3); generator stages 2–5 (W4, W5); well scale HUD (W6); ceiling alarm and tow (week 4); other planets; git commit.
 
 Context: CLAUDE.md and module CLAUDE.md files, docs/production/stage1-week2.md, docs/production/well-generator.md ("Этапы генерации"), docs/design/gravity-well.md ("Ярусы"), docs/design/planets.md, docs/decisions.md D30/D35, docs/production/prototype-tech.md. Test command is in .slimspec/config.yaml.
 ```
@@ -107,19 +107,21 @@ Context: CLAUDE.md and module CLAUDE.md files, docs/production/stage1-week2.md, 
 ```
 /slimspec explore
 
-Change: isoline and atmosphere shaders — slice W3 of docs/production/stage1-week2.md.
+Change: gravity halo and atmosphere shaders — slice W3 of docs/production/stage1-week2.md (D37).
 
-Scope:
-- Isolines: canvas_item shader over the visible world (shaders/isolines.gdshader, today a stub) computing Φ_eff from a uniform array of bodies (up to ~16: positions, k·M, p, influence, fade) plus the frame term −½Ω_f²r²; the same formula as GravityField.potential_eff — one source of truth, uniforms refreshed from Tuning/GravityField every frame.
-- Lines via fwidth — even thickness at any zoom; level spacing depends on camera zoom (anti-moire when zoomed out); dimmed by default, brighter near the ship. Planet levels are arcs r = const.
-- Special boundaries (tow, atmosphere edge, ceiling) stay separate circles from W1 — not isolines.
-- Atmosphere: radial gradient glow (shaders/atmosphere.gdshader) from the surface to the edge; heat shimmer optional if trivial.
-- Float32: world coordinates ~1e5 in the shader — check banding/jitter, compute relative to the camera/planet if needed; note tech-debt #11.
-- TDD where pure: a CPU mirror of the shader's Φ_eff equals GravityField.potential_eff at sample points; zoom → level spacing function. Visual acceptance — rendered frames (godot --write-movie) and manual playtest.
+Built:
+- Gravity halo: canvas_item shader (shaders/gravity_halo.gdshader) around each moon with influence radius: halo fading to the edge of the influence zone plus rings contracting toward the moon with acceleration (phase ∝ r^1.5), thickness via fwidth. Planet is shown by tiers and atmosphere, not rings. Uniforms are camera-relative (CPU, double), up to ~16 moons.
+- Φ_eff stays the single potential for tiers, return margin and economy (D35) — it is no longer drawn.
+- Special boundaries (tow, atmosphere edge, ceiling) stay separate circles from W1.
+- Atmosphere: orange glow (shaders/atmosphere.gdshader) with alpha from the W2 density; CPU mirror equals ShipFlight.atmosphere_density.
+- Keyboard zoom: camera_zoom_in/out on =/+ and -/numpad.
+- Float32: no world position in the shader (tech-debt #11).
+- Tunables on Tuning.view (ViewParams): halo_alpha, ring_count, ring_period, ring_px, ring_alpha.
+- TDD where pure: ring_phase, build_uniforms, atmosphere density mirror. Visual acceptance — manual playtest.
 
 Non-goals: scanner pulse brightening (slice); ore heat map overlay (debug, later); style frame palette pass (W7); performance tuning beyond a sanity check; git commit.
 
-Context: CLAUDE.md and module CLAUDE.md files, docs/production/stage1-week2.md, docs/production/prototype-tech.md ("Изолинии", "Атмосфера"), docs/presentation/visual-style.md, docs/decisions.md D35, docs/production/tech-debt.md. Test command is in .slimspec/config.yaml.
+Context: CLAUDE.md and module CLAUDE.md files, docs/production/stage1-week2.md, docs/production/prototype-tech.md ("Ореол гравитации", "Атмосфера"), docs/presentation/visual-style.md, docs/decisions.md D35, docs/production/tech-debt.md. Test command is in .slimspec/config.yaml.
 ```
 
 ### W4
@@ -184,8 +186,8 @@ Context: CLAUDE.md and module CLAUDE.md files, docs/production/stage1-week2.md, 
 Change: style frame — slice W7 of docs/production/stage1-week2.md.
 
 Scope:
-- One style frame in the engine (visual-style.md "Первый шаг"): well with isolines, planet with atmosphere, ring, ship with cargo, climb trajectory.
-- Palette of 5–7 colours bound to meaning (ice cold blue, ore amber→bright, atmosphere/danger red-orange, isolines/UI muted green or white, carrier/safety warm yellow), «Обод» accent.
+- One style frame in the engine (visual-style.md "Первый шаг"): well with gravity halo and rings, planet with atmosphere, ring, ship with cargo, climb trajectory.
+- Palette of 5–7 colours bound to meaning (ice cold blue, ore amber→bright, atmosphere/danger red-orange, halo/UI muted green or white, carrier/safety warm yellow), «Обод» accent.
 - Bodies as flat discs with a terminator (light from the star on one side); ship silhouette of a few polygons with engine flame; nozzle glow from heat (D36 — the overheat readout without a HUD bar); cargo containers on the hull as a placeholder (real hold is week 3); ring and fields in the palette.
 - Visual acceptance: rendered frames (godot --write-movie) + manual playtest; screenshot saved for the mood board.
 

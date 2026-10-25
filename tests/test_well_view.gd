@@ -147,24 +147,6 @@ func test_boundary_style_distinct_from_orbit_styles():
 		assert_ne(st["color"], atm["color"])
 
 
-func test_annulus_points_outer_then_reversed_inner():
-	var W = load("res://scenes/WellView.gd")
-	var r_in := 100000.0
-	var r_out := 110000.0
-	var pts: PackedVector2Array = W.annulus_points(r_in, r_out, 0.0, 0.5)
-	var n: int = W._segments(r_out, 0.5)
-	var m: int = W._segments(r_in, 0.5)
-	assert_eq(pts.size(), (n + 1) + (m + 1))
-	assert_almost_eq(pts[0], Vector2(r_out, 0.0), Vector2(1e-3, 1e-3))
-	assert_almost_eq(pts[n], Vector2.from_angle(0.5) * r_out, Vector2(1e-3, 1e-3))
-	assert_almost_eq(pts[n + 1], Vector2.from_angle(0.5) * r_in, Vector2(1e-3, 1e-3))
-	assert_almost_eq(pts[pts.size() - 1], Vector2(r_in, 0.0), Vector2(1e-3, 1e-3))
-	for p in pts.slice(0, n + 1):
-		assert_almost_eq(p.length(), r_out, 1e-2)
-	for p in pts.slice(n + 1):
-		assert_almost_eq(p.length(), r_in, 1e-2)
-
-
 func test_visible_span_covers_view_for_any_radius():
 	var WellViewScript = load("res://scenes/WellView.gd")
 	var cam_pos := Vector2(121500.0, 0.0)
@@ -184,19 +166,11 @@ func test_visible_span_covers_view_for_any_radius():
 	assert_eq(WellViewScript.visible_span(cam_pos, 1.0, 50000.0), 0.0)
 
 
-func test_tier_bands_follow_generator_boundaries():
+func test_well_view_no_longer_fills_tiers():
 	var W = load("res://scenes/WellView.gd")
-	var b: Array = WellGenerator.tiers()["boundaries"]
-	var bands: Array = W.tier_bands()
-	assert_eq(bands.size(), 4)
-	if bands.size() != 4:
-		return
-	var colors := []
-	for i in 4:
-		assert_eq(bands[i]["r_in"], b[i])
-		assert_eq(bands[i]["r_out"], b[i + 1])
-		assert_false(colors.has(bands[i]["color"]))
-		colors.append(bands[i]["color"])
+	for m in ["tier_bands", "annulus_points", "band_span", "band_polygons", "_draw_band"]:
+		assert_false(W.has_method(m), m)
+	assert_false("TIER_COLORS" in W.get_script_constant_map())
 
 
 func test_special_rings_at_generator_radii():
@@ -214,18 +188,8 @@ func test_special_rings_at_generator_radii():
 	assert_eq(by_kind.get("ceiling"), t["ceiling"])
 
 
-func test_band_span_covers_camera_inside_band():
+func test_atmosphere_stroke_uses_glow_hue():
 	var W = load("res://scenes/WellView.gd")
-	var cam_pos := Vector2(115000.0, 0.0)
-	var span: float = W.band_span(cam_pos, 1.0, 109000.0, 121500.0)
-	assert_gt(span, 0.0)
-	for r in [109000.0, 112000.0, 115000.0, 118000.0, 121500.0]:
-		assert_gte(span, W.visible_span(cam_pos, 1.0, r), "r=%s" % r)
-
-
-func test_band_polygons_full_circle_triangulates():
-	var W = load("res://scenes/WellView.gd")
-	var polys: Array = W.band_polygons(109000.0, 121500.0, 0.0, TAU)
-	assert_eq(polys.size(), 2)
-	for p in polys:
-		assert_false(Geometry2D.triangulate_polygon(p).is_empty())
+	var A = load("res://scenes/AtmosphereView.gd")
+	var c: Color = W.ATMOSPHERE_COLOR
+	assert_eq(Color(c.r, c.g, c.b), Color(A.GLOW_COLOR.r, A.GLOW_COLOR.g, A.GLOW_COLOR.b))

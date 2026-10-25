@@ -33,6 +33,11 @@ const ROWS := [
 	["planet", "atmosphere_drag", 0.0, 2.0, 0.005],
 	["planet", "atmosphere_damage", 0.0, 100.0, 0.1],
 	["planet", "density_shape", 0.5, 5.0, 0.05],
+	["view", "halo_alpha", 0.0, 1.0, 0.01],
+	["view", "ring_count", 1.0, 12.0, 1.0],
+	["view", "ring_period", 0.2, 10.0, 0.1],
+	["view", "ring_px", 0.5, 5.0, 0.05],
+	["view", "ring_alpha", 0.0, 1.0, 0.01],
 ]
 
 var sliders := {}
@@ -137,6 +142,8 @@ func _holder(target: Variant) -> Object:
 		return Tuning.field.bodies[target]
 	if target == "planet":
 		return Tuning.planet
+	if target == "view":
+		return Tuning.view
 	return Tuning.field if target == "field" else Tuning.ship
 
 
