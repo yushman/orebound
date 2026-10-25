@@ -4,6 +4,7 @@ signal preset_applied
 
 var field: FieldParams = _default_field()
 var ship: ShipParams = ShipParams.new()
+var planet: PlanetParams = _default_planet()
 
 
 func apply(preset: TuningPreset) -> void:
@@ -39,3 +40,7 @@ func _default_field() -> FieldParams:
 	planet.mass = pow(0.00255, 2.0) * pow(121500.0, 3.0) / f.k
 	f.bodies = [planet]
 	return f
+
+
+func _default_planet() -> PlanetParams:
+	return PlanetParams.new()

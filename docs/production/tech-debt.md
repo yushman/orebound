@@ -21,3 +21,10 @@
 | # | Что | Где | Как чинить |
 |---|---|---|---|
 | 11 | `Vector2` в float32: на r ≈ 121500 ulp ≈ 0,0078, поэтому радиальное движение медленнее ~0,25 ед/с за тик округляется в ноль (позиция не меняется) | `scenes/ShipFlight.gd` (`step`), `ShipState.pos` | сдвиг начала координат на матку или сборка Godot с двойной точностью; сейчас не трогаем |
+
+## Колодец (W1)
+
+| # | Что | Где | Как чинить |
+|---|---|---|---|
+| 12 | `WellGenerator.tiers()` вызывается дважды за кадр (через `tier_bands()` и `special_rings()`) — 6 бисекций по `planet_potential_eff` на каждую перерисовку | `scenes/WellView.gd` (`_draw`) | звать `tiers()` один раз в `_draw` и передавать словарь в `tier_bands(t)` / `special_rings(t)`; поправить тесты статиков |
+| 13 | В `band_span` вызовы `visible_span` на `r_in` и `r_out` избыточны: на [r_in, r_out] максимум дуги всегда в `r_near` | `scenes/WellView.gd` (`band_span`) | вернуть `visible_span(cam_pos, cam_zoom, r_near)`; `test_band_span_covers_camera_inside_band` и `test_visible_span_covers_view_for_any_radius` должны остаться зелёными |

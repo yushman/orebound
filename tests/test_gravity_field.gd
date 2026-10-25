@@ -307,3 +307,35 @@ func test_jacobi_integral_conserved_in_free_flight():
 		max_drift = maxf(max_drift, absf(j - j0))
 	assert_gt(absf(band), 1.0)
 	assert_lt(max_drift, 0.01 * scale)
+
+
+func _load_preset_field(i: int) -> FieldParams:
+	return (Tuning.load_preset("res://presets/p%d.tres" % i) as TuningPreset).field.duplicate(true)
+
+
+func test_planet_potential_eff_ignores_moons_and_matches_planet_only_field():
+	var full := _load_preset_field(1)
+	var only := full.duplicate(true)
+	only.bodies = [only.bodies[0]] as Array[BodyParams]
+	for r in [101500.0, 110000.0, 121500.0]:
+		Tuning.field = full
+		var with_moons: float = GravityField.planet_potential_eff(r)
+		Tuning.field = only
+		var planet_only: float = GravityField.planet_potential_eff(r)
+		assert_eq(with_moons, planet_only)
+		assert_almost_eq(planet_only, GravityField.potential_eff(Vector2(r, 0), 0.0), absf(planet_only) * 1e-7)
+
+
+func test_planet_potential_eff_strictly_increasing_on_tier_span():
+	var fields: Array = [_saved_field]
+	for i in range(1, 5):
+		fields.append(_load_preset_field(i))
+	for f in fields:
+		Tuning.field = f
+		var prev := -INF
+		var n := 200
+		for j in n + 1:
+			var r: float = lerpf(f.atmosphere_edge, f.carrier_orbit_radius, float(j) / n)
+			var v: float = GravityField.planet_potential_eff(r)
+			assert_gt(v, prev)
+			prev = v

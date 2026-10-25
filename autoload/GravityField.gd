@@ -56,6 +56,13 @@ func potential_eff(pos: Vector2, t: float) -> float:
 	return potential(pos, t) - 0.5 * om * om * pos.length_squared()
 
 
+func planet_potential_eff(r: float) -> float:
+	var f: FieldParams = Tuning.field
+	var b: BodyParams = f.bodies[0]
+	var om := frame_omega()
+	return _phi_body(b, f.k * b.mass, f.fade_width, r) - 0.5 * om * om * r * r
+
+
 func _phi_raw(km: float, p: float, r: float) -> float:
 	if absf(p - 1.0) < 1e-4:
 		return km * log(r)
