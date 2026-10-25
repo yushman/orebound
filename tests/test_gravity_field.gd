@@ -291,6 +291,8 @@ func test_d35_calibration_numbers():
 
 
 func test_jacobi_integral_conserved_in_free_flight():
+	var saved_drag: float = Tuning.planet.atmosphere_drag
+	Tuning.planet.atmosphere_drag = 0.0
 	Tuning.field = _field([_static_body(1000.0, 1.0)], 1000.0, 1.0)
 	var r := 450.0
 	var band: float = GravityField.circular_speed(0, Vector2(r, 0), 0.0) - GravityField.frame_omega() * r
@@ -305,6 +307,7 @@ func test_jacobi_integral_conserved_in_free_flight():
 		s = ShipFlight.step(s, ShipInput.new(), i * dt, dt)
 		var j := 0.5 * s.vel.length_squared() + GravityField.potential_eff(s.pos, 0.0)
 		max_drift = maxf(max_drift, absf(j - j0))
+	Tuning.planet.atmosphere_drag = saved_drag
 	assert_gt(absf(band), 1.0)
 	assert_lt(max_drift, 0.01 * scale)
 

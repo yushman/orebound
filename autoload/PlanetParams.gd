@@ -12,3 +12,6 @@ extends Resource
 @export var ring_tier: int = 2
 @export var ring_width: float = 1500.0
 @export var ring_density: float = 0.5
+@export var atmosphere_drag: float = 0.5
+@export var atmosphere_damage: float = 5.0
+@export var density_shape: float = 2.0

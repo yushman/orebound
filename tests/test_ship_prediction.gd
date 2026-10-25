@@ -165,3 +165,19 @@ func test_prediction_line_ignores_held_turn() -> void:
 	no_turn.turn = 0.0
 	assert_eq(line.points, ShipPrediction.run(ship.state, no_turn,
 			GravityField.tick, Tuning.ship.predict_short_steps))
+
+
+func test_prediction_stops_at_the_first_crashed_state_and_matches_flight_up_to_it() -> void:
+	var f := Tuning.field
+	var start := ShipState.new()
+	start.pos = Vector2(f.planet_surface_radius + 100.0, 0.0)
+	start.vel = Vector2(-50.0, 0.0)
+	var steps := 600
+	var pts := ShipPrediction.run(start, ShipInput.new(), 10, steps)
+	assert_gt(pts.size(), 0)
+	assert_lt(pts.size(), steps)
+	var s := start.copy()
+	for i in pts.size():
+		s = ShipFlight.step(s, ShipInput.new(), GravityField.time_at(10 + i + 1), GravityField.DT)
+		assert_eq(pts[i], s.pos, "point %d" % i)
+		assert_eq(s.crashed, i == pts.size() - 1, "crashed at %d" % i)

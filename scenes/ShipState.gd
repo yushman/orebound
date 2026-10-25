@@ -11,6 +11,8 @@ var fuel_soft_brake: float
 var hold_time: float
 var heat: float
 var fuel_sync: float
+var hull: float = Tuning.ship.hull_max
+var crashed: bool
 
 
 func copy() -> ShipState:
@@ -25,4 +27,6 @@ func copy() -> ShipState:
 	c.hold_time = hold_time
 	c.heat = heat
 	c.fuel_sync = fuel_sync
+	c.hull = hull
+	c.crashed = crashed
 	return c

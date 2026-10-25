@@ -16,6 +16,7 @@ func respawn() -> void:
 	state.pos = pos
 	state.vel = Vector2.ZERO
 	state.rot = FlightCamera.rotation_for(pos)
+	state.hull = Tuning.ship.hull_max
 	position = pos
 	rotation = state.rot
 
@@ -23,6 +24,10 @@ func respawn() -> void:
 func _physics_process(_delta: float) -> void:
 	input = _read_input()
 	state = ShipFlight.step(state, input, GravityField.time(), GravityField.DT)
+	if state.crashed:
+		Telemetry.crashes += 1
+		respawn()
+		return
 	move_and_collide(state.pos - position)
 	rotation = state.rot
 

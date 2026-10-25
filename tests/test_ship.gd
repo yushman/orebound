@@ -183,3 +183,35 @@ func test_stick_heading_is_screen_relative() -> void:
 	var top := Vector2(0, -50.0)
 	var up_top := Vector2.UP.rotated(ShipInput.screen_heading(Vector2(0, -1), top))
 	assert_almost_eq(up_top, Vector2(0, -1), Vector2(1e-5, 1e-5))
+
+
+func test_crashed_step_respawns_at_carrier_with_full_hull_and_counts_a_crash() -> void:
+	var saved_crashes: int = Telemetry.crashes
+	Telemetry.crashes = 0
+	var ship = _make()
+	ship.state.pos = Vector2(Tuning.field.planet_surface_radius - 10.0, 0.0)
+	ship.state.hull = 12.0
+	ship._physics_process(GravityField.DT)
+	assert_eq(Telemetry.crashes, 1)
+	assert_eq(ship.state.pos, Vector2(Tuning.field.carrier_orbit_radius, 0.0))
+	assert_eq(ship.state.vel, Vector2.ZERO)
+	assert_eq(ship.state.hull, Tuning.ship.hull_max)
+	assert_false(ship.state.crashed)
+	ship._physics_process(GravityField.DT)
+	assert_eq(Telemetry.crashes, 1)
+	Telemetry.crashes = saved_crashes
+
+
+func test_preset_change_restores_hull_without_touching_the_crash_counter() -> void:
+	var saved_crashes: int = Telemetry.crashes
+	var saved_field = Tuning.field
+	var saved_ship = Tuning.ship
+	Telemetry.crashes = 3
+	var ship = _make()
+	ship.state.hull = 10.0
+	Tuning.apply(Tuning.load_preset("res://presets/p1.tres"))
+	assert_eq(ship.state.hull, Tuning.ship.hull_max)
+	assert_eq(Telemetry.crashes, 3)
+	Telemetry.crashes = saved_crashes
+	Tuning.field = saved_field
+	Tuning.ship = saved_ship

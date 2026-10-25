@@ -4,16 +4,24 @@ const DT := 1.0 / 60.0
 
 var _saved_field
 var _saved_sync_radius := 0.0
+var _saved_drag := 0.0
+var _saved_damage := 0.0
 
 
 func before_each():
 	_saved_field = Tuning.field
 	_saved_sync_radius = Tuning.ship.sync_radius
+	_saved_drag = Tuning.planet.atmosphere_drag
+	_saved_damage = Tuning.planet.atmosphere_damage
+	Tuning.planet.atmosphere_drag = 0.0
+	Tuning.planet.atmosphere_damage = 0.0
 
 
 func after_each():
 	Tuning.field = _saved_field
 	Tuning.ship.sync_radius = _saved_sync_radius
+	Tuning.planet.atmosphere_drag = _saved_drag
+	Tuning.planet.atmosphere_damage = _saved_damage
 
 
 func _state(pos := Vector2(600, 0), vel := Vector2.ZERO, rot := 0.0) -> ShipState:
@@ -28,7 +36,7 @@ func _same(a: ShipState, b: ShipState) -> bool:
 	return a.pos == b.pos and a.vel == b.vel and a.rot == b.rot and a.ang_vel == b.ang_vel \
 		and a.fuel_engine == b.fuel_engine and a.fuel_boost == b.fuel_boost \
 		and a.fuel_soft_brake == b.fuel_soft_brake and a.fuel_sync == b.fuel_sync \
-		and a.hold_time == b.hold_time and a.heat == b.heat
+		and a.hold_time == b.hold_time and a.heat == b.heat and a.hull == b.hull and a.crashed == b.crashed
 
 
 func test_thrust_accelerates_along_the_nose() -> void:
@@ -643,3 +651,105 @@ func test_sync_fallback_band_drift_below_carrier_from_both_directions() -> void:
 func test_sync_fallback_band_drift_above_carrier_from_both_directions() -> void:
 	_check_band_drift_sync(125000.0, 13.3)
 	_check_band_drift_sync(125000.0, -13.3)
+
+
+func test_atmosphere_density_zero_at_edge_one_at_surface_and_rises_toward_surface() -> void:
+	var f := Tuning.field
+	var saved_shape: float = Tuning.planet.density_shape
+	var surface: float = f.planet_surface_radius
+	var edge: float = f.atmosphere_edge
+	Tuning.planet.density_shape = 2.0
+	assert_eq(ShipFlight.atmosphere_density(Vector2(edge, 0)), 0.0)
+	assert_eq(ShipFlight.atmosphere_density(Vector2(0, edge + 5000.0)), 0.0)
+	assert_eq(ShipFlight.atmosphere_density(Vector2(surface, 0)), 1.0)
+	assert_eq(ShipFlight.atmosphere_density(Vector2(surface - 10.0, 0)), 1.0)
+	var mid := Vector2(0, 0.5 * (surface + edge))
+	assert_almost_eq(ShipFlight.atmosphere_density(mid), 0.25, 1e-3)
+	var upper := ShipFlight.atmosphere_density(Vector2(surface + 0.75 * (edge - surface), 0))
+	var lower := ShipFlight.atmosphere_density(Vector2(surface + 0.25 * (edge - surface), 0))
+	assert_gt(upper, 0.0)
+	assert_gt(lower, upper)
+	Tuning.planet.density_shape = 1.0
+	assert_almost_eq(ShipFlight.atmosphere_density(mid), 0.5, 1e-3)
+	Tuning.planet.density_shape = saved_shape
+
+
+func _with_drag(drag: float) -> void:
+	Tuning.planet.atmosphere_drag = drag
+
+
+func test_atmospheric_drag_scales_velocity_inside_and_is_absent_above_the_edge() -> void:
+	var saved_drag := _saved_drag
+	var saved_dmg := _saved_damage
+	Tuning.planet.atmosphere_damage = 0.0
+	var f := Tuning.field
+	var inside := Vector2(0.5 * (f.planet_surface_radius + f.atmosphere_edge), 0)
+	var above := Vector2(f.atmosphere_edge + 2000.0, 0)
+	var vel := Vector2(0, 100)
+	_with_drag(2.0)
+	var rho := ShipFlight.atmosphere_density(inside)
+	var drag_in := ShipFlight.step(_state(inside, vel), ShipInput.new(), 1.0, DT)
+	var drag_above := ShipFlight.step(_state(above, vel), ShipInput.new(), 1.0, DT)
+	_with_drag(0.0)
+	var free_in := ShipFlight.step(_state(inside, vel), ShipInput.new(), 1.0, DT)
+	var free_above := ShipFlight.step(_state(above, vel), ShipInput.new(), 1.0, DT)
+	_with_drag(saved_drag)
+	Tuning.planet.atmosphere_damage = saved_dmg
+	var expected := vel * (exp(-2.0 * rho * DT) - 1.0)
+	assert_almost_eq((drag_in.vel - free_in.vel).y, expected.y, 1e-3)
+	assert_lt(drag_in.vel.length(), free_in.vel.length())
+	assert_true(_same(drag_above, free_above))
+
+
+func test_unforced_band_drift_below_the_edge_loses_altitude_in_the_atmosphere() -> void:
+	var f := FieldParams.new()
+	f.k = 1000.0
+	f.eps = 1.0
+	f.planet_surface_radius = 100000.0
+	f.atmosphere_edge = 101500.0
+	f.carrier_orbit_radius = 121500.0
+	var planet := BodyParams.new()
+	planet.mass = pow(121500.0, 3.0) * 0.00255 * 0.00255 / f.k
+	planet.p = 2.0
+	var bodies: Array[BodyParams] = [planet]
+	f.bodies = bodies
+	Tuning.field = f
+	var saved_dmg := _saved_damage
+	Tuning.planet.atmosphere_damage = 0.0
+	var r := 101250.0
+	var band: float = GravityField.circular_speed(0, Vector2(r, 0), 0.0) - GravityField.frame_omega() * r
+	var saved_drag := _saved_drag
+	var final_r := []
+	for drag in [0.0, saved_drag]:
+		_with_drag(drag)
+		var s := _state(Vector2(r, 0), Vector2(0, band))
+		for i in 900:
+			s = ShipFlight.step(s, ShipInput.new(), i * DT, DT)
+		final_r.append(s.pos.length())
+	_with_drag(saved_drag)
+	Tuning.planet.atmosphere_damage = saved_dmg
+	assert_almost_eq(final_r[0], r, 0.1)
+	assert_lt(final_r[1], r - 2.0)
+
+
+func test_hull_ticks_only_inside_the_atmosphere_and_crash_on_surface_or_zero_hull() -> void:
+	Tuning.planet.atmosphere_damage = 5.0
+	var f := Tuning.field
+	var inside := Vector2(0.5 * (f.planet_surface_radius + f.atmosphere_edge), 0)
+	var above := Vector2(f.atmosphere_edge + 2000.0, 0)
+	var rho := ShipFlight.atmosphere_density(inside)
+	var hit := ShipFlight.step(_state(inside), ShipInput.new(), 1.0, DT)
+	assert_almost_eq(hit.hull, Tuning.ship.hull_max - 5.0 * rho * DT, 1e-4)
+	assert_false(hit.crashed)
+	var free := ShipFlight.step(_state(above), ShipInput.new(), 1.0, DT)
+	assert_eq(free.hull, Tuning.ship.hull_max)
+	assert_false(free.crashed)
+	var weak := _state(inside)
+	weak.hull = 0.001
+	var dead := ShipFlight.step(weak, ShipInput.new(), 1.0, DT)
+	assert_eq(dead.hull, 0.0)
+	assert_true(dead.crashed)
+	var touch := ShipFlight.step(_state(Vector2(f.planet_surface_radius + 0.001, 0)), ShipInput.new(), 1.0, DT)
+	assert_true(touch.crashed)
+	var rising := _state(Vector2(f.planet_surface_radius + 1.0, 0), Vector2(0, 0))
+	assert_false(ShipFlight.step(rising, ShipInput.new(), 1.0, DT).crashed)

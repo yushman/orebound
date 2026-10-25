@@ -23,6 +23,12 @@ static func sync_reference(pos: Vector2, t: float) -> Dictionary:
 	return {"valid": index >= 0 or is_carrier, "index": index, "is_carrier": is_carrier}
 
 
+static func atmosphere_density(pos: Vector2) -> float:
+	var f: FieldParams = Tuning.field
+	var depth := (f.atmosphere_edge - pos.length()) / (f.atmosphere_edge - f.planet_surface_radius)
+	return pow(clampf(depth, 0.0, 1.0), Tuning.planet.density_shape)
+
+
 static func step(state: ShipState, input: ShipInput, t: float, dt: float) -> ShipState:
 	var p: ShipParams = Tuning.ship
 	var s := state.copy()
@@ -71,8 +77,11 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float) -> Shi
 	if not engine:
 		s.heat -= p.heat_cooldown * dt
 	s.heat = clampf(s.heat, 0.0, 1.0)
+	s.vel *= exp(-Tuning.planet.atmosphere_drag * atmosphere_density(s.pos) * dt)
 	s.vel += (GravityField.accel(s.pos, t) + GravityField.frame_accel(s.pos, s.vel) + nose * thr + a_b) * dt
 	s.pos += s.vel * dt
+	s.hull = maxf(s.hull - Tuning.planet.atmosphere_damage * atmosphere_density(s.pos) * dt, 0.0)
+	s.crashed = s.pos.length() <= Tuning.field.planet_surface_radius or s.hull <= 0.0
 	return s
 
 

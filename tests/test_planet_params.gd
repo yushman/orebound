@@ -33,3 +33,10 @@ func test_apply_keeps_planet():
 	assert_same(Tuning.planet, planet)
 	Tuning.field = saved_field
 	Tuning.ship = saved_ship
+
+
+func test_default_planet_atmosphere():
+	var p: PlanetParams = Tuning.planet
+	assert_eq(p.get("atmosphere_drag"), 0.5)
+	assert_eq(p.get("atmosphere_damage"), 5.0)
+	assert_eq(p.get("density_shape"), 2.0)

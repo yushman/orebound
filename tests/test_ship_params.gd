@@ -41,3 +41,7 @@ func test_tuning_ship_prediction_defaults() -> void:
 
 func test_predict_full_steps_removed_from_ship_params() -> void:
 	assert_null(Tuning.ship.get("predict_full_steps"), "predict_full_steps must be gone from ShipParams")
+
+
+func test_tuning_ship_hull_default() -> void:
+	assert_eq(Tuning.ship.get("hull_max"), 100.0)

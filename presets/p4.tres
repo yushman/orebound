@@ -63,6 +63,7 @@ sync_fuel_mult = 2.0
 sync_radius = 3000.0
 predict_short_steps = 900
 predict_every = 4
+hull_max = 100.0
 
 [resource]
 script = ExtResource("3_iq7bx")

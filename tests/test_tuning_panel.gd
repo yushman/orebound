@@ -4,6 +4,7 @@ const PANEL := preload("res://ui/TuningPanel.tscn")
 
 var _field: FieldParams
 var _ship: ShipParams
+var _planet: PlanetParams
 var _panel: Control
 
 
@@ -12,6 +13,8 @@ func before_each() -> void:
 	_ship = Tuning.ship
 	Tuning.field = _field.duplicate(true)
 	Tuning.ship = _ship.duplicate(true)
+	_planet = Tuning.planet
+	Tuning.planet = _planet.duplicate(true)
 	_panel = PANEL.instantiate()
 	add_child_autofree(_panel)
 
@@ -19,6 +22,7 @@ func before_each() -> void:
 func after_each() -> void:
 	Tuning.field = _field
 	Tuning.ship = _ship
+	Tuning.planet = _planet
 
 
 func test_k_slider_changes_accel_on_next_call() -> void:
@@ -41,8 +45,10 @@ func test_slider_set_covers_all_parameters() -> void:
 	for p in ["thrust_accel", "boost_accel_mult", "boost_fuel_mult", "brake_accel",
 			"brake_fuel_mult", "fuel_per_dv", "ramp_time", "ramp_min_fraction", "heat_growth_engine",
 			"heat_growth_boost", "heat_threshold", "heat_cooldown", "min_thrust_fraction",
-			"sync_accel", "sync_fuel_mult", "predict_every", "predict_short_steps"]:
+			"sync_accel", "sync_fuel_mult", "predict_every", "predict_short_steps", "hull_max"]:
 		expect.append("ship." + p)
+	for p in ["atmosphere_drag", "atmosphere_damage", "density_shape"]:
+		expect.append("planet." + p)
 	for id in expect:
 		assert_true(ids.has(id), id)
 	assert_eq(ids.size(), expect.size(), "no extra sliders (no orbit sliders)")
@@ -96,6 +102,33 @@ func test_ship_defaults_fit_slider_ranges() -> void:
 		var s: HSlider = _panel.sliders["ship." + row[1]]
 		var v: float = Tuning.ship.get(row[1])
 		assert_between(v, s.min_value, s.max_value, row[1])
+
+
+func test_planet_defaults_fit_slider_ranges() -> void:
+	for row in _panel.ROWS:
+		if not (row[0] is String and row[0] == "planet"):
+			continue
+		var s: HSlider = _panel.sliders["planet." + row[1]]
+		assert_between(Tuning.planet.get(row[1]), s.min_value, s.max_value, row[1])
+
+
+func test_planet_atmosphere_sliders_write_into_current_tuning_planet() -> void:
+	Tuning.planet = Tuning.planet.duplicate(true)
+	_panel.sliders["planet.atmosphere_drag"].value = 0.3
+	_panel.sliders["planet.atmosphere_damage"].value = 7.0
+	_panel.sliders["planet.density_shape"].value = 1.5
+	_panel.sliders["ship.hull_max"].value = 55.0
+	assert_eq(Tuning.planet.atmosphere_drag, 0.3)
+	assert_eq(Tuning.planet.atmosphere_damage, 7.0)
+	assert_eq(Tuning.planet.density_shape, 1.5)
+	assert_eq(Tuning.ship.hull_max, 55.0)
+
+
+func test_sync_sets_planet_sliders_without_write_back() -> void:
+	Tuning.planet.atmosphere_drag = 0.125
+	_panel._sync()
+	assert_eq(_panel.sliders["planet.atmosphere_drag"].value, 0.125)
+	assert_eq(Tuning.planet.atmosphere_drag, 0.125)
 
 
 func test_fade_width_slider_min_is_positive() -> void:
@@ -208,3 +241,27 @@ func test_space_never_triggers_a_preset_load() -> void:
 	get_viewport().push_input(ev)
 	assert_null(get_viewport().gui_get_focus_owner())
 	assert_eq(fired[0], 0, "Space (ui_accept) must not press a panel button")
+
+
+func test_readout_shows_hull_density_and_crashes() -> void:
+	var crashes := Telemetry.crashes
+	var ship = load("res://scenes/Ship.tscn").instantiate()
+	add_child_autofree(ship)
+	var f := Tuning.field
+	ship.state.pos = Vector2(0.5 * (f.planet_surface_radius + f.atmosphere_edge), 0.0)
+	ship.state.hull = 42.0
+	Telemetry.crashes = 3
+	_panel.ship = ship
+	_panel.visible = true
+	_panel._process(0.0)
+	var text: String = _panel.readout.text
+	assert_string_contains(text, "42")
+	assert_string_contains(text, str(snappedf(ShipFlight.atmosphere_density(ship.state.pos), 0.001)))
+	assert_string_contains(text, "3")
+	Telemetry.crashes = crashes
+
+
+func test_readout_without_ship_does_not_error() -> void:
+	_panel.visible = true
+	_panel._process(0.0)
+	assert_not_null(_panel.readout)

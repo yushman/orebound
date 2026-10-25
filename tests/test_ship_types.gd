@@ -72,3 +72,16 @@ func test_input_copy_is_independent_and_equal() -> void:
 	assert_true(i.thrust)
 	assert_true(i.soft_brake)
 	assert_true(i.drift_sync)
+
+
+func test_state_copy_carries_hull_and_crashed_independently() -> void:
+	var s := ShipState.new()
+	s.hull = 42.5
+	s.crashed = true
+	var c := s.copy()
+	assert_eq(c.hull, 42.5)
+	assert_true(c.crashed)
+	c.hull = 1.0
+	c.crashed = false
+	assert_eq(s.hull, 42.5)
+	assert_true(s.crashed)

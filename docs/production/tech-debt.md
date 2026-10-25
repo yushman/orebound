@@ -28,3 +28,11 @@
 |---|---|---|---|
 | 12 | `WellGenerator.tiers()` вызывается дважды за кадр (через `tier_bands()` и `special_rings()`) — 6 бисекций по `planet_potential_eff` на каждую перерисовку | `scenes/WellView.gd` (`_draw`) | звать `tiers()` один раз в `_draw` и передавать словарь в `tier_bands(t)` / `special_rings(t)`; поправить тесты статиков |
 | 13 | В `band_span` вызовы `visible_span` на `r_in` и `r_out` избыточны: на [r_in, r_out] максимум дуги всегда в `r_near` | `scenes/WellView.gd` (`band_span`) | вернуть `visible_span(cam_pos, cam_zoom, r_near)`; `test_band_span_covers_camera_inside_band` и `test_visible_span_covers_view_for_any_radius` должны остаться зелёными |
+
+## Атмосфера (W2)
+
+| # | Что | Где | Как чинить |
+|---|---|---|---|
+| 14 | После краш-респауна линия предсказания до `predict_every`−1 тиков рисует старый путь, оканчивающийся в точке краша, хотя корабль уже у матки | `scenes/Ship.gd` (`respawn`), `scenes/Prediction.gd` | сигнал `respawned` из `Ship.respawn()`, `Prediction` подключает его к `_update` рядом с `preset_applied`; тест в `test_ship_prediction` с `predict_every` > 1 и вынужденным крашем |
+| 15 | Тест readout проверяет счётчик через `assert_string_contains(text, "3")` — любая «3» в корпусе или плотности пройдёт | `tests/test_tuning_panel.gd` (`test_readout_shows_hull_density_and_crashes`) | проверять `"crashes 3"` |
+| 16 | Тесты сопротивления и спирали вручную сохраняют/восстанавливают drag/damage и держат обёртку `_with_drag`, дублируя `before_each`/`after_each` | `tests/test_ship_flight.gd` | убрать локальные saved_* и `_with_drag`, писать `Tuning.planet.atmosphere_drag = x` напрямую; ненулевой drag для спирали брать из `_saved_drag` |

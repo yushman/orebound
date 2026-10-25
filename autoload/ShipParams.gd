@@ -22,3 +22,4 @@ extends Resource
 @export var sync_radius: float = 3000.0
 @export var predict_short_steps: int = 900
 @export var predict_every: int = 4
+@export var hull_max: float = 100.0

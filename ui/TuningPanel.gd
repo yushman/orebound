@@ -29,6 +29,10 @@ const ROWS := [
 	["ship", "sync_fuel_mult", 0.0, 10.0, 0.05],
 	["ship", "predict_every", 1.0, 30.0, 1.0],
 	["ship", "predict_short_steps", 300.0, 1800.0, 1.0],
+	["ship", "hull_max", 1.0, 1000.0, 1.0],
+	["planet", "atmosphere_drag", 0.0, 2.0, 0.005],
+	["planet", "atmosphere_damage", 0.0, 100.0, 0.1],
+	["planet", "density_shape", 0.5, 5.0, 0.05],
 ]
 
 var sliders := {}
@@ -38,12 +42,16 @@ var preset_select: OptionButton
 var load_button: Button
 var save_button: Button
 var _values := {}
+var readout: Label
+var ship: Node
 var _box: VBoxContainer
 
 
 func _ready() -> void:
 	focus_mode = Control.FOCUS_NONE
 	visible = false
+	readout = Label.new()
+	readout.focus_mode = Control.FOCUS_NONE
 	var scroll := ScrollContainer.new()
 	scroll.focus_mode = Control.FOCUS_NONE
 	scroll.custom_minimum_size = Vector2(380, 760)
@@ -51,11 +59,25 @@ func _ready() -> void:
 	_box = VBoxContainer.new()
 	_box.focus_mode = Control.FOCUS_NONE
 	scroll.add_child(_box)
+	_box.add_child(readout)
 	_add_header()
 	for row in ROWS:
 		_add_row(row)
 	_sync()
 	Tuning.preset_applied.connect(_sync)
+
+
+func _process(_delta: float) -> void:
+	if not visible:
+		return
+	if ship == null:
+		ship = get_node_or_null("../../Ship")
+	if ship == null:
+		readout.text = "crashes %d" % Telemetry.crashes
+		return
+	var st: ShipState = ship.state
+	readout.text = "hull %s  density %s  crashes %d" % [
+		_fmt(st.hull), snappedf(ShipFlight.atmosphere_density(st.pos), 0.001), Telemetry.crashes]
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -113,6 +135,8 @@ func _id(target: Variant, prop: String) -> String:
 func _holder(target: Variant) -> Object:
 	if target is int:
 		return Tuning.field.bodies[target]
+	if target == "planet":
+		return Tuning.planet
 	return Tuning.field if target == "field" else Tuning.ship
 
 
