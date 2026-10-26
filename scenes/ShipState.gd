@@ -13,10 +13,17 @@ var heat: float
 var fuel_sync: float
 var hull: float = Tuning.ship.hull_max
 var crashed: bool
+var hold: Array[HoldCell] = []
+var tank: Array[HoldCell] = []
+
+
+func _init(with_loadout := true) -> void:
+	if with_loadout:
+		Hold.add(self, &"fuel", Tuning.ship.loadout_fuel_cells)
 
 
 func copy() -> ShipState:
-	var c := ShipState.new()
+	var c := ShipState.new(false)
 	c.pos = pos
 	c.vel = vel
 	c.rot = rot
@@ -29,4 +36,8 @@ func copy() -> ShipState:
 	c.fuel_sync = fuel_sync
 	c.hull = hull
 	c.crashed = crashed
+	for cell in hold:
+		c.hold.append(cell.copy())
+	for cell in tank:
+		c.tank.append(cell.copy())
 	return c

@@ -72,12 +72,17 @@ func test_save_load_round_trip() -> void:
 	s.turn_accel = 3.0
 	s.spin_damping = 2.0
 	s.heading_gain = 9.0
-	s.fuel_per_dv = 0.5
 	s.boost_fuel_mult = 2.0
 	s.brake_accel = 77.0
 	s.brake_fuel_mult = 1.1
 	s.predict_short_steps = 11
 	s.predict_every = 3
+	s.hull_mass = 5.5
+	s.hold_capacity = 7
+	s.ref_mass = 12.0
+	s.loadout_fuel_cells = 3
+	s.separate_tank = true
+	s.tank_capacity = 6
 	Tuning.field = f
 	Tuning.ship = s
 	assert_eq(Tuning.save_preset(TMP, "X"), OK)
@@ -174,6 +179,19 @@ func test_preset_common_params() -> void:
 		assert_eq(pl.angular_speed, 0.0, "p%d planet static" % n)
 		assert_eq(pl.parent, -1, "p%d planet parent" % n)
 		assert_eq(pl.orbit_radius, 0.0, "p%d planet orbit" % n)
+
+
+func test_preset_files_define_hold_params() -> void:
+	var names := ["hull_mass", "hold_capacity", "ref_mass", "loadout_fuel_cells", "separate_tank", "tank_capacity", "climb_coefficient"]
+	for n in PRESET_P:
+		var text := FileAccess.get_file_as_string("res://presets/p%d.tres" % n)
+		var i := text.find("ShipParams.gd\" id=\"") + 19
+		var id := text.substr(i, text.find("\"", i) - i)
+		var start := text.find("script = ExtResource(\"%s\")" % id)
+		var end := text.find("\n\n", start)
+		var block := text.substr(start, end - start)
+		for name in names:
+			assert_true(block.contains("\n%s = " % name), "p%d defines %s" % [n, name])
 
 
 func test_presets_pin_d35_frame_radii() -> void:

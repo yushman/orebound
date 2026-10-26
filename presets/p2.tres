@@ -27,7 +27,6 @@ boost_accel_mult = 2.5
 turn_accel = 12.0
 spin_damping = 4.0
 heading_gain = 30.0
-fuel_per_dv = 0.001
 boost_fuel_mult = 3.5
 brake_accel = 3.0
 brake_fuel_mult = 1.0
@@ -44,6 +43,13 @@ sync_radius = 3000.0
 predict_short_steps = 900
 predict_every = 4
 hull_max = 100.0
+hull_mass = 4.0
+hold_capacity = 10
+ref_mass = 10.0
+loadout_fuel_cells = 2
+separate_tank = false
+tank_capacity = 4
+climb_coefficient = 0.2
 
 [resource]
 script = ExtResource("3_5shvv")

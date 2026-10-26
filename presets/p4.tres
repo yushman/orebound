@@ -18,6 +18,13 @@ bodies = Array[ExtResource("1_ybe78")]([SubResource("Resource_6aaog")])
 [sub_resource type="Resource" id="Resource_baeji"]
 script = ExtResource("4_eslcf")
 thrust_accel = 30.5
+hull_mass = 4.0
+hold_capacity = 10
+ref_mass = 10.0
+loadout_fuel_cells = 2
+separate_tank = false
+tank_capacity = 4
+climb_coefficient = 0.2
 
 [resource]
 script = ExtResource("3_iq7bx")

@@ -12,6 +12,7 @@ const STRIP_H := 60.0
 const BAR_W := 28.0
 const MARGIN := 60.0
 const FONT_SIZE := 16
+const DEBUG_POS := Vector2(16.0, 24.0)
 const TIER_ALPHA := 0.6
 const TIER_DARKEN := 0.2
 const EDGE_COLOR := Palette.DANGER
@@ -55,6 +56,7 @@ func _draw() -> void:
 	draw_line(Vector2(x0, top_y), Vector2(x1, top_y), LINE_COLOR, 1.0)
 	if ship == null:
 		return
+	draw_string(font, DEBUG_POS, debug_text(ship.state), HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, Palette.HALO)
 	var y := marker_y(ship.state.pos.length())
 	draw_colored_polygon(PackedVector2Array([Vector2(x1 + 4.0, y), Vector2(x1 + 16.0, y - 7.0), Vector2(x1 + 16.0, y + 7.0)]), MARKER_COLOR)
 
@@ -125,3 +127,11 @@ static func marker_y(r: float) -> float:
 		return share_y(maxf(share(r), 0.0))
 	var t := clampf((r - f.carrier_orbit_radius) / Tuning.planet.ceiling_offset, 0.0, 1.0)
 	return share_y(1.0) - t * STRIP_H
+
+
+static func debug_text(s: ShipState) -> String:
+	var p: ShipParams = Tuning.ship
+	var text := "энергия %.2f · масса %.1f · трюм %d/%d" % [Hold.energy(s), Hold.mass(s), Hold.used_volume(s.hold), p.hold_capacity]
+	if p.separate_tank:
+		text += " · бак %d/%d" % [Hold.used_volume(s.tank), p.tank_capacity]
+	return text

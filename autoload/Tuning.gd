@@ -7,6 +7,7 @@ var ship: ShipParams = ShipParams.new()
 var planet: PlanetParams = _default_planet()
 var view: ViewParams = ViewParams.new()
 var picture: Dictionary = {"seed": 1, "flight": 1, "moons": [], "ring": {}}
+var resources: Dictionary = _default_resources()
 
 
 func apply(preset: TuningPreset, emit := true) -> void:
@@ -59,3 +60,22 @@ func _default_field() -> FieldParams:
 
 func _default_planet() -> PlanetParams:
 	return PlanetParams.new()
+
+
+func _default_resources() -> Dictionary:
+	var table := {
+		&"ice": [1.0, 1.0, 1.0],
+		&"ore_base": [1.0, 1.0, 0.0],
+		&"ore_middle": [2.0, 1.0, 0.0],
+		&"ore_rare": [3.0, 1.0, 0.0],
+		&"ore_unique": [3.0, 1.0, 0.0],
+		&"fuel": [3.0, 1.0, 3.0],
+	}
+	var out := {}
+	for key in table:
+		var c := CellType.new()
+		c.mass = table[key][0]
+		c.volume = table[key][1]
+		c.energy = table[key][2]
+		out[key] = c
+	return out

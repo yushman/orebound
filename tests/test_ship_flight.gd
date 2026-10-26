@@ -8,6 +8,7 @@ var _saved_picture
 var _saved_sync_radius := 0.0
 var _saved_drag := 0.0
 var _saved_damage := 0.0
+var _saved_climb := 0.0
 
 
 func before_each():
@@ -17,6 +18,8 @@ func before_each():
 	_saved_sync_radius = Tuning.ship.sync_radius
 	_saved_drag = Tuning.planet.atmosphere_drag
 	_saved_damage = Tuning.planet.atmosphere_damage
+	_saved_climb = Tuning.ship.climb_coefficient
+	Tuning.ship.climb_coefficient = 0.01
 	Tuning.planet.atmosphere_drag = 0.0
 	Tuning.planet.atmosphere_damage = 0.0
 
@@ -28,6 +31,7 @@ func after_each():
 	Tuning.ship.sync_radius = _saved_sync_radius
 	Tuning.planet.atmosphere_drag = _saved_drag
 	Tuning.planet.atmosphere_damage = _saved_damage
+	Tuning.ship.climb_coefficient = _saved_climb
 
 
 func _state(pos := Vector2(600, 0), vel := Vector2.ZERO, rot := 0.0) -> ShipState:
@@ -150,7 +154,7 @@ func test_target_heading_takes_shortest_way() -> void:
 	assert_gt(out.ang_vel, 0.0)
 
 
-func test_boost_costs_boost_fuel_mult_times_more_fuel_per_delta_v() -> void:
+func test_boost_costs_boost_fuel_mult_times_more_energy_per_delta_v() -> void:
 	var p: ShipParams = Tuning.ship
 	var thrust := ShipInput.new()
 	thrust.thrust = true
@@ -158,20 +162,110 @@ func test_boost_costs_boost_fuel_mult_times_more_fuel_per_delta_v() -> void:
 	boost.boost = true
 	var e := _state()
 	var b := _state()
-	var dv_e := 0.0
-	var dv_b := 0.0
+	var need_e := 0.0
+	var need_b := 0.0
+	var m := Hold.mass(e)
 	for i in 30:
 		e = ShipFlight.step(e, thrust, i * DT, DT)
 		b = ShipFlight.step(b, boost, i * DT, DT)
-		# рамп: масштаб шага k = (k·dt)/ramp_time, пока не достигнет 1
 		var scale := lerpf(p.ramp_min_fraction, 1.0, minf((i + 1) * DT / p.ramp_time, 1.0))
-		dv_e += p.thrust_accel * scale * DT
-		dv_b += p.thrust_accel * p.boost_accel_mult * scale * DT
-	assert_almost_eq(e.fuel_engine, dv_e * p.fuel_per_dv, 1e-6)
-	assert_almost_eq(b.fuel_boost, dv_b * p.fuel_per_dv * p.boost_fuel_mult, 1e-6)
-	assert_almost_eq((b.fuel_boost / dv_b) / (e.fuel_engine / dv_e), p.boost_fuel_mult, 1e-4)
+		need_e += p.thrust_accel * scale * m * DT * Fuel.per_dv()
+		need_b += p.thrust_accel * p.boost_accel_mult * scale * m * DT * Fuel.per_dv() * p.boost_fuel_mult
+	assert_almost_eq(e.fuel_engine, need_e, 1e-6)
+	assert_almost_eq(b.fuel_boost, need_b, 1e-6)
+	assert_almost_eq(b.fuel_boost / e.fuel_engine, p.boost_accel_mult * p.boost_fuel_mult, 1e-4)
 	assert_eq(e.fuel_boost, 0.0)
 	assert_eq(b.fuel_engine, 0.0)
+
+
+func test_engine_drains_hold_energy_by_counter() -> void:
+	var inp := ShipInput.new()
+	inp.thrust = true
+	var s := _state()
+	var before := Hold.energy(s)
+	for i in 30:
+		s = ShipFlight.step(s, inp, i * DT, DT)
+	assert_gt(s.fuel_engine, 0.0)
+	assert_almost_eq(before - Hold.energy(s), s.fuel_engine, 1e-6)
+
+
+func test_boat_runs_dry_and_fuel_cells_leave_hold() -> void:
+	Tuning.ship.climb_coefficient = 0.2
+	var inp := ShipInput.new()
+	inp.thrust = true
+	var s := _state()
+	var e0 := Hold.energy(s)
+	for i in 100000:
+		if Hold.energy(s) <= Hold.EPS:
+			break
+		s = ShipFlight.step(s, inp, 0.0, DT)
+		s.heat = 0.0
+	assert_lte(Hold.energy(s), Hold.EPS)
+	assert_eq(s.hold.size(), 0)
+	assert_almost_eq(s.fuel_engine, e0, 1e-4)
+
+
+func test_last_sliver_scales_engine_accel() -> void:
+	var p: ShipParams = Tuning.ship
+	var inp := ShipInput.new()
+	inp.thrust = true
+	var s := _state()
+	s.hold_time = p.ramp_time
+	var full := ShipFlight.step(s, inp, 0.0, DT)
+	var need := full.fuel_engine
+	s.hold[0].fill = need * 0.5 / Tuning.resources[&"fuel"].energy
+	while s.hold.size() > 1:
+		s.hold.pop_back()
+	var out := ShipFlight.step(s, inp, 0.0, DT)
+	assert_almost_eq(out.fuel_engine, need * 0.5, 1e-7)
+	assert_eq(out.hold.size(), 0)
+
+
+func _empty_state() -> ShipState:
+	var s := ShipState.new(false)
+	s.pos = Vector2(600, 0)
+	return s
+
+
+func test_empty_hold_thrust_and_boost_leave_velocity_and_heat_cools() -> void:
+	var coast := ShipFlight.step(_empty_state(), ShipInput.new(), 0.0, DT)
+	for mode in ["thrust", "boost"]:
+		var inp := ShipInput.new()
+		inp.set(mode, true)
+		var s := _empty_state()
+		s.heat = 0.5
+		s.hold_time = 0.3
+		var out := ShipFlight.step(s, inp, 0.0, DT)
+		assert_eq(out.vel, coast.vel)
+		assert_eq(out.hold_time, 0.0)
+		assert_lt(out.heat, 0.5)
+		assert_eq(out.fuel_engine, 0.0)
+		assert_eq(out.fuel_boost, 0.0)
+
+
+func test_empty_hold_soft_brake_and_sync_give_zero_accel() -> void:
+	var coast := ShipFlight.step(_empty_state(), ShipInput.new(), 0.0, DT)
+	for inp in [_soft_brake_input(), _drift_sync_input()]:
+		var s := _empty_state()
+		s.vel = Vector2(5, 3)
+		var ref := ShipFlight.step(s.copy(), ShipInput.new(), 0.0, DT)
+		var out := ShipFlight.step(s, inp, 0.0, DT)
+		assert_eq(out.vel, ref.vel)
+		assert_eq(out.fuel_soft_brake + out.fuel_sync, 0.0)
+	assert_not_null(coast)
+
+
+func test_thrust_ramp_restarts_once_energy_appears() -> void:
+	var inp := ShipInput.new()
+	inp.thrust = true
+	var s := _empty_state()
+	for i in 20:
+		s = ShipFlight.step(s, inp, i * DT, DT)
+	assert_eq(s.hold_time, 0.0)
+	Hold.add(s, &"fuel", 1.0)
+	s = ShipFlight.step(s, inp, 0.0, DT)
+	assert_almost_eq(s.hold_time, DT, 1e-9)
+	assert_gt(s.fuel_engine, 0.0)
 
 
 func test_boost_alone_thrusts_with_boost_accel() -> void:
@@ -356,14 +450,15 @@ func test_held_soft_brake_ignores_thrust_and_boost_and_accrues_fuel_soft_brake_o
 	var dv := 0.0
 	for i in 30:
 		var out := ShipFlight.step(a, brake, i * DT, DT)
-		dv += ((out.vel - a.vel) / DT - GravityField.accel(a.pos, i * DT) - GravityField.frame_accel(a.pos, a.vel)).length() * DT
+		dv += ((out.vel - a.vel) / DT - GravityField.accel(a.pos, i * DT) - GravityField.frame_accel(a.pos, a.vel)).length() * DT * Hold.mass(a)
 		a = out
 		b = ShipFlight.step(b, all, i * DT, DT)
 	assert_true(_same(a, b))
 	assert_eq(a.fuel_engine, 0.0)
 	assert_eq(a.fuel_boost, 0.0)
 	assert_gt(a.fuel_soft_brake, 0.0)
-	assert_almost_eq(a.fuel_soft_brake, dv * p.fuel_per_dv * p.brake_fuel_mult, 1e-6)
+	assert_almost_eq(a.fuel_soft_brake, dv * Fuel.per_dv() * p.brake_fuel_mult, 1e-6)
+	assert_almost_eq(Hold.energy(start) - Hold.energy(a), a.fuel_soft_brake, 1e-6)
 	var coast := start
 	for i in 30:
 		coast = ShipFlight.step(coast, ShipInput.new(), i * DT, DT)
@@ -554,11 +649,11 @@ func test_sync_accel_is_clamped_per_step_and_accrues_sync_fuel() -> void:
 		var out := ShipFlight.step(s, inp, i * DT, DT)
 		var a := (out.vel - s.vel) / DT - g
 		max_a = maxf(max_a, a.length())
-		dv += a.length() * DT
+		dv += a.length() * DT * Hold.mass(s)
 		s = out
-	assert_lte(max_a, p.sync_accel + 1e-2)
+	assert_lte(max_a, p.sync_accel + 5e-2)
 	assert_gt(max_a, p.sync_accel - 0.1)
-	assert_almost_eq(s.fuel_sync, dv * p.fuel_per_dv * p.sync_fuel_mult, 1e-6)
+	assert_almost_eq(s.fuel_sync, dv * Fuel.per_dv() * p.sync_fuel_mult, 1e-6)
 	assert_eq(s.fuel_engine, 0.0)
 	assert_eq(s.fuel_boost, 0.0)
 	assert_eq(s.fuel_soft_brake, 0.0)
@@ -856,3 +951,61 @@ func test_drift_sync_near_asteroid_zeroes_relative_velocity() -> void:
 	var out := ShipFlight.step(s, _drift_sync_input(), 0.0, DT)
 	assert_lt(out.vel.distance_to(best["vel"]), 0.05)
 	assert_gt(out.fuel_sync, 0.0)
+
+
+func _heavy_state(pos := Vector2(600, 0), vel := Vector2.ZERO, rot := 0.0) -> ShipState:
+	var s := _state(pos, vel, rot)
+	Hold.add(s, &"ore_middle", 5.0)
+	return s
+
+
+func _step_dv(start: ShipState, inp: ShipInput) -> Vector2:
+	var coast := ShipFlight.step(start.copy(), ShipInput.new(), 1.0, DT)
+	return ShipFlight.step(start, inp, 1.0, DT).vel - coast.vel
+
+
+func test_heavier_ship_gets_proportionally_less_thrust_and_boost_dv() -> void:
+	var light := _state(Vector2(600, 0), Vector2.ZERO, 0.7)
+	var heavy := _heavy_state(Vector2(600, 0), Vector2.ZERO, 0.7)
+	assert_almost_eq(Hold.mass(heavy), 20.0, 1e-6)
+	var thrust := ShipInput.new()
+	thrust.thrust = true
+	var boost := ShipInput.new()
+	boost.boost = true
+	for inp in [thrust, boost]:
+		var dl := _step_dv(light.copy(), inp)
+		var dh := _step_dv(heavy.copy(), inp)
+		assert_gt(dl.length(), 0.0)
+		assert_almost_eq(dh, dl * 0.5, Vector2(1e-4, 1e-4))
+
+
+func test_gravity_and_frame_accel_do_not_scale_with_mass() -> void:
+	var light := _state(Vector2(600, 0), Vector2(1, 2))
+	var heavy := _heavy_state(Vector2(600, 0), Vector2(1, 2))
+	var a := ShipFlight.step(light, ShipInput.new(), 1.0, DT)
+	var b := ShipFlight.step(heavy, ShipInput.new(), 1.0, DT)
+	assert_eq(a.vel, b.vel)
+
+
+func _sync_accel_of(start: ShipState) -> float:
+	var g := GravityField.accel(start.pos, 0.0) + GravityField.frame_accel(start.pos, start.vel)
+	var out := ShipFlight.step(start, _drift_sync_input(), 0.0, DT)
+	return ((out.vel - start.vel) / DT - g).length()
+
+
+func test_heavier_ship_soft_brake_and_drift_sync_limit_scale_by_ref_mass_over_mass() -> void:
+	_gentle_field()
+	var p: ShipParams = Tuning.ship
+	var rc := Vector2(Tuning.field.carrier_orbit_radius, 0.0)
+	var along := _soft_brake_accel_of(_heavy_state(rc, Vector2(0, -5), 0.0))
+	assert_almost_eq(along, Vector2(0, 1) * p.brake_accel * 0.5, Vector2(1e-3, 1e-3))
+	assert_almost_eq(_sync_accel_of(_heavy_state(rc, Vector2(50, 0))), p.sync_accel * 0.5, 1e-2)
+	_no_reference_nearby()
+	assert_almost_eq(_sync_accel_of(_heavy_state(Vector2(rc.x * 0.5, 0), Vector2(50, 0))), p.sync_accel * 0.5, 1e-2)
+
+
+func test_heavy_sync_below_scaled_limit_still_matches_reference_velocity() -> void:
+	_gentle_field()
+	var rc := Vector2(Tuning.field.carrier_orbit_radius, 0.0)
+	var out := ShipFlight.step(_heavy_state(rc, Vector2(0.001, 0.0)), _drift_sync_input(), 0.0, DT)
+	assert_almost_eq(out.vel, Vector2.ZERO, Vector2(1e-5, 1e-5))

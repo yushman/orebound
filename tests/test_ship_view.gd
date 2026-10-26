@@ -162,3 +162,15 @@ func test_flame_hidden_when_soft_brake_overrides_thrust() -> void:
 	view._process(0.0)
 	assert_eq(_flame_len(view), 0.0)
 	assert_false((view.get_node("Flame") as Polygon2D).visible)
+
+
+func test_flame_hidden_when_hold_has_no_energy() -> void:
+	var ship := _ship()
+	var view := ship.get_node("Visual") as ShipView
+	ship.state.hold.clear()
+	ship.state.tank.clear()
+	ship.input.thrust = true
+	ship.state.hold_time = Tuning.ship.ramp_time
+	view._process(0.0)
+	assert_eq(_flame_len(view), 0.0)
+	assert_false((view.get_node("Flame") as Polygon2D).visible)

@@ -35,3 +35,10 @@
 | 39 | `test_sync_fallback_band_drift_below_carrier_from_both_directions` проходит в полном прогоне, но падает при запуске одного `test_ship_flight.gd` (`-gselect`): зависит от состояния, оставленного другими тестами | `tests/test_ship_flight.gd` | найти протекающее состояние и задать его в `before_each` |
 | 40 | `assert_ne(Tuning.picture["moons"], before)` сравнивает свежие `BodyParams` по идентичности и проходит даже для той же картины | `tests/test_tuning_panel.gd:344` | сравнивать значения (например `moons[0].phase`) или убрать проверку |
 | 41 | `before_each` / `after_each` не сохраняют и не восстанавливают `Tuning.picture`, хотя тесты вызывают `Tuning.regenerate` (требование `tests/CLAUDE.md`) | `tests/test_tuning_panel.gd` | сохранять и восстанавливать `Tuning.picture` |
+| 42 | Перемежающиеся падения: `test_sync_fallback_band_drift_below_carrier_from_both_directions` (см. #39) и тест времени предсказания с астероидами (раз вышло 3,15 мс при бюджете 3,0 мс) | `tests/test_ship_flight.gd`, `tests/test_ship_prediction.gd` | для первого — как в #39; для второго — ослабить бюджет или мерять медиану нескольких прогонов |
+
+## Топливо (M2)
+
+| # | Что | Где | Как чинить |
+|---|---|---|---|
+| 43 | Мягкий тормоз и синхронизация дрейфа применяют полный `a_b` при пустом трюме, когда `Fuel.per_dv()` == 0 (`climb_coefficient` 0 или выровненная гравитация): масштаб got/need пропускается при need == 0; тяга закрыта по `Hold.energy` > EPS | `scenes/ShipFlight.gd:57` | закрывать тормоз и синхронизацию по `Hold.energy` на начале тика, тест с `climb_coefficient` 0 |

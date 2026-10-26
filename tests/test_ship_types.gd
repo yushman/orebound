@@ -85,3 +85,30 @@ func test_state_copy_carries_hull_and_crashed_independently() -> void:
 	c.crashed = false
 	assert_eq(s.hull, 42.5)
 	assert_true(s.crashed)
+
+
+func _cell(type: StringName, fill: float) -> HoldCell:
+	var c := HoldCell.new()
+	c.type = type
+	c.fill = fill
+	return c
+
+
+func test_state_copy_deep_copies_hold_and_tank_cells() -> void:
+	var s := ShipState.new()
+	s.hold.clear()
+	s.hold.append(_cell(&"ice", 0.5))
+	s.tank.append(_cell(&"fuel", 1.0))
+	var c := s.copy()
+	assert_eq(c.hold.size(), 1)
+	assert_eq(c.hold[0].type, &"ice")
+	assert_eq(c.hold[0].fill, 0.5)
+	assert_eq(c.tank[0].type, &"fuel")
+	c.hold[0].fill = 0.9
+	c.tank[0].fill = 0.1
+	c.hold.append(_cell(&"ice", 1.0))
+	c.tank.append(_cell(&"fuel", 1.0))
+	assert_eq(s.hold[0].fill, 0.5)
+	assert_eq(s.tank[0].fill, 1.0)
+	assert_eq(s.hold.size(), 1)
+	assert_eq(s.tank.size(), 1)

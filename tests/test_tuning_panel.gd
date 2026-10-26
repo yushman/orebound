@@ -47,9 +47,10 @@ func test_slider_set_covers_all_parameters() -> void:
 	for i in [1, 2]:
 		expect.append("body%d.influence_radius" % i)
 	for p in ["thrust_accel", "boost_accel_mult", "boost_fuel_mult", "brake_accel",
-			"brake_fuel_mult", "fuel_per_dv", "ramp_time", "ramp_min_fraction", "heat_growth_engine",
+			"brake_fuel_mult", "climb_coefficient", "ramp_time", "ramp_min_fraction", "heat_growth_engine",
 			"heat_growth_boost", "heat_threshold", "heat_cooldown", "min_thrust_fraction",
-			"sync_accel", "sync_fuel_mult", "predict_every", "predict_short_steps", "hull_max"]:
+			"sync_accel", "sync_fuel_mult", "predict_every", "predict_short_steps", "hull_max",
+				"hull_mass", "hold_capacity", "ref_mass", "loadout_fuel_cells", "tank_capacity"]:
 		expect.append("ship." + p)
 	for p in ["atmosphere_drag", "atmosphere_damage", "density_shape", "moon_mass_k", "moon_mass_exp",
 			"moon_influence_k", "moon_margin", "moon_bounce", "moon_impact_damage",
@@ -112,6 +113,45 @@ func test_ship_defaults_fit_slider_ranges() -> void:
 		var s: HSlider = _panel.sliders["ship." + row[1]]
 		var v: float = Tuning.ship.get(row[1])
 		assert_between(v, s.min_value, s.max_value, row[1])
+
+
+func test_hold_ship_sliders_write_ints_as_int() -> void:
+	Tuning.ship = Tuning.ship.duplicate(true)
+	_panel.sliders["ship.hold_capacity"].value = 12.0
+	_panel.sliders["ship.tank_capacity"].value = 6.0
+	_panel.sliders["ship.loadout_fuel_cells"].value = 3.0
+	_panel.sliders["ship.hull_mass"].value = 5.5
+	assert_eq(Tuning.ship.hold_capacity, 12)
+	assert_true(Tuning.ship.hold_capacity is int)
+	assert_true(Tuning.ship.tank_capacity is int)
+	assert_true(Tuning.ship.loadout_fuel_cells is int)
+	assert_eq(Tuning.ship.hull_mass, 5.5)
+
+
+func test_hull_mass_slider_min_is_positive() -> void:
+	assert_gt(_panel.sliders["ship.hull_mass"].min_value, 0.0)
+
+
+func test_separate_tank_checkbox_writes_tuning_ship() -> void:
+	Tuning.ship = Tuning.ship.duplicate(true)
+	var c: CheckBox = _panel.checks["ship.separate_tank"]
+	assert_eq(c.focus_mode, Control.FOCUS_NONE)
+	assert_false(c.button_pressed)
+	c.button_pressed = true
+	assert_true(Tuning.ship.separate_tank)
+	c.button_pressed = false
+	assert_false(Tuning.ship.separate_tank)
+
+
+func test_sync_sets_separate_tank_checkbox_without_write_back() -> void:
+	Tuning.ship = Tuning.ship.duplicate(true)
+	Tuning.ship.separate_tank = true
+	_panel._sync()
+	assert_true(_panel.checks["ship.separate_tank"].button_pressed)
+	assert_true(Tuning.ship.separate_tank)
+	Tuning.ship.separate_tank = false
+	_panel._sync()
+	assert_false(_panel.checks["ship.separate_tank"].button_pressed)
 
 
 func test_planet_defaults_fit_slider_ranges() -> void:
@@ -464,3 +504,44 @@ func test_ring_width_slider_regenerates_picture_and_field_knobs_do_not() -> void
 	Tuning.picture = old_picture
 	Telemetry.seed = old_seed
 	Telemetry.flight = old_flight
+
+
+func _stub_ship() -> Node:
+	var script := GDScript.new()
+	script.source_code = "extends Node\nvar calls := 0\nfunc respawn() -> void:\n\tcalls += 1\n"
+	script.reload()
+	var stub := Node.new()
+	stub.set_script(script)
+	add_child_autofree(stub)
+	_panel.ship = stub
+	return stub
+
+
+func test_hold_sliders_and_tank_checkbox_respawn_the_ship() -> void:
+	var stub := _stub_ship()
+	var n := 0
+	for p in ["loadout_fuel_cells", "hold_capacity", "tank_capacity"]:
+		var s: HSlider = _panel.sliders["ship." + p]
+		s.value = s.value + 1.0
+		n += 1
+		assert_eq(stub.calls, n, p)
+	_panel.checks["ship.separate_tank"].button_pressed = true
+	assert_eq(stub.calls, n + 1, "separate_tank")
+	assert_true(Tuning.ship.separate_tank)
+
+
+func test_other_ship_sliders_and_sync_do_not_respawn() -> void:
+	var stub := _stub_ship()
+	_panel.sliders["ship.thrust_accel"].value = 12.0
+	_panel.sliders["ship.hull_mass"].value = 5.5
+	_panel.sliders["ship.ref_mass"].value = 12.0
+	_panel.sliders["ship.climb_coefficient"].value = 0.5
+	_panel.sliders["view.cargo_fill"].value = 0.3
+	_panel._sync()
+	assert_eq(stub.calls, 0)
+
+
+func test_hold_slider_without_ship_does_not_error() -> void:
+	_panel.ship = null
+	_panel.sliders["ship.hold_capacity"].value = 12.0
+	assert_eq(Tuning.ship.hold_capacity, 12)

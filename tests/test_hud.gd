@@ -165,3 +165,12 @@ func test_cargo_filled_count_follows_fill() -> void:
 func test_cargo_colors_come_from_palette() -> void:
 	assert_eq(HUD_SCRIPT.CARGO_FILL_COLOR, Palette.ORE)
 	assert_eq(HUD_SCRIPT.CARGO_EMPTY_COLOR, Palette.HALO)
+
+
+func test_debug_text_shows_energy_mass_and_hold_slots() -> void:
+	assert_eq(HUD_SCRIPT.debug_text(ShipState.new()), "энергия 6.00 · масса 10.0 · трюм 2/10")
+
+
+func test_debug_text_with_separate_tank_adds_tank_slots() -> void:
+	Tuning.ship.separate_tank = true
+	assert_eq(HUD_SCRIPT.debug_text(ShipState.new()), "энергия 6.00 · масса 10.0 · трюм 0/10 · бак 2/4")

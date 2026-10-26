@@ -47,14 +47,19 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 	s.ang_vel = (s.ang_vel + ang_acc * dt) * exp(-p.spin_damping * dt)
 	s.rot = wrapf(s.rot + s.ang_vel * dt, -PI, PI)
 	var nose := Vector2.UP.rotated(s.rot)
+	var k := p.ref_mass / Hold.mass(s)
 	var thr := 0.0
 	var a_b := Vector2.ZERO
 	var engine := false
 	if input.soft_brake:
 		# soft brake (D36): half force against velocity, half backwards from the nose
 		s.hold_time = 0.0
-		a_b = _soft_brake_accel(s.vel, nose, p)
-		s.fuel_soft_brake += a_b.length() * dt * p.fuel_per_dv * p.brake_fuel_mult
+		a_b = _soft_brake_accel(s.vel, nose, p) * k
+		var need := a_b.length() * Hold.mass(s) * dt * Fuel.per_dv() * p.brake_fuel_mult
+		var got := Hold.drain(s, need)
+		if need > 0.0:
+			a_b *= got / need
+		s.fuel_soft_brake += got
 	elif input.drift_sync:
 		# drift sync with the nearest reference (body, carrier or asteroid);
 		# no reference within sync_radius: converge to band drift
@@ -66,25 +71,37 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 				v_ref = ref["asteroid"]["vel"]
 			elif not ref["is_carrier"]:
 				v_ref = GravityField.body_vel(int(ref["index"]), t)
-			a_b = ((v_ref - s.vel) / dt).limit_length(p.sync_accel)
+			a_b = ((v_ref - s.vel) / dt).limit_length(p.sync_accel * k)
 		else:
-			a_b = _band_drift_accel(s, t, dt, p.sync_accel)
-		s.fuel_sync += a_b.length() * dt * p.fuel_per_dv * p.sync_fuel_mult
-	elif input.boost or input.thrust:
+			a_b = _band_drift_accel(s, t, dt, p.sync_accel * k)
+		var need := a_b.length() * Hold.mass(s) * dt * Fuel.per_dv() * p.sync_fuel_mult
+		var got := Hold.drain(s, need)
+		if need > 0.0:
+			a_b *= got / need
+		s.fuel_sync += got
+	elif (input.boost or input.thrust) and Hold.energy(s) > Hold.EPS:
 		# thrust ramp (boost inherits): scale grows from ramp_min_fraction to 1 over ramp_time
 		engine = true
 		s.hold_time += dt
-		thr = p.thrust_accel * lerpf(p.ramp_min_fraction, 1.0, clampf(s.hold_time / p.ramp_time, 0.0, 1.0))
+		thr = p.thrust_accel * k * lerpf(p.ramp_min_fraction, 1.0, clampf(s.hold_time / p.ramp_time, 0.0, 1.0))
 		# above the heat threshold thrust falls linearly to the minimum at heat = 1
 		if s.heat > p.heat_threshold:
 			thr *= lerpf(1.0, p.min_thrust_fraction, (s.heat - p.heat_threshold) / (1.0 - p.heat_threshold))
+		var mult := 1.0
 		if input.boost:
 			thr *= p.boost_accel_mult
+			mult = p.boost_fuel_mult
 			s.heat += p.heat_growth_boost * dt
-			s.fuel_boost += thr * dt * p.fuel_per_dv * p.boost_fuel_mult
 		else:
 			s.heat += p.heat_growth_engine * dt
-			s.fuel_engine += thr * dt * p.fuel_per_dv
+		var need := thr * Hold.mass(s) * dt * Fuel.per_dv() * mult
+		var got := Hold.drain(s, need)
+		if need > 0.0:
+			thr *= got / need
+		if input.boost:
+			s.fuel_boost += got
+		else:
+			s.fuel_engine += got
 	else:
 		s.hold_time = 0.0
 	if not engine:

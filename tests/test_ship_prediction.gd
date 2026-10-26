@@ -22,8 +22,13 @@ func _make() -> Node:
 	return ship
 
 
-func _check(thrust: bool, soft_brake := false) -> void:
+func _check(thrust: bool, soft_brake := false, cargo := false, sliver := -1.0) -> void:
 	var ship = _make()
+	if sliver >= 0.0:
+		ship.state.hold.resize(1)
+		ship.state.hold[0].fill = sliver
+	if cargo:
+		Hold.add(ship.state, &"ore_middle", 5.0)
 	GravityField.tick = 50
 	if soft_brake:
 		ship.state.vel = Vector2(3.0, -2.0)
@@ -48,6 +53,18 @@ func _check(thrust: bool, soft_brake := false) -> void:
 
 func test_predicted_points_equal_flight_with_thrust() -> void:
 	_check(true)
+
+
+func test_predicted_points_equal_flight_with_cargo_and_thrust() -> void:
+	_check(true, false, true)
+
+
+func test_predicted_points_equal_flight_when_energy_runs_out_mid_line() -> void:
+	_check(true, false, false, 0.01)
+
+
+func test_predicted_points_equal_flight_while_cells_drain() -> void:
+	_check(true, false, false, 0.5)
 
 
 func test_predicted_points_equal_flight_without_thrust() -> void:

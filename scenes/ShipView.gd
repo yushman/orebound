@@ -35,7 +35,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	var engine_off: bool = _ship.input.soft_brake or _ship.input.drift_sync
+	var engine_off: bool = _ship.input.soft_brake or _ship.input.drift_sync or Hold.energy(_ship.state) <= Hold.EPS
 	var length := flame_length(_ship.input.thrust and not engine_off, _ship.input.boost and not engine_off, _ship.state.hold_time, _ship.state.heat, Tuning.ship)
 	flame.visible = length > 0.0
 	var heat: float = _ship.state.heat

@@ -9,10 +9,18 @@ func test_tuning_ship_defaults() -> void:
 	assert_eq(s.turn_accel, 12.0)
 	assert_eq(s.spin_damping, 4.0)
 	assert_eq(s.heading_gain, 30.0)
-	assert_eq(s.fuel_per_dv, 0.001)
 	assert_eq(s.boost_fuel_mult, 3.5)
 	assert_eq(s.brake_accel, 3.0)
 	assert_eq(s.brake_fuel_mult, 1.0)
+
+
+func test_no_fuel_per_dv_property() -> void:
+	var names := Tuning.ship.get_property_list().map(func(d): return d["name"])
+	assert_false("fuel_per_dv" in names)
+
+
+func test_climb_coefficient_default() -> void:
+	assert_eq(Tuning.ship.get("climb_coefficient"), 0.2)
 
 
 func test_tuning_ship_d36_control_defaults() -> void:
@@ -45,3 +53,13 @@ func test_predict_full_steps_removed_from_ship_params() -> void:
 
 func test_tuning_ship_hull_default() -> void:
 	assert_eq(Tuning.ship.get("hull_max"), 100.0)
+
+
+func test_tuning_ship_hold_defaults() -> void:
+	var s: ShipParams = Tuning.ship
+	assert_eq(s.get("hull_mass"), 4.0)
+	assert_eq(s.get("hold_capacity"), 10)
+	assert_eq(s.get("ref_mass"), 10.0)
+	assert_eq(s.get("loadout_fuel_cells"), 2)
+	assert_eq(s.get("separate_tank"), false)
+	assert_eq(s.get("tank_capacity"), 4)

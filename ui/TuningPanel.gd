@@ -2,6 +2,8 @@ extends Control
 
 const REGEN_PROPS := ["moon_mass_k", "moon_mass_exp", "moon_influence_k", "moon_margin", "ring_width", "ring_density"]
 
+const HOLD_PROPS := ["loadout_fuel_cells", "hold_capacity", "tank_capacity", "separate_tank"]
+
 const GRAVITY_PROPS := ["k", "eps", "fade_width", "mass", "p"]
 
 const ROWS := [
@@ -21,7 +23,7 @@ const ROWS := [
 	["ship", "boost_fuel_mult", 0.0, 10.0, 0.05],
 	["ship", "brake_accel", 0.0, 50.0, 0.1],
 	["ship", "brake_fuel_mult", 0.0, 10.0, 0.05],
-	["ship", "fuel_per_dv", 0.0, 0.01, 0.0001],
+	["ship", "climb_coefficient", 0.0, 1.0, 0.01],
 	["ship", "ramp_time", 0.0, 5.0, 0.05],
 	["ship", "ramp_min_fraction", 0.0, 1.0, 0.01],
 	["ship", "heat_growth_engine", 0.0, 0.5, 0.005],
@@ -34,6 +36,11 @@ const ROWS := [
 	["ship", "predict_every", 1.0, 30.0, 1.0],
 	["ship", "predict_short_steps", 300.0, 1800.0, 1.0],
 	["ship", "hull_max", 1.0, 1000.0, 1.0],
+	["ship", "hull_mass", 0.5, 100.0, 0.5],
+	["ship", "hold_capacity", 1.0, 40.0, 1.0],
+	["ship", "ref_mass", 1.0, 100.0, 0.5],
+	["ship", "loadout_fuel_cells", 0.0, 20.0, 1.0],
+	["ship", "tank_capacity", 0.0, 20.0, 1.0],
 	["planet", "atmosphere_drag", 0.0, 2.0, 0.005],
 	["planet", "atmosphere_damage", 0.0, 100.0, 0.1],
 	["planet", "density_shape", 0.5, 5.0, 0.05],
@@ -66,7 +73,12 @@ const ROWS := [
 	["view", "cargo_fill", 0.0, 1.0, 0.01],
 ]
 
+const CHECKS := [
+	["ship", "separate_tank"],
+]
+
 var sliders := {}
+var checks := {}
 var row_boxes := {}
 var presets_dir := "res://presets"
 var preset_select: OptionButton
@@ -97,6 +109,8 @@ func _ready() -> void:
 	_add_header()
 	for row in ROWS:
 		_add_row(row)
+	for check in CHECKS:
+		_add_check(check)
 	_sync()
 	Tuning.preset_applied.connect(_sync)
 
@@ -104,14 +118,23 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	if not visible:
 		return
-	if ship == null:
-		ship = get_node_or_null("../../Ship")
-	if ship == null:
+	if _find_ship() == null:
 		readout.text = "crashes %d" % Telemetry.crashes
 		return
 	var st: ShipState = ship.state
 	readout.text = "hull %s  density %s  crashes %d" % [
 		_fmt(st.hull), snappedf(ShipFlight.atmosphere_density(st.pos), 0.001), Telemetry.crashes]
+
+
+func _find_ship() -> Node:
+	if ship == null:
+		ship = get_node_or_null("../../Ship")
+	return ship
+
+
+func _respawn_for_hold(target: Variant, prop: String) -> void:
+	if target is String and target == "ship" and prop in HOLD_PROPS and _find_ship() != null:
+		ship.respawn()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -233,10 +256,23 @@ func _add_row(row: Array) -> void:
 	s.value_changed.connect(_on_changed.bind(target, prop, val))
 
 
+func _add_check(row: Array) -> void:
+	var id := _id(row[0], row[1])
+	var c := CheckBox.new()
+	c.text = id
+	c.focus_mode = Control.FOCUS_NONE
+	_box.add_child(c)
+	checks[id] = c
+	c.toggled.connect(func(on: bool) -> void:
+		_holder(row[0]).set(row[1], on)
+		_respawn_for_hold(row[0], row[1]))
+
+
 func _on_changed(v: float, target: Variant, prop: String, val: Label) -> void:
 	var holder := _holder(target)
 	holder.set(prop, int(v) if holder.get(prop) is int else v)
 	val.text = _fmt(v)
+	_respawn_for_hold(target, prop)
 	if target is String and target == "planet" and prop in REGEN_PROPS:
 		Tuning.regenerate(Telemetry.seed, Telemetry.flight)
 	elif (target is int and target == 0 or target is String and target == "field") and prop in GRAVITY_PROPS:
@@ -265,3 +301,5 @@ func _sync() -> void:
 		s.allow_lesser = false
 		s.allow_greater = false
 		_values[id].text = _fmt(v)
+	for check in CHECKS:
+		checks[_id(check[0], check[1])].set_pressed_no_signal(_holder(check[0]).get(check[1]))
