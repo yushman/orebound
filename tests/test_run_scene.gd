@@ -365,3 +365,18 @@ func test_run_has_ring_and_asteroid_views_between_well_view_and_ship():
 	var ast = run.get_node_or_null("AsteroidView")
 	if ast != null:
 		assert_eq(ast.script.resource_path, "res://scenes/AsteroidView.gd")
+
+
+func test_run_has_hud_next_to_tuning_panel_ignoring_mouse():
+	var run = _run()
+	var layer = run.get_node("CanvasLayer")
+	var hud = layer.get_node_or_null("HUD")
+	assert_not_null(hud, "layer holds HUD")
+	if hud == null:
+		return
+	assert_eq(hud.scene_file_path, "res://ui/HUD.tscn")
+	assert_not_null(layer.get_node_or_null("TuningPanel"))
+	assert_eq(hud.mouse_filter, Control.MOUSE_FILTER_IGNORE)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_eq(hud.ship, run.get_node("Ship"), "HUD resolves Run's Ship")

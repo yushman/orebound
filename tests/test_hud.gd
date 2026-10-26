@@ -1,0 +1,82 @@
+extends GutTest
+
+const HUD_SCRIPT := preload("res://ui/HUD.gd")
+const PRESETS := ["res://presets/p1.tres", "res://presets/p2.tres", "res://presets/p3.tres", "res://presets/p4.tres"]
+
+var _field: FieldParams
+var _ship: ShipParams
+var _planet: PlanetParams
+
+
+func before_each() -> void:
+	_field = Tuning.field
+	_ship = Tuning.ship
+	_planet = Tuning.planet
+	Tuning.field = _field.duplicate(true)
+	Tuning.ship = _ship.duplicate(true)
+	Tuning.planet = _planet.duplicate(true)
+
+
+func after_each() -> void:
+	Tuning.field = _field
+	Tuning.ship = _ship
+	Tuning.planet = _planet
+
+
+func test_share_edge_carrier_and_tier_boundaries_for_presets() -> void:
+	for path in PRESETS:
+		Tuning.apply(Tuning.load_preset(path))
+		var f: FieldParams = Tuning.field
+		assert_almost_eq(HUD_SCRIPT.share(f.atmosphere_edge), 0.0, 1e-6, path)
+		assert_almost_eq(HUD_SCRIPT.share(f.carrier_orbit_radius), 1.0, 1e-6, path)
+		var b: Array = WellGenerator.tiers()["boundaries"]
+		var shares: Array = Tuning.planet.tier_shares
+		var cum := 0.0
+		for i in 3:
+			cum += shares[3 - i]
+			assert_almost_eq(HUD_SCRIPT.share(b[i + 1]), cum, 1e-3, "%s boundary %d" % [path, i + 1])
+
+
+func test_segments_heights_equal_tier_shares_top_to_bottom() -> void:
+	var shares: Array = Tuning.planet.tier_shares
+	var segs: Array[Vector2] = HUD_SCRIPT.segments()
+	assert_eq(segs.size(), 4)
+	if segs.size() != 4:
+		return
+	for i in 4:
+		assert_almost_eq(segs[i].y - segs[i].x, shares[i], 1e-6, "tier %d" % i)
+	assert_almost_eq(segs[0].y, 1.0, 1e-6)
+	assert_almost_eq(segs[3].x, 0.0, 1e-6)
+	for i in 3:
+		assert_almost_eq(segs[i].x, segs[i + 1].y, 1e-6)
+
+
+func test_tow_share_is_middle_tier_bottom() -> void:
+	assert_almost_eq(HUD_SCRIPT.tow_share(), 0.35, 1e-6)
+	var shares: Array = Tuning.planet.tier_shares
+	assert_almost_eq(HUD_SCRIPT.tow_share(), shares[2] + shares[3], 1e-6)
+
+
+func test_marker_y_clamps_below_edge_maps_above_carrier_and_clamps_at_ceiling() -> void:
+	var f: FieldParams = Tuning.field
+	var carrier_y: float = HUD_SCRIPT.BOTTOM_Y - HUD_SCRIPT.SCALE_H
+	var top_y: float = carrier_y - HUD_SCRIPT.STRIP_H
+	assert_almost_eq(HUD_SCRIPT.marker_y(f.atmosphere_edge * 0.5), HUD_SCRIPT.BOTTOM_Y, 1e-3)
+	assert_almost_eq(HUD_SCRIPT.marker_y(f.atmosphere_edge), HUD_SCRIPT.BOTTOM_Y, 1e-3)
+	assert_almost_eq(HUD_SCRIPT.marker_y(f.carrier_orbit_radius), carrier_y, 1e-3)
+	var off: float = Tuning.planet.ceiling_offset
+	assert_almost_eq(HUD_SCRIPT.marker_y(f.carrier_orbit_radius + off * 0.5), carrier_y - HUD_SCRIPT.STRIP_H * 0.5, 1e-3)
+	assert_almost_eq(HUD_SCRIPT.marker_y(f.carrier_orbit_radius + off), top_y, 1e-3)
+	assert_almost_eq(HUD_SCRIPT.marker_y(f.carrier_orbit_radius + off * 3.0), top_y, 1e-3)
+	var mid := HUD_SCRIPT.share_y(0.5)
+	assert_almost_eq(mid, HUD_SCRIPT.BOTTOM_Y - 0.5 * HUD_SCRIPT.SCALE_H, 1e-3)
+
+
+func test_hud_ignores_mouse_and_focus_and_tolerates_missing_ship() -> void:
+	var hud: Control = load("res://ui/HUD.tscn").instantiate()
+	add_child_autofree(hud)
+	assert_eq(hud.mouse_filter, Control.MOUSE_FILTER_IGNORE)
+	assert_eq(hud.focus_mode, Control.FOCUS_NONE)
+	assert_null(hud.ship)
+	await wait_frames(2)
+	assert_true(is_instance_valid(hud))
