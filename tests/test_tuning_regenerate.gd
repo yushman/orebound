@@ -3,6 +3,7 @@ extends GutTest
 var _saved_field
 var _saved_seed
 var _saved_flight
+var _saved_picture
 var _saved_count := 0
 var _emitted := 0
 
@@ -13,6 +14,7 @@ func before_each():
 	Tuning.field = _saved_field.duplicate(true)
 	_saved_seed = Telemetry.get("seed")
 	_saved_flight = Telemetry.get("flight")
+	_saved_picture = Tuning.get("picture")
 	_emitted = 0
 
 
@@ -20,6 +22,7 @@ func after_each():
 	Tuning.field = _saved_field
 	Telemetry.set("seed", _saved_seed)
 	Telemetry.set("flight", _saved_flight)
+	Tuning.set("picture", _saved_picture)
 	assert_eq(Tuning.field.bodies.size(), _saved_count, "regenerate leaked moons into the shared field")
 
 
@@ -28,8 +31,10 @@ func _count():
 
 
 func test_telemetry_defaults():
-	assert_eq(Telemetry.get("seed"), 1)
-	assert_eq(Telemetry.get("flight"), 1)
+	var fresh = load("res://autoload/Telemetry.gd").new()
+	assert_eq(fresh.get("seed"), 1)
+	assert_eq(fresh.get("flight"), 1)
+	fresh.free()
 
 
 func test_regenerate_replaces_moons_keeps_planet_and_emits_once():
@@ -71,3 +76,23 @@ func test_save_after_regenerate_keeps_preset_planet_only():
 	DirAccess.remove_absolute(path)
 	assert_eq(loaded.field.bodies.size(), 1)
 	assert_gt(Tuning.field.bodies.size(), 1, "save must not touch the live field")
+
+
+func test_regenerate_stores_picture_with_ring():
+	Tuning.preset_applied.connect(_count)
+	Tuning.regenerate(3, 2)
+	Tuning.preset_applied.disconnect(_count)
+	assert_eq(_emitted, 1)
+	var pic: Dictionary = WellGenerator.picture(3, 2)
+	var got: Dictionary = Tuning.get("picture")
+	assert_eq(got["seed"], pic["seed"])
+	assert_eq(got["flight"], 2)
+	assert_eq(got["moons"].size(), pic["moons"].size())
+	assert_eq(got["ring"], pic["ring"])
+	assert_false(got["ring"].is_empty())
+
+
+func test_default_picture_is_planet_only_without_ring():
+	var fresh = load("res://autoload/Tuning.gd").new()
+	assert_eq(fresh.get("picture"), {"seed": 1, "flight": 1, "moons": [], "ring": {}})
+	fresh.free()

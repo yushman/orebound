@@ -6,11 +6,12 @@ static func reference_body(pos: Vector2, t: float) -> int:
 	return GravityField.dominant(pos, t)
 
 
-static func sync_reference(pos: Vector2, t: float) -> Dictionary:
-	# candidates: all bodies and the carrier point; nearest within sync_radius wins
+static func sync_reference(pos: Vector2, t: float, snapshot = null) -> Dictionary:
+	# candidates: all bodies, the carrier point and asteroids; nearest within sync_radius wins
 	var best_d := Tuning.ship.sync_radius
 	var index := -1
 	var is_carrier := false
+	var asteroid := {}
 	for i in Tuning.field.bodies.size():
 		var d := pos.distance_to(GravityField.body_pos(i, t))
 		if d < best_d:
@@ -20,7 +21,15 @@ static func sync_reference(pos: Vector2, t: float) -> Dictionary:
 	if d_carrier < best_d:
 		index = -1
 		is_carrier = true
-	return {"valid": index >= 0 or is_carrier, "index": index, "is_carrier": is_carrier}
+		best_d = d_carrier
+	for a in _asteroids(pos, t, best_d, snapshot):
+		var d: float = pos.distance_to(a["pos"])
+		if d < best_d:
+			best_d = d
+			index = -1
+			is_carrier = false
+			asteroid = {"pos": a["pos"], "vel": a["vel"]}
+	return {"valid": index >= 0 or is_carrier or not asteroid.is_empty(), "index": index, "is_carrier": is_carrier, "asteroid": asteroid}
 
 
 static func atmosphere_density(pos: Vector2) -> float:
@@ -29,7 +38,7 @@ static func atmosphere_density(pos: Vector2) -> float:
 	return pow(clampf(depth, 0.0, 1.0), Tuning.planet.density_shape)
 
 
-static func step(state: ShipState, input: ShipInput, t: float, dt: float) -> ShipState:
+static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapshot = null) -> ShipState:
 	var p: ShipParams = Tuning.ship
 	var s := state.copy()
 	var ang_acc := input.turn * p.turn_accel
@@ -50,9 +59,13 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float) -> Shi
 		# drift sync with the nearest reference (body or carrier);
 		# no reference within sync_radius: converge to band drift
 		s.hold_time = 0.0
-		var ref := sync_reference(s.pos, t)
+		var ref := sync_reference(s.pos, t, snapshot)
 		if ref["valid"]:
-			var v_ref := Vector2.ZERO if ref["is_carrier"] else GravityField.body_vel(int(ref["index"]), t)
+			var v_ref := Vector2.ZERO
+			if not ref["asteroid"].is_empty():
+				v_ref = ref["asteroid"]["vel"]
+			elif not ref["is_carrier"]:
+				v_ref = GravityField.body_vel(int(ref["index"]), t)
 			a_b = ((v_ref - s.vel) / dt).limit_length(p.sync_accel)
 		else:
 			a_b = _band_drift_accel(s, t, dt, p.sync_accel)
@@ -81,6 +94,7 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float) -> Shi
 	s.vel += (GravityField.accel(s.pos, t) + GravityField.frame_accel(s.pos, s.vel) + nose * thr + a_b) * dt
 	s.pos += s.vel * dt
 	_moon_contact(s, t)
+	_asteroid_contact(s, t, snapshot)
 	s.hull = maxf(s.hull - Tuning.planet.atmosphere_damage * atmosphere_density(s.pos) * dt, 0.0)
 	s.crashed = s.pos.length() <= Tuning.field.planet_surface_radius or s.hull <= 0.0
 	return s
@@ -103,6 +117,34 @@ static func _moon_contact(s: ShipState, t: float) -> void:
 		if v_n < 0.0:
 			s.vel -= n * v_n * (1.0 + pl.moon_bounce)
 			s.hull = maxf(s.hull + pl.moon_impact_damage * v_n, 0.0)
+
+
+static func _asteroids(pos: Vector2, t: float, radius: float, snapshot) -> Array:
+	if snapshot == null:
+		return AsteroidField.near(pos, t, radius)
+	var out: Array = []
+	var d := pos.length()
+	for a in snapshot:
+		if absf(a["r"] - d) > radius:
+			continue
+		var st := AsteroidField.at(a, t)
+		if st["pos"].distance_to(pos) <= radius:
+			out.append({"pos": st["pos"], "vel": st["vel"], "radius": a["radius"]})
+	return out
+
+
+static func _asteroid_contact(s: ShipState, t: float, snapshot = null) -> void:
+	var pl: PlanetParams = Tuning.planet
+	for a in _asteroids(s.pos, t, maxf(pl.ast_radius_min, pl.ast_radius_max), snapshot):
+		var d: Vector2 = s.pos - a["pos"]
+		if d.length() >= a["radius"]:
+			continue
+		var n := d.normalized() if d.length() > 0.0 else Vector2.RIGHT
+		s.pos = a["pos"] + n * a["radius"]
+		var v_n: float = (s.vel - a["vel"]).dot(n)
+		if v_n < 0.0:
+			s.vel -= n * v_n * (1.0 + pl.asteroid_bounce)
+			s.hull = maxf(s.hull + pl.asteroid_impact_damage * v_n, 0.0)
 
 
 static func _soft_brake_accel(vel: Vector2, nose: Vector2, p: ShipParams) -> Vector2:

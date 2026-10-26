@@ -351,3 +351,17 @@ func test_isoline_layer_is_gone():
 	assert_null(run.get_node_or_null("IsolineView"))
 	assert_false(ResourceLoader.exists("res://scenes/IsolineView.gd"))
 	assert_false(ResourceLoader.exists("res://shaders/isolines.gdshader"))
+
+
+func test_run_has_ring_and_asteroid_views_between_well_view_and_ship():
+	var run = _run()
+	var names: Array = []
+	for c in run.get_children():
+		names.append(str(c.name))
+	assert_eq(names.slice(0, 6), ["AtmosphereView", "GravityHaloView", "WellView", "RingView", "AsteroidView", "Ship"])
+	var ring = run.get_node_or_null("RingView")
+	if ring != null:
+		assert_eq(ring.script.resource_path, "res://scenes/RingView.gd")
+	var ast = run.get_node_or_null("AsteroidView")
+	if ast != null:
+		assert_eq(ast.script.resource_path, "res://scenes/AsteroidView.gd")

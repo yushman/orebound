@@ -12,6 +12,8 @@
 
 [ext_resource type="Script" path="res://scenes/GravityHaloView.gd" id="10_halo"]
 [ext_resource type="Script" path="res://scenes/Run.gd" id="11_run"]
+[ext_resource type="Script" path="res://scenes/RingView.gd" id="12_ring"]
+[ext_resource type="Script" path="res://scenes/AsteroidView.gd" id="13_ast"]
 
 [node name="Run" type="Node2D"]
 script = ExtResource("11_run")
@@ -24,6 +26,12 @@ script = ExtResource("10_halo")
 
 [node name="WellView" type="Node2D" parent="."]
 script = ExtResource("7_well")
+
+[node name="RingView" type="Node2D" parent="."]
+script = ExtResource("12_ring")
+
+[node name="AsteroidView" type="Node2D" parent="."]
+script = ExtResource("13_ast")
 
 [node name="Ship" parent="." instance=ExtResource("1_ship")]
 

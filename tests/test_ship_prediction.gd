@@ -85,6 +85,128 @@ func test_predicted_points_equal_flight_through_moon_bounce() -> void:
 	assert_true(bounced, "ship bounced off the moon")
 
 
+func test_predicted_points_equal_flight_through_asteroid_bounce() -> void:
+	var saved_planet = Tuning.planet
+	var saved_picture = Tuning.picture
+	var saved_field = Tuning.field
+	Tuning.planet = saved_planet.duplicate()
+	Tuning.planet.asteroids_per_band = 1000.0
+	var ast: Dictionary = AsteroidField.chunk(0, 0)[0]
+	var st := AsteroidField.state(0, ast, GravityField.time())
+	var ship = _make()
+	ship.state.pos = st["pos"] + Vector2(ast["radius"] + 15.0, 0.0)
+	ship.state.vel = st["vel"] + Vector2(-10.0, 0.0)
+	var hull0: float = ship.state.hull
+	var start_tick := GravityField.tick
+	var pts := ShipPrediction.run(ship.state, ship.input, start_tick, N)
+	var hit := false
+	for i in N:
+		GravityField.tick += 1
+		ship._physics_process(GravityField.DT)
+		assert_eq(pts[i], ship.state.pos, "point %d" % i)
+		hit = hit or ship.state.hull < hull0
+	Tuning.planet = saved_planet
+	Tuning.picture = saved_picture
+	Tuning.field = saved_field
+	assert_true(hit, "ship hit the asteroid")
+
+
+func _median_ms(start: ShipState, input: ShipInput) -> float:
+	var times: Array = []
+	for r in 5:
+		var t0 := Time.get_ticks_usec()
+		ShipPrediction.run(start, input, 0, 900)
+		times.append((Time.get_ticks_usec() - t0) / 1000.0)
+	times.sort()
+	return times[2]
+
+
+func _overhead(start: ShipState, input: ShipInput, label: String) -> float:
+	var saved_planet = Tuning.planet
+	Tuning.planet = saved_planet.duplicate()
+	var med: Array = []
+	for density in [0.0, 1000.0]:
+		Tuning.planet.asteroids_per_band = density
+		med.append(_median_ms(start, input))
+	Tuning.planet = saved_planet
+	print("prediction 900 steps ", label, ", median ms: ", med[1], " (no asteroids: ", med[0], ")")
+	return med[1] - med[0]
+
+
+func _dense_start(vel_extra: Vector2) -> ShipState:
+	var saved_planet = Tuning.planet
+	Tuning.planet = saved_planet.duplicate()
+	Tuning.planet.asteroids_per_band = 1000.0
+	var ast: Dictionary = AsteroidField.chunk(0, 0)[0]
+	Tuning.planet = saved_planet
+	var st := AsteroidField.state(0, ast, 0.0)
+	var start := ShipState.new()
+	start.pos = st["pos"] + Vector2(ast["radius"] + 200.0, 0.0)
+	start.vel = st["vel"] + vel_extra
+	return start
+
+
+func test_prediction_900_steps_among_asteroids_within_budget() -> void:
+	var saved_planet = Tuning.planet
+	Tuning.planet = saved_planet.duplicate()
+	Tuning.planet.asteroids_per_band = 1000.0
+	var start := _dense_start(Vector2(-3.0, 0.0))
+	Tuning.planet = saved_planet
+	assert_lt(_overhead(start, ShipInput.new(), "dense"), 3.0)
+
+
+func test_prediction_900_steps_high_speed_start_within_budget() -> void:
+	var saved_planet = Tuning.planet
+	Tuning.planet = saved_planet.duplicate()
+	Tuning.planet.asteroids_per_band = 1000.0
+	var start := _dense_start(Vector2(0.0, 300.0))
+	Tuning.planet = saved_planet
+	assert_lt(_overhead(start, ShipInput.new(), "high-speed"), 3.0)
+
+
+func test_prediction_900_steps_accelerating_within_budget() -> void:
+	var saved_planet = Tuning.planet
+	Tuning.planet = saved_planet.duplicate()
+	Tuning.planet.asteroids_per_band = 1000.0
+	var start := _dense_start(Vector2.ZERO)
+	Tuning.planet = saved_planet
+	var inp := ShipInput.new()
+	inp.thrust = true
+	start.rot = PI * 0.5
+	assert_lt(_overhead(start, inp, "accelerating"), 3.0)
+
+
+func test_prediction_equals_flight_when_accelerating_into_asteroids() -> void:
+	var saved_planet = Tuning.planet
+	Tuning.planet = saved_planet.duplicate()
+	Tuning.planet.asteroids_per_band = 1000.0
+	var saved_ship = Tuning.ship
+	Tuning.ship = saved_ship.duplicate()
+	Tuning.ship.thrust_accel = 30.5
+	var ast: Dictionary = AsteroidField.chunk(0, 0)[0]
+	var st := AsteroidField.state(0, ast, 0.0)
+	var dir := Vector2.from_angle(ast["theta"] - 0.4)
+	var start := ShipState.new()
+	start.pos = st["pos"] + dir * 3000.0
+	start.vel = st["vel"]
+	start.rot = (-dir).angle() + PI * 0.5
+	var inp := ShipInput.new()
+	inp.thrust = true
+	var pts := ShipPrediction.run(start, inp, 0, 900)
+	var s := start.copy()
+	var diverged := 0
+	for i in pts.size():
+		s = ShipFlight.step(s, inp, GravityField.time_at(i + 1), GravityField.DT)
+		if pts[i] != s.pos:
+			diverged += 1
+	var hull: float = s.hull
+	Tuning.planet = saved_planet
+	Tuning.ship = saved_ship
+	assert_eq(pts.size(), 900)
+	assert_eq(diverged, 0)
+	assert_lt(hull, start.hull, "ship hit asteroids")
+
+
 func _run_scene() -> Array:
 	var run = load("res://scenes/Run.tscn").instantiate()
 	add_child_autofree(run)
@@ -215,3 +337,4 @@ func test_prediction_stops_at_the_first_crashed_state_and_matches_flight_up_to_i
 		s = ShipFlight.step(s, ShipInput.new(), GravityField.time_at(10 + i + 1), GravityField.DT)
 		assert_eq(pts[i], s.pos, "point %d" % i)
 		assert_eq(s.crashed, i == pts.size() - 1, "crashed at %d" % i)
+

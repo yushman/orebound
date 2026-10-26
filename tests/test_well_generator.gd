@@ -192,10 +192,11 @@ func test_picture_retries_with_next_seed_before_fallback():
 	for s in 100:
 		var pic: Dictionary = WellGenerator.picture(s, 1)
 		var first: Dictionary = WellGenerator._build(s, 1)
-		if not WellGenerator.check(first["moons"]):
+		if not WellGenerator.check(first["moons"], first["ring"]):
 			var expected: int = Tuning.planet.fallback_seed
 			for i in range(1, Tuning.planet.max_tries):
-				if WellGenerator.check(WellGenerator._build(s + i, 1)["moons"]):
+				var nxt: Dictionary = WellGenerator._build(s + i, 1)
+				if WellGenerator.check(nxt["moons"], nxt["ring"]):
 					expected = s + i
 					break
 			assert_ne(pic["seed"], s)
@@ -204,18 +205,70 @@ func test_picture_retries_with_next_seed_before_fallback():
 	fail_test("no failing seed in 0..99")
 
 
-func test_fallback_seed_passes_check():
+func test_fallback_seed_passes_check_with_ring():
 	for setup in _setups():
 		_use(setup)
 		var pic: Dictionary = WellGenerator._build(Tuning.planet.fallback_seed, 1)
-		assert_true(WellGenerator.check(pic["moons"]), str(setup))
+		assert_true(WellGenerator.check(pic["moons"], pic["ring"]), str(setup))
 
 
-func test_at_least_half_of_seeds_pass_first_try():
+func test_at_least_half_of_seeds_pass_first_try_with_ring():
 	for setup in _setups():
 		_use(setup)
 		var ok := 0
 		for s in 100:
-			if WellGenerator.check(WellGenerator._build(s, 1)["moons"]):
+			var pic: Dictionary = WellGenerator._build(s, 1)
+			if WellGenerator.check(pic["moons"], pic["ring"]):
 				ok += 1
 		assert_gte(ok, 50, "%s passed %d/100" % [setup, ok])
+
+
+func test_relative_omega_matches_d35_at_tier_boundaries():
+	var b: Array[float] = WellGenerator.tiers()["boundaries"]
+	var expected := [7.9e-4, 7.4e-4, 6.2e-4, 3.6e-4]
+	for i in 4:
+		assert_almost_eq(WellGenerator.relative_omega(b[i]), expected[i], 0.1 * expected[i], "b%d" % i)
+	assert_almost_eq(WellGenerator.relative_omega(Tuning.field.carrier_orbit_radius), 0.0, 1e-6)
+
+
+func _annuli_clear(ring: Dictionary, moons: Array) -> bool:
+	var m: float = Tuning.planet.moon_margin
+	for mo in moons:
+		var reach: float = mo.influence_radius + m
+		if ring["radius"] + ring["width"] * 0.5 > mo.orbit_radius - reach and ring["radius"] - ring["width"] * 0.5 < mo.orbit_radius + reach:
+			return false
+	return true
+
+
+func test_built_ring_lies_in_ring_tier_and_clears_moon_annuli():
+	var b: Array[float] = WellGenerator.tiers()["boundaries"]
+	var tier: int = Tuning.planet.ring_tier
+	var found := 0
+	for s in 40:
+		var pic: Dictionary = WellGenerator._build(s, 1)
+		var ring: Dictionary = pic["ring"]
+		if ring.is_empty():
+			continue
+		found += 1
+		assert_almost_eq(ring["width"], Tuning.planet.ring_width, 1e-6)
+		assert_gte(ring["radius"] - ring["width"] * 0.5, b[tier] - 1e-6)
+		assert_lte(ring["radius"] + ring["width"] * 0.5, b[tier + 1] + 1e-6)
+		assert_between(ring["phase"], 0.0, TAU)
+		assert_true(_annuli_clear(ring, pic["moons"]), "seed %d" % s)
+		assert_eq(WellGenerator._build(s, 1)["ring"], ring)
+	assert_gt(found, 0)
+	var p := PlanetParams.new()
+	p.ring_width = 1e7
+	Tuning.planet = p
+	assert_true(WellGenerator._build(1, 1)["ring"].is_empty())
+
+
+func test_check_rejects_ring_crossing_moon_annulus():
+	var m := _mk(500.0, 108000.0)
+	var reach: float = m.influence_radius + Tuning.planet.moon_margin
+	var far := {"radius": 108000.0 + reach + 800.0, "width": 1500.0, "phase": 0.0}
+	var near := {"radius": 108000.0 + reach + 700.0, "width": 1500.0, "phase": 0.0}
+	assert_true(WellGenerator.check([m]))
+	assert_true(WellGenerator.check([m], far))
+	assert_false(WellGenerator.check([m], near))
+	assert_false(WellGenerator.check([m], {}))

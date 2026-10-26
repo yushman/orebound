@@ -3,6 +3,8 @@ extends GutTest
 const DT := 1.0 / 60.0
 
 var _saved_field
+var _saved_planet
+var _saved_picture
 var _saved_sync_radius := 0.0
 var _saved_drag := 0.0
 var _saved_damage := 0.0
@@ -10,6 +12,8 @@ var _saved_damage := 0.0
 
 func before_each():
 	_saved_field = Tuning.field
+	_saved_planet = Tuning.planet
+	_saved_picture = Tuning.picture
 	_saved_sync_radius = Tuning.ship.sync_radius
 	_saved_drag = Tuning.planet.atmosphere_drag
 	_saved_damage = Tuning.planet.atmosphere_damage
@@ -19,6 +23,8 @@ func before_each():
 
 func after_each():
 	Tuning.field = _saved_field
+	Tuning.planet = _saved_planet
+	Tuning.picture = _saved_picture
 	Tuning.ship.sync_radius = _saved_sync_radius
 	Tuning.planet.atmosphere_drag = _saved_drag
 	Tuning.planet.atmosphere_damage = _saved_damage
@@ -796,3 +802,46 @@ func test_zero_radius_body_never_collides() -> void:
 	var out := ShipFlight.step(s, ShipInput.new(), 0.0, DT)
 	assert_almost_eq(out.vel, Vector2(-10, 0), Vector2(0.001, 0.001))
 	assert_eq(out.hull, s.hull)
+
+
+func _dense_asteroid() -> Dictionary:
+	Tuning.planet = Tuning.planet.duplicate()
+	Tuning.planet.asteroids_per_band = 1000.0
+	Tuning.planet.asteroid_bounce = 0.5
+	var ast: Dictionary = AsteroidField.chunk(0, 0)[0]
+	var st := AsteroidField.state(0, ast, 0.0)
+	st["radius"] = ast["radius"]
+	return st
+
+
+func test_asteroid_contact_pushes_out_bounces_and_damages_hull() -> void:
+	var a := _dense_asteroid()
+	var s := _state(a["pos"] + Vector2(a["radius"] * 0.5, 0.0), a["vel"] + Vector2(-10, 0))
+	var out := ShipFlight.step(s, ShipInput.new(), 0.0, DT)
+	assert_almost_eq(out.pos.distance_to(a["pos"]), a["radius"], 0.01)
+	var n: Vector2 = (out.pos - a["pos"]).normalized()
+	assert_almost_eq((out.vel - a["vel"]).dot(n), 10.0 * Tuning.planet.asteroid_bounce, 0.3)
+	assert_almost_eq(out.hull, s.hull - Tuning.planet.asteroid_impact_damage * 10.0, 0.05 * 0.5)
+	assert_false(out.crashed)
+	var away := _state(a["pos"] + Vector2(a["radius"] * 0.5, 0.0), a["vel"] + Vector2(10, 0))
+	assert_eq(ShipFlight.step(away, ShipInput.new(), 0.0, DT).hull, away.hull)
+
+
+func test_drift_sync_near_asteroid_zeroes_relative_velocity() -> void:
+	var a := _dense_asteroid()
+	var pos: Vector2 = a["pos"] + Vector2(a["radius"] + 10.0, 0.0)
+	var near := AsteroidField.near(pos, 0.0, Tuning.ship.sync_radius)
+	var best: Dictionary = near[0]
+	for q in near:
+		if q["pos"].distance_to(pos) < best["pos"].distance_to(pos):
+			best = q
+	var ref := ShipFlight.sync_reference(pos, 0.0)
+	assert_true(ref.valid)
+	assert_false(ref.is_carrier)
+	assert_eq(ref.index, -1)
+	assert_eq(ref.asteroid["pos"], best["pos"])
+	assert_eq(ref.asteroid["vel"], best["vel"])
+	var s := _state(pos, best["vel"] + Vector2(0.03, -0.02))
+	var out := ShipFlight.step(s, _drift_sync_input(), 0.0, DT)
+	assert_lt(out.vel.distance_to(best["vel"]), 0.05)
+	assert_gt(out.fuel_sync, 0.0)

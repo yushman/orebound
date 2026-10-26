@@ -52,3 +52,19 @@ func test_default_moon_generation_knobs():
 	assert_gt(p.get("moon_bounce"), 0.0)
 	assert_gt(p.get("moon_impact_damage"), 0.0)
 	assert_not_null(p.get("fallback_seed"))
+
+
+func test_default_band_chunk_and_asteroid_knobs():
+	var p: PlanetParams = Tuning.planet
+	assert_almost_eq(float(p.get("band_width")), 1500.0, 500.0)
+	assert_almost_eq(float(p.get("chunk_arc")), 4000.0, 1500.0)
+	assert_gt(float(p.get("chunk_gen_radius")), float(p.get("chunk_arc")))
+	assert_gt(float(p.get("asteroids_per_band")), 0.0)
+	assert_between(float(p.get("drop_ratio")), 0.001, 0.999)
+	assert_gt(float(p.get("drop_start")), 0.0)
+	assert_between(float(p.get("above_factor")), 0.0, 0.999)
+	assert_gt(float(p.get("field_radius")), 0.0)
+	assert_gt(float(p.get("ast_radius_min")), 0.0)
+	assert_gt(float(p.get("ast_radius_max")), float(p.get("ast_radius_min")))
+	assert_between(float(p.get("asteroid_bounce")), 0.001, 1.0)
+	assert_gt(float(p.get("asteroid_impact_damage")), 0.0)

@@ -131,7 +131,7 @@ func test_apply_deep_copies_and_emits() -> void:
 	assert_eq(pr.ship.thrust_accel, 99.0)
 
 
-const PRESET_P := {1: 2.0, 2: 1.0, 3: 1.5, 4: 1.0}
+const PRESET_P := {1: 2.0, 2: 1.0, 3: 1.5, 4: 2.0}
 
 
 func _load_n(n: int) -> TuningPreset:
@@ -156,7 +156,10 @@ func test_preset_common_params() -> void:
 		assert_eq(pr.field.k, 1000.0)
 		assert_eq(pr.field.eps, 1.0)
 		assert_eq(pr.field.fade_width, 0.5)
-		_assert_ship_eq(pr.ship, ShipParams.new())
+		var ship := ShipParams.new()
+		if n == 4:
+			ship.thrust_accel = 30.5
+		_assert_ship_eq(pr.ship, ship)
 		assert_eq(pr.field.bodies.size(), 1, "p%d presets carry only the planet" % n)
 		var pl := pr.field.bodies[0]
 		assert_eq(pl.angular_speed, 0.0, "p%d planet static" % n)

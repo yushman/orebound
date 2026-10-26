@@ -52,7 +52,10 @@ func test_slider_set_covers_all_parameters() -> void:
 			"sync_accel", "sync_fuel_mult", "predict_every", "predict_short_steps", "hull_max"]:
 		expect.append("ship." + p)
 	for p in ["atmosphere_drag", "atmosphere_damage", "density_shape", "moon_mass_k", "moon_mass_exp",
-			"moon_influence_k", "moon_margin", "moon_bounce", "moon_impact_damage"]:
+			"moon_influence_k", "moon_margin", "moon_bounce", "moon_impact_damage",
+				"ring_width", "ring_density", "band_width", "chunk_arc", "chunk_gen_radius",
+				"asteroids_per_band", "drop_start", "drop_ratio", "above_factor", "field_radius",
+				"ast_radius_min", "ast_radius_max", "asteroid_bounce", "asteroid_impact_damage"]:
 		expect.append("planet." + p)
 	for p in ["halo_alpha", "ring_count", "ring_period", "ring_px", "ring_alpha"]:
 		expect.append("view." + p)
@@ -373,5 +376,31 @@ func test_moon_mass_k_slider_regenerates_moons_with_new_mass() -> void:
 	_panel.sliders["planet.moon_bounce"].value = 0.25
 	assert_eq(Tuning.planet.moon_bounce, 0.25)
 	assert_eq(Tuning.field.bodies.size(), n)
+	Telemetry.seed = old_seed
+	Telemetry.flight = old_flight
+
+
+func test_ring_width_slider_regenerates_picture_and_field_knobs_do_not() -> void:
+	var old_seed := Telemetry.seed
+	var old_flight := Telemetry.flight
+	var old_picture: Dictionary = Tuning.picture
+	Tuning.regenerate(3, 1)
+	var before: Dictionary = Tuning.picture
+	_panel.sliders["planet.ring_width"].value = 1000.0
+	assert_eq(Tuning.planet.ring_width, 1000.0)
+	assert_ne(Tuning.picture, before, "new picture object after ring_width change")
+	if not Tuning.picture["ring"].is_empty():
+		assert_eq(Tuning.picture["ring"]["width"], 1000.0)
+	var after: Dictionary = Tuning.picture
+	_panel.sliders["planet.ring_density"].value = 0.8
+	assert_eq(Tuning.planet.ring_density, 0.8)
+	assert_ne(Tuning.picture, after, "ring_density regenerates")
+	var kept: Dictionary = Tuning.picture
+	_panel.sliders["planet.band_width"].value = 2000.0
+	_panel.sliders["planet.asteroids_per_band"].value = 9.0
+	assert_eq(Tuning.planet.band_width, 2000.0)
+	assert_eq(Tuning.planet.asteroids_per_band, 9.0)
+	assert_same(Tuning.picture, kept)
+	Tuning.picture = old_picture
 	Telemetry.seed = old_seed
 	Telemetry.flight = old_flight

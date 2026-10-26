@@ -6,6 +6,7 @@ var field: FieldParams = _default_field()
 var ship: ShipParams = ShipParams.new()
 var planet: PlanetParams = _default_planet()
 var view: ViewParams = ViewParams.new()
+var picture: Dictionary = {"seed": 1, "flight": 1, "moons": [], "ring": {}}
 
 
 func apply(preset: TuningPreset) -> void:
@@ -19,6 +20,7 @@ func regenerate(seed: int, flight: int) -> void:
 	var bodies: Array[BodyParams] = [field.bodies[0]]
 	bodies.append_array(pic["moons"])
 	field.bodies = bodies
+	picture = pic
 	Telemetry.seed = pic["seed"]
 	Telemetry.flight = pic["flight"]
 	preset_applied.emit()

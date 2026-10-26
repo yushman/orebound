@@ -1,6 +1,6 @@
 extends Control
 
-const REGEN_PROPS := ["moon_mass_k", "moon_mass_exp", "moon_influence_k", "moon_margin"]
+const REGEN_PROPS := ["moon_mass_k", "moon_mass_exp", "moon_influence_k", "moon_margin", "ring_width", "ring_density"]
 
 const ROWS := [
 	["field", "k", 1.0, 10000.0, 1.0],
@@ -41,6 +41,20 @@ const ROWS := [
 	["planet", "moon_margin", 0.0, 1000.0, 10.0],
 	["planet", "moon_bounce", 0.0, 1.0, 0.01],
 	["planet", "moon_impact_damage", 0.0, 1.0, 0.005],
+	["planet", "ring_width", 100.0, 5000.0, 10.0],
+	["planet", "ring_density", 0.0, 1.0, 0.01],
+	["planet", "band_width", 200.0, 5000.0, 10.0],
+	["planet", "chunk_arc", 500.0, 20000.0, 50.0],
+	["planet", "chunk_gen_radius", 2000.0, 60000.0, 100.0],
+	["planet", "asteroids_per_band", 0.0, 50.0, 0.5],
+	["planet", "drop_start", 0.0, 30.0, 1.0],
+	["planet", "drop_ratio", 0.05, 1.0, 0.01],
+	["planet", "above_factor", 0.0, 1.0, 0.01],
+	["planet", "field_radius", 50.0, 3000.0, 10.0],
+	["planet", "ast_radius_min", 5.0, 500.0, 1.0],
+	["planet", "ast_radius_max", 5.0, 500.0, 1.0],
+	["planet", "asteroid_bounce", 0.0, 1.0, 0.01],
+	["planet", "asteroid_impact_damage", 0.0, 1.0, 0.005],
 	["view", "halo_alpha", 0.0, 1.0, 0.01],
 	["view", "ring_count", 1.0, 12.0, 1.0],
 	["view", "ring_period", 0.2, 10.0, 0.1],
