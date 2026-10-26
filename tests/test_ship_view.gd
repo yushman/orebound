@@ -87,6 +87,17 @@ func test_hull_colour_is_hull_and_wings_are_hull_shade() -> void:
 	assert_eq((view.get_node("WingRight") as Polygon2D).color, Palette.HULL_SHADE)
 
 
+func test_hidden_flame_does_not_reassign_polygon() -> void:
+	var ship := _ship()
+	var view := ship.get_node("Visual") as ShipView
+	view._process(0.0)
+	assert_eq(view.flame.polygon.size(), 0)
+	ship.input.thrust = true
+	ship.state.hold_time = Tuning.ship.ramp_time
+	view._process(0.0)
+	assert_eq(view.flame.polygon.size(), 3)
+
+
 func test_flame_length_follows_input_and_state() -> void:
 	var ship := _ship()
 	var view := ship.get_node("Visual") as ShipView

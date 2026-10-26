@@ -12,7 +12,7 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	Tuning.preset_applied.connect(_update)
+	ship.respawned.connect(_update)
 
 
 func _process(_delta: float) -> void:

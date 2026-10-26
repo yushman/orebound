@@ -126,7 +126,7 @@ func test_view_pushes_uniforms_and_view_knobs():
 	var w: ViewParams = Tuning.view
 	assert_eq(m.get_shader_parameter("halo_alpha"), w.halo_alpha)
 	assert_eq(m.get_shader_parameter("ring_count"), w.ring_count)
-	assert_eq(m.get_shader_parameter("ring_period"), w.ring_period)
+	assert_eq(m.get_shader_parameter("ring_time_phase"), 0.0)
 	assert_eq(m.get_shader_parameter("ring_px"), w.ring_px)
 	assert_eq(m.get_shader_parameter("ring_alpha"), w.ring_alpha)
 	assert_eq(m.get_shader_parameter("halo_color"), Color(Palette.HALO.r, Palette.HALO.g, Palette.HALO.b))
@@ -160,5 +160,13 @@ func test_shader_declares_pushed_uniforms():
 	var declared := {}
 	for d in m.shader.get_shader_uniform_list():
 		declared[d["name"]] = true
-	for k in ["moon_count", "rel", "outer", "halo_alpha", "ring_count", "ring_period", "ring_px", "ring_alpha", "halo_color"]:
+	for k in ["moon_count", "rel", "outer", "halo_alpha", "ring_count", "ring_time_phase", "ring_px", "ring_alpha", "halo_color"]:
 		assert_true(declared.has(k), k)
+
+
+func test_advance_phase_wraps_and_survives_period_change():
+	assert_almost_eq(GravityHaloView.advance_phase(0.9, 0.5, 2.0), 0.15, 1e-6)
+	var p := GravityHaloView.advance_phase(0.5, 0.0, 4.0)
+	assert_almost_eq(p, 0.5, 1e-6)
+	assert_almost_eq(GravityHaloView.advance_phase(p, 0.0, 1.0), 0.5, 1e-6)
+	assert_almost_eq(GravityHaloView.advance_phase(0.0, 3600.0, 2.0), 0.0, 1e-6)

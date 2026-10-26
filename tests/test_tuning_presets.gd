@@ -131,6 +131,15 @@ func test_apply_deep_copies_and_emits() -> void:
 	assert_eq(pr.ship.thrust_accel, 99.0)
 
 
+func test_apply_with_emit_false_is_silent() -> void:
+	var pr := _preset_with(3)
+	watch_signals(Tuning)
+	Tuning.apply(pr, false)
+	assert_signal_not_emitted(Tuning, "preset_applied")
+	assert_eq(Tuning.field.k, 42.0)
+	assert_eq(Tuning.ship.thrust_accel, 99.0)
+
+
 const PRESET_P := {1: 2.0, 2: 1.0, 3: 1.5, 4: 2.0}
 
 

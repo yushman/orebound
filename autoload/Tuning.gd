@@ -9,10 +9,11 @@ var view: ViewParams = ViewParams.new()
 var picture: Dictionary = {"seed": 1, "flight": 1, "moons": [], "ring": {}}
 
 
-func apply(preset: TuningPreset) -> void:
+func apply(preset: TuningPreset, emit := true) -> void:
 	field = preset.field.duplicate(true)
 	ship = preset.ship.duplicate(true)
-	preset_applied.emit()
+	if emit:
+		preset_applied.emit()
 
 
 func regenerate(seed: int, flight: int) -> void:

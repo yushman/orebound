@@ -13,9 +13,11 @@ static func band_count() -> int:
 
 
 static func band_of(r: float) -> int:
-	if r < Tuning.field.atmosphere_edge or r > WellGenerator.tiers()["ceiling"]:
+	var ceiling: float = WellGenerator.tiers()["ceiling"]
+	if r < Tuning.field.atmosphere_edge or r > ceiling:
 		return -1
-	return floori((r - Tuning.field.atmosphere_edge) / Tuning.planet.band_width)
+	var edge: float = Tuning.field.atmosphere_edge
+	return mini(floori((r - edge) / Tuning.planet.band_width), ceili((ceiling - edge) / Tuning.planet.band_width) - 1)
 
 
 static func band_centre(k: int) -> float:

@@ -56,7 +56,7 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 		a_b = _soft_brake_accel(s.vel, nose, p)
 		s.fuel_soft_brake += a_b.length() * dt * p.fuel_per_dv * p.brake_fuel_mult
 	elif input.drift_sync:
-		# drift sync with the nearest reference (body or carrier);
+		# drift sync with the nearest reference (body, carrier or asteroid);
 		# no reference within sync_radius: converge to band drift
 		s.hold_time = 0.0
 		var ref := sync_reference(s.pos, t, snapshot)
@@ -114,9 +114,17 @@ static func _moon_contact(s: ShipState, t: float) -> void:
 		s.pos = center + n * radius
 		var v_rel := s.vel - GravityField.body_vel(i, t)
 		var v_n := v_rel.dot(n)
-		if v_n < 0.0:
-			s.vel -= n * v_n * (1.0 + pl.moon_bounce)
-			s.hull = maxf(s.hull + pl.moon_impact_damage * v_n, 0.0)
+		_contact(s, n, v_n, pl.moon_bounce, pl.moon_impact_damage)
+
+
+static func _contact(s: ShipState, n: Vector2, v_n: float, bounce: float, damage: float) -> void:
+	if v_n >= 0.0:
+		return
+	if -v_n < Tuning.planet.rest_speed:
+		s.vel -= n * v_n
+		return
+	s.vel -= n * v_n * (1.0 + bounce)
+	s.hull = maxf(s.hull + damage * v_n, 0.0)
 
 
 static func _asteroids(pos: Vector2, t: float, radius: float, snapshot) -> Array:
@@ -142,9 +150,7 @@ static func _asteroid_contact(s: ShipState, t: float, snapshot = null) -> void:
 		var n := d.normalized() if d.length() > 0.0 else Vector2.RIGHT
 		s.pos = a["pos"] + n * a["radius"]
 		var v_n: float = (s.vel - a["vel"]).dot(n)
-		if v_n < 0.0:
-			s.vel -= n * v_n * (1.0 + pl.asteroid_bounce)
-			s.hull = maxf(s.hull + pl.asteroid_impact_damage * v_n, 0.0)
+		_contact(s, n, v_n, pl.asteroid_bounce, pl.asteroid_impact_damage)
 
 
 static func _soft_brake_accel(vel: Vector2, nose: Vector2, p: ShipParams) -> Vector2:

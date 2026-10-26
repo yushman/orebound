@@ -55,7 +55,7 @@ func test_slider_set_covers_all_parameters() -> void:
 			"moon_influence_k", "moon_margin", "moon_bounce", "moon_impact_damage",
 				"ring_width", "ring_density", "band_width", "chunk_arc", "chunk_gen_radius",
 				"asteroids_per_band", "drop_start", "drop_ratio", "above_factor", "field_radius",
-				"ast_radius_min", "ast_radius_max", "asteroid_bounce", "asteroid_impact_damage"]:
+				"ast_radius_min", "ast_radius_max", "asteroid_bounce", "asteroid_impact_damage", "rest_speed"]:
 		expect.append("planet." + p)
 	for p in ["halo_alpha", "ring_count", "ring_period", "ring_px", "ring_alpha", "cargo_fill"]:
 		expect.append("view." + p)
@@ -269,7 +269,7 @@ func test_readout_shows_hull_density_and_crashes() -> void:
 	var text: String = _panel.readout.text
 	assert_string_contains(text, "42")
 	assert_string_contains(text, str(snappedf(ShipFlight.atmosphere_density(ship.state.pos), 0.001)))
-	assert_string_contains(text, "3")
+	assert_string_contains(text, "crashes 3")
 	Telemetry.crashes = crashes
 
 
@@ -311,18 +311,38 @@ func test_sync_sets_view_sliders_without_write_back() -> void:
 	assert_eq(Tuning.view.ring_alpha, 0.12)
 
 
-func test_seed_typed_regenerates_and_next_seed_uses_used_plus_one() -> void:
+func test_next_seed_after_fallback_uses_requested_plus_one() -> void:
 	var old_seed := Telemetry.seed
 	var old_flight := Telemetry.flight
+	var margin := Tuning.planet.moon_margin
+	Tuning.planet.moon_margin = 1.0e7
 	_panel.seed_box.value = 7
-	var expect := WellGenerator.picture(7, 1)
-	assert_eq(Telemetry.seed, expect["seed"])
-	assert_eq(Tuning.field.bodies.size(), 1 + expect["moons"].size())
-	assert_eq(_panel.seed_box.value, float(Telemetry.seed), "field shows used seed")
-	var used := Telemetry.seed
+	assert_eq(Telemetry.seed, Tuning.planet.fallback_seed, "typed seed fell back")
+	assert_eq(_panel.seed_box.value, float(Telemetry.seed), "box shows used seed")
+	Tuning.planet.moon_margin = margin
 	_panel.next_seed_button.pressed.emit()
-	assert_eq(Telemetry.seed, WellGenerator.picture(used + 1, Telemetry.flight)["seed"])
+	var expect := WellGenerator.picture(8, Telemetry.flight)
+	assert_eq(Telemetry.seed, expect["seed"])
 	assert_eq(_panel.seed_box.value, float(Telemetry.seed))
+	_panel.next_seed_button.pressed.emit()
+	assert_eq(Telemetry.seed, WellGenerator.picture(9, Telemetry.flight)["seed"])
+	Telemetry.seed = old_seed
+	Telemetry.flight = old_flight
+
+
+func test_next_seed_after_retry_does_not_repeat_used_seed() -> void:
+	var old_seed := Telemetry.seed
+	var old_flight := Telemetry.flight
+	var n := 0
+	while WellGenerator.picture(n, 1)["seed"] != n + 1 and n < 500:
+		n += 1
+	assert_lt(n, 500, "found a seed whose check fails and retry passes")
+	_panel.seed_box.value = n
+	assert_eq(Telemetry.seed, n + 1, "typed seed retried")
+	var before: Array = Tuning.picture["moons"]
+	_panel.next_seed_button.pressed.emit()
+	assert_ne(Telemetry.seed, n + 1, "next does not repeat the used seed")
+	assert_ne(Tuning.picture["moons"], before, "moons differ")
 	Telemetry.seed = old_seed
 	Telemetry.flight = old_flight
 
@@ -359,6 +379,46 @@ func test_preset_load_regenerates_moons_with_current_seed() -> void:
 		assert_eq(row.visible, i < n, "body%d row" % i)
 		if i < n:
 			assert_almost_eq(_panel.sliders["body%d.mass" % i].value, Tuning.field.bodies[i].mass, 0.01)
+	Telemetry.seed = old_seed
+	Telemetry.flight = old_flight
+
+
+func test_load_emits_preset_applied_once() -> void:
+	var old_seed := Telemetry.seed
+	var old_flight := Telemetry.flight
+	var fired := [0]
+	var cb := func() -> void: fired[0] += 1
+	Tuning.preset_applied.connect(cb)
+	_panel.load_button.pressed.emit()
+	Tuning.preset_applied.disconnect(cb)
+	assert_eq(fired[0], 1)
+	Telemetry.seed = old_seed
+	Telemetry.flight = old_flight
+
+
+func test_gravity_slider_regenerates_moons() -> void:
+	var old_seed := Telemetry.seed
+	var old_flight := Telemetry.flight
+	Tuning.regenerate(3, 1)
+	var fired := [0]
+	var cb := func() -> void: fired[0] += 1
+	Tuning.preset_applied.connect(cb)
+	var before: float = Tuning.field.bodies[1].angular_speed
+	_panel.sliders["field.k"].value = Tuning.field.k * 2.0
+	assert_eq(fired[0], 1, "field.k regenerates")
+	assert_ne(Tuning.field.bodies[1].angular_speed, before, "moon angular_speed follows k")
+	_panel.sliders["field.eps"].value = Tuning.field.eps + 0.5
+	assert_eq(fired[0], 2, "field.eps")
+	_panel.sliders["field.fade_width"].value = Tuning.field.fade_width + 0.25
+	assert_eq(fired[0], 3, "field.fade_width")
+	_panel.sliders["body0.mass"].value = Tuning.field.bodies[0].mass * 1.5
+	assert_eq(fired[0], 4, "body0.mass")
+	_panel.sliders["body0.p"].value = Tuning.field.bodies[0].p + 0.25
+	assert_eq(fired[0], 5, "body0.p")
+	_panel.sliders["ship.thrust_accel"].value = 10.0
+	_panel.sliders["body1.p"].value = 1.5
+	assert_eq(fired[0], 5, "other sliders do not regenerate")
+	Tuning.preset_applied.disconnect(cb)
 	Telemetry.seed = old_seed
 	Telemetry.flight = old_flight
 

@@ -7,6 +7,7 @@ const SHADER := preload("res://shaders/gravity_halo.gdshader")
 const WellViewScript := preload("res://scenes/WellView.gd")
 
 var _material := ShaderMaterial.new()
+var _ring_time_phase := 0.0
 
 
 ## Camera-relative moon uniforms (body 0 is never included); rel is a camera-relative Vector2 (float32, sub-pixel error).
@@ -31,6 +32,10 @@ static func ring_phase(u: float) -> float:
 	return pow(u, 1.5) if u < 1.0 else 0.0
 
 
+static func advance_phase(phase: float, delta: float, period: float) -> float:
+	return fposmod(phase + delta / period, 1.0)
+
+
 static func halo_alpha(u: float) -> float:
 	return Tuning.view.halo_alpha * (1.0 - u) * (1.0 - u) if u < 1.0 else 0.0
 
@@ -42,7 +47,8 @@ func _ready() -> void:
 	refresh()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_ring_time_phase = advance_phase(_ring_time_phase, delta, Tuning.view.ring_period)
 	refresh()
 
 
@@ -56,10 +62,10 @@ func refresh() -> void:
 	var w: ViewParams = Tuning.view
 	_material.set_shader_parameter("halo_alpha", w.halo_alpha)
 	_material.set_shader_parameter("ring_count", w.ring_count)
-	_material.set_shader_parameter("ring_period", w.ring_period)
+	_material.set_shader_parameter("ring_time_phase", _ring_time_phase)
 	_material.set_shader_parameter("ring_px", w.ring_px)
 	_material.set_shader_parameter("ring_alpha", w.ring_alpha)
-	_material.set_shader_parameter("halo_color", Color(Palette.HALO.r, Palette.HALO.g, Palette.HALO.b))
+	_material.set_shader_parameter("halo_color", Palette.HALO)
 	queue_redraw()
 
 

@@ -297,3 +297,11 @@ func test_max_speed_bounds_every_near_entry_speed() -> void:
 			assert_lte(e["vel"].length(), vmax + 1e-6)
 	Tuning.planet = saved_planet
 	assert_gt(seen, 0)
+
+
+func test_band_of_ceiling_clamped_to_last_band():
+	var edge: float = Tuning.field.atmosphere_edge
+	var span: float = WellGenerator.tiers()["ceiling"] - edge
+	Tuning.planet.band_width = span / 4.0
+	assert_eq(AsteroidField.band_count(), 4)
+	assert_eq(AsteroidField.band_of(WellGenerator.tiers()["ceiling"]), AsteroidField.band_count() - 1)

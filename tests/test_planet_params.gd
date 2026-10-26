@@ -54,6 +54,10 @@ func test_default_moon_generation_knobs():
 	assert_not_null(p.get("fallback_seed"))
 
 
+func test_default_rest_speed():
+	assert_eq(Tuning.planet.get("rest_speed"), 0.3)
+
+
 func test_default_band_chunk_and_asteroid_knobs():
 	var p: PlanetParams = Tuning.planet
 	assert_almost_eq(float(p.get("band_width")), 1500.0, 500.0)

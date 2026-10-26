@@ -3,6 +3,8 @@ extends CharacterBody2D
 var state := ShipState.new()
 var input := ShipInput.new()
 
+signal respawned
+
 
 func _ready() -> void:
 	respawn()
@@ -19,6 +21,7 @@ func respawn() -> void:
 	state.hull = Tuning.ship.hull_max
 	position = pos
 	rotation = state.rot
+	respawned.emit()
 
 
 func _physics_process(_delta: float) -> void:

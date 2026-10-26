@@ -116,6 +116,17 @@ func test_different_seed_gives_different_picture():
 	assert_false(_same_picture(a, b))
 
 
+func test_build_uses_passed_tier_bounds():
+	var b: Array[float] = WellGenerator.tiers()["boundaries"]
+	var shifted: Array[float] = []
+	for r in b:
+		shifted.append(r * 1.01)
+	assert_true(_same_picture(WellGenerator._build(5, 1), WellGenerator._build(5, 1, b)))
+	assert_false(_same_picture(WellGenerator._build(5, 1), WellGenerator._build(5, 1, shifted)))
+	var pic: Dictionary = WellGenerator.picture(5, 1)
+	assert_true(_same_picture(pic, WellGenerator._build(pic["seed"], 1, b)))
+
+
 func test_picture_leaves_tuning_untouched():
 	var bodies: Array = Tuning.field.bodies.duplicate()
 	WellGenerator.picture(3, 1)

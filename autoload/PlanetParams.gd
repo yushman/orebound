@@ -23,6 +23,7 @@ extends Resource
 @export var fallback_seed: int = 2
 @export var moon_bounce: float = 0.5
 @export var moon_impact_damage: float = 0.05
+@export var rest_speed: float = 0.3
 @export var band_width: float = 1500.0
 @export var chunk_arc: float = 4000.0
 @export var chunk_gen_radius: float = 20000.0

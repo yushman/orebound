@@ -82,11 +82,38 @@ func test_hud_ignores_mouse_and_focus_and_tolerates_missing_ship() -> void:
 	assert_true(is_instance_valid(hud))
 
 
+func test_missing_ship_pushes_no_error() -> void:
+	var hud: Control = load("res://ui/HUD.tscn").instantiate()
+	add_child_autofree(hud)
+	assert_null(hud.ship)
+	await wait_frames(2)
+	assert_push_error_count(0)
+
+
+func test_ship_resolved_in_ready() -> void:
+	var root := Node.new()
+	var ship := Node.new()
+	ship.name = "Ship"
+	root.add_child(ship)
+	var layer := CanvasLayer.new()
+	root.add_child(layer)
+	var hud: Control = load("res://ui/HUD.tscn").instantiate()
+	layer.add_child(hud)
+	add_child_autofree(root)
+	assert_eq(hud.ship, ship)
+
+
 func test_colors_come_from_palette() -> void:
 	assert_eq(HUD_SCRIPT.EDGE_COLOR, Palette.DANGER)
 	assert_eq(HUD_SCRIPT.LINE_COLOR, Palette.HALO)
 	assert_eq(HUD_SCRIPT.MARKER_COLOR, Palette.SAFE)
 	assert_eq(HUD_SCRIPT.STRIP_COLOR, Color(Palette.HALO, 0.35))
+
+
+func test_tow_and_carrier_lines_use_safe() -> void:
+	assert_eq(HUD_SCRIPT.TOW_COLOR, Palette.SAFE)
+	assert_eq(HUD_SCRIPT.CARRIER_COLOR, Palette.SAFE)
+	assert_eq(HUD_SCRIPT.LINE_COLOR, Palette.HALO)
 
 
 func test_tier_colors_are_halo_tints_with_kept_alpha() -> void:

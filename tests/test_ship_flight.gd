@@ -680,27 +680,18 @@ func test_atmosphere_density_zero_at_edge_one_at_surface_and_rises_toward_surfac
 	Tuning.planet.density_shape = saved_shape
 
 
-func _with_drag(drag: float) -> void:
-	Tuning.planet.atmosphere_drag = drag
-
-
 func test_atmospheric_drag_scales_velocity_inside_and_is_absent_above_the_edge() -> void:
-	var saved_drag := _saved_drag
-	var saved_dmg := _saved_damage
-	Tuning.planet.atmosphere_damage = 0.0
 	var f := Tuning.field
 	var inside := Vector2(0.5 * (f.planet_surface_radius + f.atmosphere_edge), 0)
 	var above := Vector2(f.atmosphere_edge + 2000.0, 0)
 	var vel := Vector2(0, 100)
-	_with_drag(2.0)
+	Tuning.planet.atmosphere_drag = 2.0
 	var rho := ShipFlight.atmosphere_density(inside)
 	var drag_in := ShipFlight.step(_state(inside, vel), ShipInput.new(), 1.0, DT)
 	var drag_above := ShipFlight.step(_state(above, vel), ShipInput.new(), 1.0, DT)
-	_with_drag(0.0)
+	Tuning.planet.atmosphere_drag = 0.0
 	var free_in := ShipFlight.step(_state(inside, vel), ShipInput.new(), 1.0, DT)
 	var free_above := ShipFlight.step(_state(above, vel), ShipInput.new(), 1.0, DT)
-	_with_drag(saved_drag)
-	Tuning.planet.atmosphere_damage = saved_dmg
 	var expected := vel * (exp(-2.0 * rho * DT) - 1.0)
 	assert_almost_eq((drag_in.vel - free_in.vel).y, expected.y, 1e-3)
 	assert_lt(drag_in.vel.length(), free_in.vel.length())
@@ -720,20 +711,15 @@ func test_unforced_band_drift_below_the_edge_loses_altitude_in_the_atmosphere() 
 	var bodies: Array[BodyParams] = [planet]
 	f.bodies = bodies
 	Tuning.field = f
-	var saved_dmg := _saved_damage
-	Tuning.planet.atmosphere_damage = 0.0
 	var r := 101250.0
 	var band: float = GravityField.circular_speed(0, Vector2(r, 0), 0.0) - GravityField.frame_omega() * r
-	var saved_drag := _saved_drag
 	var final_r := []
-	for drag in [0.0, saved_drag]:
-		_with_drag(drag)
+	for drag in [0.0, _saved_drag]:
+		Tuning.planet.atmosphere_drag = drag
 		var s := _state(Vector2(r, 0), Vector2(0, band))
 		for i in 900:
 			s = ShipFlight.step(s, ShipInput.new(), i * DT, DT)
 		final_r.append(s.pos.length())
-	_with_drag(saved_drag)
-	Tuning.planet.atmosphere_damage = saved_dmg
 	assert_almost_eq(final_r[0], r, 0.1)
 	assert_lt(final_r[1], r - 2.0)
 
@@ -788,6 +774,19 @@ func test_moon_disc_pushes_ship_out_and_damages_hull() -> void:
 	assert_almost_eq(out.hull, s.hull - Tuning.planet.moon_impact_damage * 10.0, 0.01)
 
 
+func test_ship_resting_on_moon_keeps_hull() -> void:
+	Tuning.field = _moon_field(50.0)
+	var v_moon := GravityField.body_vel(1, 0.0)
+	var s := _state(Vector2(1050, 0), v_moon + Vector2(-0.1, 0))
+	for i in 120:
+		s = ShipFlight.step(s, ShipInput.new(), 0.0, DT)
+	assert_eq(s.hull, Tuning.ship.hull_max)
+	assert_almost_eq(s.vel.x, v_moon.x, 0.001)
+	var hit := ShipFlight.step(_state(Vector2(1030, 0), v_moon + Vector2(-10, 0)), ShipInput.new(), 0.0, DT)
+	assert_almost_eq(hit.vel.x - v_moon.x, 10.0 * Tuning.planet.moon_bounce, 0.01)
+	assert_lt(hit.hull, Tuning.ship.hull_max)
+
+
 func test_ship_outside_moon_disc_is_unchanged() -> void:
 	Tuning.field = _moon_field(50.0)
 	var s := _state(Vector2(1100, 0), Vector2(-10, 0))
@@ -825,6 +824,18 @@ func test_asteroid_contact_pushes_out_bounces_and_damages_hull() -> void:
 	assert_false(out.crashed)
 	var away := _state(a["pos"] + Vector2(a["radius"] * 0.5, 0.0), a["vel"] + Vector2(10, 0))
 	assert_eq(ShipFlight.step(away, ShipInput.new(), 0.0, DT).hull, away.hull)
+
+
+func test_ship_resting_on_asteroid_keeps_hull() -> void:
+	var a := _dense_asteroid()
+	var s := _state(a["pos"] + Vector2(a["radius"] * 0.5, 0.0), a["vel"] + Vector2(-0.1, 0))
+	var out := ShipFlight.step(s, ShipInput.new(), 0.0, DT)
+	assert_eq(out.hull, s.hull)
+	var n: Vector2 = (out.pos - a["pos"]).normalized()
+	assert_almost_eq((out.vel - a["vel"]).dot(n), 0.0, 0.05)
+	var hard := _state(a["pos"] + Vector2(a["radius"] * 0.5, 0.0), a["vel"] + Vector2(-10, 0))
+	var hit := ShipFlight.step(hard, ShipInput.new(), 0.0, DT)
+	assert_lt(hit.hull, hard.hull)
 
 
 func test_drift_sync_near_asteroid_zeroes_relative_velocity() -> void:

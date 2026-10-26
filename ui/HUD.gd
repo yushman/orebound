@@ -16,6 +16,8 @@ const TIER_ALPHA := 0.6
 const TIER_DARKEN := 0.2
 const EDGE_COLOR := Palette.DANGER
 const LINE_COLOR := Palette.HALO
+const TOW_COLOR := Palette.SAFE
+const CARRIER_COLOR := Palette.SAFE
 const MARKER_COLOR := Palette.SAFE
 const CARGO_FILL_COLOR := Palette.ORE
 const CARGO_EMPTY_COLOR := Palette.HALO
@@ -25,9 +27,7 @@ var ship: Node
 
 
 func _ready() -> void:
-	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	focus_mode = Control.FOCUS_NONE
-	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ship = get_node_or_null("../../Ship")
 
 
 func _process(_delta: float) -> void:
@@ -50,11 +50,9 @@ func _draw() -> void:
 	draw_rect(Rect2(x0, top_y, BAR_W, STRIP_H), STRIP_COLOR)
 	draw_string(font, Vector2(x0 - 16.0, top_y + STRIP_H * 0.5 + 6.0), "М", HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE)
 	draw_line(Vector2(x0, BOTTOM_Y), Vector2(x1, BOTTOM_Y), EDGE_COLOR, 3.0)
-	draw_dashed_line(Vector2(x0 - 8.0, share_y(tow_share())), Vector2(x1 + 8.0, share_y(tow_share())), LINE_COLOR, 2.0, 6.0)
-	draw_line(Vector2(x0 - 8.0, carrier_y), Vector2(x1 + 8.0, carrier_y), LINE_COLOR, 3.0)
+	draw_dashed_line(Vector2(x0 - 8.0, share_y(tow_share())), Vector2(x1 + 8.0, share_y(tow_share())), TOW_COLOR, 2.0, 6.0)
+	draw_line(Vector2(x0 - 8.0, carrier_y), Vector2(x1 + 8.0, carrier_y), CARRIER_COLOR, 3.0)
 	draw_line(Vector2(x0, top_y), Vector2(x1, top_y), LINE_COLOR, 1.0)
-	if ship == null:
-		ship = get_node_or_null("../../Ship")
 	if ship == null:
 		return
 	var y := marker_y(ship.state.pos.length())

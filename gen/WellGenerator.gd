@@ -37,16 +37,17 @@ static func _radius_at(target: float, r_lo: float, r_hi: float, phi_tol: float) 
 
 static func picture(seed: int, flight: int) -> Dictionary:
 	var pl: PlanetParams = Tuning.planet
+	var b: Array[float] = tiers()["boundaries"]
 	for i in pl.max_tries:
-		var pic := _build(seed + i, flight)
+		var pic := _build(seed + i, flight, b)
 		if check(pic["moons"], pic["ring"]):
 			return pic
-	return _build(pl.fallback_seed, flight)
+	return _build(pl.fallback_seed, flight, b)
 
 
-static func _build(seed: int, flight: int) -> Dictionary:
+static func _build(seed: int, flight: int, bounds: Array[float] = []) -> Dictionary:
 	var pl: PlanetParams = Tuning.planet
-	var b: Array[float] = tiers()["boundaries"]
+	var b: Array[float] = bounds if not bounds.is_empty() else tiers()["boundaries"]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([seed, flight])
 	var n := maxi(1, rng.randi_range(pl.moon_count_min, pl.moon_count_max))

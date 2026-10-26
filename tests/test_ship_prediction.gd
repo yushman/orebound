@@ -2,8 +2,15 @@ extends GutTest
 
 const N := 120
 
+var _saved_field: FieldParams
+
+
+func before_each() -> void:
+	_saved_field = Tuning.field
+
 
 func after_each() -> void:
+	Tuning.field = _saved_field
 	GravityField.tick = 0
 	Input.action_release("ship_thrust")
 	Input.action_release("ship_brake")
@@ -52,7 +59,6 @@ func test_predicted_points_equal_flight_with_brake_on_perturbed_orbit() -> void:
 
 
 func test_predicted_points_equal_flight_through_moon_bounce() -> void:
-	var saved: FieldParams = Tuning.field
 	var f := FieldParams.new()
 	f.k = 0.0
 	f.carrier_orbit_radius = 500.0
@@ -81,7 +87,6 @@ func test_predicted_points_equal_flight_through_moon_bounce() -> void:
 		ship._physics_process(GravityField.DT)
 		assert_eq(pts[i], ship.state.pos, "point %d" % i)
 		bounced = bounced or ship.state.vel.x > 0.0
-	Tuning.field = saved
 	assert_true(bounced, "ship bounced off the moon")
 
 
@@ -281,6 +286,23 @@ func test_preset_applied_refreshes_line_immediately() -> void:
 	preset.field = Tuning.field.duplicate(true)
 	preset.ship = Tuning.ship.duplicate(true)
 	Tuning.apply(preset)
+	assert_eq(line.points, ShipPrediction.run(ship.state, ship.input, GravityField.tick, Tuning.ship.predict_short_steps))
+
+
+func test_crash_respawn_refreshes_line_with_predict_every_gt_1() -> void:
+	var nodes := _run_scene()
+	var ship = nodes[0]
+	var line: Line2D = nodes[1]
+	var saved: int = Tuning.ship.predict_every
+	Tuning.ship.predict_every = 5
+	GravityField.tick = 5
+	ship.state.pos = Vector2(5000.0, 300.0)
+	line._update()
+	GravityField.tick = 6
+	ship.state.hull = 0.0
+	ship._physics_process(GravityField.DT)
+	line._physics_process(GravityField.DT)
+	Tuning.ship.predict_every = saved
 	assert_eq(line.points, ShipPrediction.run(ship.state, ship.input, GravityField.tick, Tuning.ship.predict_short_steps))
 
 

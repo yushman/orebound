@@ -43,11 +43,12 @@ func _process(_delta: float) -> void:
 	glow.color = Color(Palette.DANGER, alpha)
 	glow.visible = alpha > 0.0
 	glow.scale = Vector2.ONE * lerpf(GLOW_SCALE_MIN, GLOW_SCALE_MAX, clampf(heat, 0.0, 1.0))
-	flame.polygon = PackedVector2Array([
-		Vector2(-FLAME_HALF_WIDTH, NOZZLE_Y),
-		Vector2(FLAME_HALF_WIDTH, NOZZLE_Y),
-		Vector2(0.0, NOZZLE_Y + length),
-	])
+	if length > 0.0:
+		flame.polygon = PackedVector2Array([
+			Vector2(-FLAME_HALF_WIDTH, NOZZLE_Y),
+			Vector2(FLAME_HALF_WIDTH, NOZZLE_Y),
+			Vector2(0.0, NOZZLE_Y + length),
+		])
 
 
 static func flame_length(thrust: bool, boost: bool, hold_time: float, heat: float, p: ShipParams) -> float:
