@@ -9,6 +9,7 @@ func test_view_defaults():
 	assert_eq(v.ring_period, 2.0)
 	assert_eq(v.ring_px, 1.5)
 	assert_eq(v.ring_alpha, 0.5)
+	assert_eq(v.cargo_fill, 0.5)
 	for old in ["levels", "line_px", "dim", "bright", "near_px"]:
 		assert_false(old in v, old)
 

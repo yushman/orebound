@@ -112,3 +112,12 @@ func test_asteroid_view_hides_all_after_preset_applied_leaves_no_asteroids():
 	Tuning.preset_applied.emit()
 	v.refresh(pos, 10.0)
 	assert_eq(_polys(v).size(), 0)
+
+
+func test_color_for_maps_tiers_to_palette_top_to_bottom():
+	var b: Array = WellGenerator.tiers()["boundaries"]
+	var mid := func(i: int) -> float: return 0.5 * (b[i] + b[i + 1])
+	assert_eq(AsteroidViewScript.color_for(mid.call(3)), Palette.ICE)
+	assert_eq(AsteroidViewScript.color_for(mid.call(2)), Palette.MOON)
+	assert_eq(AsteroidViewScript.color_for(mid.call(1)), Palette.ORE)
+	assert_eq(AsteroidViewScript.color_for(mid.call(0)), Palette.ORE_BRIGHT)

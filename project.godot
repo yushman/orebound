@@ -93,6 +93,7 @@ common/physics_ticks_per_second=60
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+environment/defaults/default_clear_color=Color(0.043137256, 0.05882353, 0.101960786, 1)
 
 [autoload]
 

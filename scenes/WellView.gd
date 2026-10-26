@@ -1,21 +1,19 @@
 extends Node2D
-## Well view (D35): honest arcs of the planet surface, atmosphere edge and
+## Well view (D35): honest arcs of the atmosphere edge and
 ## r = const orbits, read from Tuning.field on every draw (no cache). Never
 ## writes to flight state.
 
 const HIGHLIGHT_ZOOM := 22.0
 
-# Playtest-tunable stroke colors.
-const SURFACE_COLOR := Color(0.75, 0.55, 0.35, 0.9)
-const ATMOSPHERE_COLOR := Color(1.0, 0.55, 0.15, 0.35)
-const ORBIT_COLOR := Color(1.0, 1.0, 1.0, 0.3)
-const ORBIT_HIGHLIGHT_COLOR := Color(1.0, 1.0, 1.0, 0.8)
-const CARRIER_ORBIT_COLOR := Color(1.0, 1.0, 1.0, 0.55)
-const CARRIER_MARKER_COLOR := Color(1.0, 1.0, 1.0, 0.6)
-const TOW_COLOR := Color(1.0, 0.85, 0.2, 0.7)
-const CEILING_COLOR := Color(1.0, 0.25, 0.2, 0.7)
+# Playtest-tunable stroke colors: hue from Palette, alpha here.
+const ATMOSPHERE_COLOR := Color(Palette.DANGER, 0.35)
+const ORBIT_COLOR := Color(Palette.HALO, 0.3)
+const ORBIT_HIGHLIGHT_COLOR := Color(Palette.HALO, 0.8)
+const CARRIER_ORBIT_COLOR := Color(Palette.SAFE, 0.55)
+const CARRIER_MARKER_COLOR := Color(Palette.SAFE, 0.6)
+const TOW_COLOR := Color(Palette.SAFE, 0.7)
+const CEILING_COLOR := Color(Palette.DANGER, 0.7)
 # Stroke sizes are constant SCREEN pixels: world width = px * semantic zoom s.
-const SURFACE_PX := 2.0
 const ATMOSPHERE_PX := 1.5
 const ORBIT_PX := 1.0
 const ORBIT_HIGHLIGHT_PX := 2.5
@@ -107,9 +105,7 @@ func _process(_delta: float) -> void:
 
 
 func _draw() -> void:
-	var f: FieldParams = Tuning.field
 	var s := semantic_zoom(_camera_zoom())
-	_draw_ring(f.planet_surface_radius, SURFACE_COLOR, screen_px(SURFACE_PX, s))
 	for ring: Dictionary in special_rings():
 		var bs := boundary_style(ring["kind"])
 		_draw_ring(ring["radius"], bs["color"], screen_px(bs["px"], s))

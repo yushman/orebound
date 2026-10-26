@@ -10,7 +10,7 @@ uniform int ring_count = 4;
 uniform float ring_period = 2.0;
 uniform float ring_px = 1.5;
 uniform float ring_alpha = 0.5;
-uniform vec4 halo_color : source_color = vec4(0.7, 0.9, 0.75, 1.0);
+uniform vec4 halo_color : source_color = vec4(0.7216, 0.8471, 0.7529, 1.0);
 
 varying vec2 local;
 

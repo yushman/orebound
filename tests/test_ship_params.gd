@@ -22,7 +22,7 @@ func test_tuning_ship_d36_control_defaults() -> void:
 	assert_eq(s.get("heat_growth_engine"), 0.04)
 	assert_eq(s.get("heat_growth_boost"), 0.12)
 	assert_eq(s.get("heat_threshold"), 0.8)
-	assert_eq(s.get("heat_cooldown"), 0.06)
+	assert_eq(s.get("heat_cooldown"), 0.18)
 	assert_eq(s.get("min_thrust_fraction"), 0.2)
 	assert_eq(s.get("sync_accel"), 6.0)
 	assert_eq(s.get("sync_fuel_mult"), 2.0)

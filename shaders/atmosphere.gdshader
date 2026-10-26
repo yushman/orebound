@@ -4,7 +4,7 @@ uniform vec2 cam;
 uniform float surface;
 uniform float edge;
 uniform float shape;
-uniform vec4 GLOW_COLOR : source_color = vec4(1.0, 0.55, 0.15, 1.0);
+uniform vec4 GLOW_COLOR : source_color = vec4(1.0, 0.3529, 0.2118, 1.0);
 uniform float ATMO_ALPHA = 0.45;
 
 varying vec2 local;

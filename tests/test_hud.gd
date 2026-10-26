@@ -80,3 +80,61 @@ func test_hud_ignores_mouse_and_focus_and_tolerates_missing_ship() -> void:
 	assert_null(hud.ship)
 	await wait_frames(2)
 	assert_true(is_instance_valid(hud))
+
+
+func test_colors_come_from_palette() -> void:
+	assert_eq(HUD_SCRIPT.EDGE_COLOR, Palette.DANGER)
+	assert_eq(HUD_SCRIPT.LINE_COLOR, Palette.HALO)
+	assert_eq(HUD_SCRIPT.MARKER_COLOR, Palette.SAFE)
+	assert_eq(HUD_SCRIPT.STRIP_COLOR, Color(Palette.HALO, 0.35))
+
+
+func test_tier_colors_are_halo_tints_with_kept_alpha() -> void:
+	var seen := {}
+	for i in 4:
+		var c: Color = HUD_SCRIPT.tier_color(i)
+		assert_almost_eq(c.h, Palette.HALO.h, 0.01, "hue %d" % i)
+		assert_almost_eq(c.a, 0.6, 1e-6, "alpha %d" % i)
+		seen[c] = true
+	assert_eq(seen.size(), 4)
+
+
+func test_cargo_count_rounds_and_clamps() -> void:
+	assert_eq(HUD_SCRIPT.cargo_count(0.0), 0)
+	assert_eq(HUD_SCRIPT.cargo_count(1.0), HUD_SCRIPT.CARGO_MAX)
+	assert_eq(HUD_SCRIPT.cargo_count(0.5), roundi(0.5 * HUD_SCRIPT.CARGO_MAX))
+	assert_eq(HUD_SCRIPT.cargo_count(-1.0), 0)
+	assert_eq(HUD_SCRIPT.cargo_count(2.0), HUD_SCRIPT.CARGO_MAX)
+	assert_eq(HUD_SCRIPT.cargo_count(0.26), roundi(0.26 * HUD_SCRIPT.CARGO_MAX))
+
+
+func test_cargo_cells_are_a_centred_row_of_cargo_max() -> void:
+	assert_eq(HUD_SCRIPT.CARGO_MAX, 6)
+	var cells: Array[Rect2] = HUD_SCRIPT.cargo_cells()
+	assert_eq(cells.size(), HUD_SCRIPT.CARGO_MAX)
+	for i in cells.size():
+		assert_eq(cells[i].size, Vector2(HUD_SCRIPT.CELL_SIZE, HUD_SCRIPT.CELL_SIZE))
+		assert_eq(cells[i].position.y, cells[0].position.y)
+		if i > 0:
+			assert_gt(cells[i].position.x, cells[i - 1].end.x)
+	var left: float = cells[0].position.x
+	var right: float = cells[cells.size() - 1].end.x
+	assert_almost_eq((left + right) * 0.5, 640.0, 1e-3)
+	assert_gt(cells[0].position.y, HUD_SCRIPT.BOTTOM_Y)
+	assert_lt(cells[0].end.y, 800.0)
+
+
+func test_cargo_filled_count_follows_fill() -> void:
+	for fill in [0.0, 0.2, 0.5, 1.0]:
+		var filled := 0
+		for i in HUD_SCRIPT.CARGO_MAX:
+			if HUD_SCRIPT.cell_filled(i, fill):
+				filled += 1
+		assert_eq(filled, HUD_SCRIPT.cargo_count(fill))
+	assert_true(HUD_SCRIPT.cell_filled(0, 1.0))
+	assert_false(HUD_SCRIPT.cell_filled(HUD_SCRIPT.CARGO_MAX - 1, 0.0))
+
+
+func test_cargo_colors_come_from_palette() -> void:
+	assert_eq(HUD_SCRIPT.CARGO_FILL_COLOR, Palette.ORE)
+	assert_eq(HUD_SCRIPT.CARGO_EMPTY_COLOR, Palette.HALO)

@@ -59,7 +59,7 @@ func test_default_band_chunk_and_asteroid_knobs():
 	assert_almost_eq(float(p.get("band_width")), 1500.0, 500.0)
 	assert_almost_eq(float(p.get("chunk_arc")), 4000.0, 1500.0)
 	assert_gt(float(p.get("chunk_gen_radius")), float(p.get("chunk_arc")))
-	assert_gt(float(p.get("asteroids_per_band")), 0.0)
+	assert_eq(float(p.get("asteroids_per_band")), 200.0)
 	assert_between(float(p.get("drop_ratio")), 0.001, 0.999)
 	assert_gt(float(p.get("drop_start")), 0.0)
 	assert_between(float(p.get("above_factor")), 0.0, 0.999)

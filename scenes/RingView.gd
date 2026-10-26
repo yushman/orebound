@@ -3,7 +3,7 @@ extends Node2D
 
 const MAX_PARTICLES := 4000
 const PARTICLE_SIZE := 40.0
-const PARTICLE_COLOR := Color(0.75, 0.7, 0.6, 0.6)
+const PARTICLE_COLOR := Color(Palette.ICE.r, Palette.ICE.g, Palette.ICE.b, 0.6)
 
 var positions := PackedVector2Array()
 var _particles := MultiMeshInstance2D.new()

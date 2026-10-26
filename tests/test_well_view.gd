@@ -188,8 +188,28 @@ func test_special_rings_at_generator_radii():
 	assert_eq(by_kind.get("ceiling"), t["ceiling"])
 
 
-func test_atmosphere_stroke_uses_glow_hue():
+func test_stroke_hues_come_from_palette():
 	var W = load("res://scenes/WellView.gd")
-	var A = load("res://scenes/AtmosphereView.gd")
-	var c: Color = W.ATMOSPHERE_COLOR
-	assert_eq(Color(c.r, c.g, c.b), Color(A.GLOW_COLOR.r, A.GLOW_COLOR.g, A.GLOW_COLOR.b))
+	Tuning.field = _field([_planet()], 121500.0)
+	var hues := {
+		"carrier": [W.orbit_style(121500.0, false)["color"], Palette.SAFE],
+		"orbit": [W.orbit_style(130000.0, false)["color"], Palette.HALO],
+		"highlight": [W.orbit_style(130000.0, true)["color"], Palette.HALO],
+		"tow": [W.boundary_style("tow")["color"], Palette.SAFE],
+		"ceiling": [W.boundary_style("ceiling")["color"], Palette.DANGER],
+		"atmosphere": [W.boundary_style("atmosphere")["color"], Palette.DANGER],
+		"marker": [W.CARRIER_MARKER_COLOR, Palette.SAFE],
+	}
+	for k in hues:
+		var c: Color = hues[k][0]
+		var p: Color = hues[k][1]
+		assert_eq(Color(c.r, c.g, c.b), Color(p.r, p.g, p.b), k)
+	assert_almost_eq(W.orbit_style(130000.0, false)["color"].a, 0.3, 0.001)
+	assert_almost_eq(W.boundary_style("tow")["color"].a, 0.7, 0.001)
+
+
+func test_surface_arc_removed():
+	var W = load("res://scenes/WellView.gd")
+	var consts: Dictionary = W.get_script_constant_map()
+	assert_false("SURFACE_COLOR" in consts)
+	assert_false("SURFACE_PX" in consts)

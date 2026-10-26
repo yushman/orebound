@@ -1,12 +1,7 @@
 class_name AsteroidView
 extends Node2D
 
-const TIER_COLORS := [
-	Color(0.55, 0.45, 0.4),
-	Color(0.5, 0.5, 0.45),
-	Color(0.45, 0.5, 0.55),
-	Color(0.6, 0.6, 0.65),
-]
+const TIER_COLORS := [Palette.ORE_BRIGHT, Palette.ORE, Palette.MOON, Palette.ICE]
 
 var _keys := []
 

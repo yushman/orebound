@@ -16,7 +16,7 @@ const ZOOM_SMOOTH := 10.0
 @onready var ship: Node2D = get_node("../Ship")
 # Visual icon child of the ship; scaled to keep a constant screen size.
 # View-only: the flight state and the collision shape are never touched.
-@onready var _ship_icon: Polygon2D = ship.get_node_or_null("Polygon2D")
+@onready var _ship_icon: Node2D = ship.get_node_or_null("Visual")
 
 var _target_zoom := 1.0
 var _zoom_current := 1.0

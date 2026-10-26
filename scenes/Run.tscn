@@ -34,6 +34,17 @@ script = ExtResource("12_ring")
 [node name="AsteroidView" type="Node2D" parent="."]
 script = ExtResource("13_ast")
 
+[node name="Planet" parent="." instance=ExtResource("2_body")]
+
+[node name="Moon1" parent="." instance=ExtResource("2_body")]
+index = 1
+
+[node name="Moon2" parent="." instance=ExtResource("2_body")]
+index = 2
+
+[node name="Moon3" parent="." instance=ExtResource("2_body")]
+index = 3
+
 [node name="Ship" parent="." instance=ExtResource("1_ship")]
 
 [node name="Prediction" type="Line2D" parent="."]
@@ -45,17 +56,6 @@ script = ExtResource("4_marker")
 
 [node name="FlightVector" type="Node2D" parent="."]
 script = ExtResource("8_vector")
-
-[node name="Planet" parent="." instance=ExtResource("2_body")]
-
-[node name="Moon1" parent="." instance=ExtResource("2_body")]
-index = 1
-
-[node name="Moon2" parent="." instance=ExtResource("2_body")]
-index = 2
-
-[node name="Moon3" parent="." instance=ExtResource("2_body")]
-index = 3
 
 [node name="FlightCamera" type="Camera2D" parent="."]
 script = ExtResource("6_camera")

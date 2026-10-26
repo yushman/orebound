@@ -39,3 +39,14 @@ func test_marker_keeps_carrier_and_body_cases() -> void:
 	var rc: float = Tuning.field.carrier_orbit_radius
 	assert_eq(marker.marker_pos(ShipFlight.sync_reference(Vector2(rc, 0.0), 0.0), 0.0), Vector2(rc, 0.0))
 	marker.free()
+
+
+func test_marker_color_is_halo_with_alpha_unchanged() -> void:
+	var marker: Node2D = load("res://scenes/ReferenceMarker.gd").new()
+	var on: Color = marker.marker_color(true)
+	var off: Color = marker.marker_color(false)
+	assert_eq(Color(on.r, on.g, on.b), Color(Palette.HALO.r, Palette.HALO.g, Palette.HALO.b))
+	assert_eq(Color(off.r, off.g, off.b), Color(Palette.HALO.r, Palette.HALO.g, Palette.HALO.b))
+	assert_eq(on.a, 1.0)
+	assert_almost_eq(off.a, 0.35, 0.0001)
+	marker.free()

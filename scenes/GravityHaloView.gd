@@ -2,7 +2,6 @@ class_name GravityHaloView
 extends Node2D
 
 const MAX_BODIES := 16
-const HALO_COLOR := Color(0.7, 0.9, 0.75)
 
 const SHADER := preload("res://shaders/gravity_halo.gdshader")
 const WellViewScript := preload("res://scenes/WellView.gd")
@@ -60,7 +59,7 @@ func refresh() -> void:
 	_material.set_shader_parameter("ring_period", w.ring_period)
 	_material.set_shader_parameter("ring_px", w.ring_px)
 	_material.set_shader_parameter("ring_alpha", w.ring_alpha)
-	_material.set_shader_parameter("halo_color", HALO_COLOR)
+	_material.set_shader_parameter("halo_color", Color(Palette.HALO.r, Palette.HALO.g, Palette.HALO.b))
 	queue_redraw()
 
 

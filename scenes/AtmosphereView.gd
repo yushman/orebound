@@ -2,7 +2,7 @@ extends Node2D
 ## Atmosphere glow (W3): camera-centred square shaded orange with alpha
 ## ATMO_ALPHA * density. View-only; reads Tuning on every refresh.
 
-const GLOW_COLOR := Color(1.0, 0.55, 0.15)
+const GLOW_COLOR := Color(Palette.DANGER.r, Palette.DANGER.g, Palette.DANGER.b)
 const ATMO_ALPHA := 0.45
 
 const SHADER := preload("res://shaders/atmosphere.gdshader")

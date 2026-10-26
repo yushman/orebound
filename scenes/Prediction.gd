@@ -7,6 +7,10 @@ const WIDTH_PX := 2.0
 @onready var ship: Node2D = get_node("../Ship")
 
 
+func _init() -> void:
+	default_color = Palette.HALO
+
+
 func _ready() -> void:
 	Tuning.preset_applied.connect(_update)
 

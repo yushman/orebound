@@ -33,6 +33,10 @@ func alpha_for(drift_sync: bool) -> float:
 	return 1.0 if drift_sync else 0.35
 
 
+func marker_color(drift_sync: bool) -> Color:
+	return Color(Palette.HALO, alpha_for(drift_sync))
+
+
 func _camera_zoom() -> float:
 	var vp := get_viewport()
 	var cam := vp.get_camera_2d() if vp != null else null
@@ -42,5 +46,5 @@ func _camera_zoom() -> float:
 func _draw() -> void:
 	var s := 1.0 / _camera_zoom()
 	draw_arc(Vector2.ZERO, screen_radius(s), 0.0, TAU, 48,
-			Color(1.0, 1.0, 1.0, alpha_for(ship.input.drift_sync)),
+			marker_color(ship.input.drift_sync),
 			RING_STROKE_PX * s)

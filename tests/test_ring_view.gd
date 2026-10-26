@@ -71,3 +71,11 @@ func test_ring_view_rebuilds_on_preset_applied_and_hides_without_ring():
 	Tuning.preset_applied.emit()
 	assert_false(v.visible)
 	assert_eq(_instances(v).instance_count, 0)
+
+
+func test_ring_particle_colour_is_palette_ice():
+	_set_picture(_ring())
+	var v = add_child_autofree(RingViewScript.new())
+	var c: Color = v.get_node("Particles").modulate
+	assert_eq(Color(c.r, c.g, c.b), Color(Palette.ICE.r, Palette.ICE.g, Palette.ICE.b))
+	assert_almost_eq(c.a, 0.6, 1e-6)

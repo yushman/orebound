@@ -6,3 +6,4 @@ extends Resource
 @export var ring_period: float = 2.0
 @export var ring_px: float = 1.5
 @export var ring_alpha: float = 0.5
+@export var cargo_fill: float = 0.5

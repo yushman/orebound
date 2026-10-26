@@ -50,7 +50,7 @@ func test_view_pushes_uniforms_to_material():
 	var u: Dictionary = A.build_uniforms(Vector2.ZERO)
 	for k in u:
 		assert_eq(m.get_shader_parameter(k), u[k], k)
-	assert_eq(m.get_shader_parameter("GLOW_COLOR"), A.GLOW_COLOR)
+	assert_eq(m.get_shader_parameter("GLOW_COLOR"), Color(Palette.DANGER.r, Palette.DANGER.g, Palette.DANGER.b))
 	assert_eq(m.get_shader_parameter("ATMO_ALPHA"), A.ATMO_ALPHA)
 
 

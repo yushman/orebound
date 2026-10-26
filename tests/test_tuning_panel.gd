@@ -57,7 +57,7 @@ func test_slider_set_covers_all_parameters() -> void:
 				"asteroids_per_band", "drop_start", "drop_ratio", "above_factor", "field_radius",
 				"ast_radius_min", "ast_radius_max", "asteroid_bounce", "asteroid_impact_damage"]:
 		expect.append("planet." + p)
-	for p in ["halo_alpha", "ring_count", "ring_period", "ring_px", "ring_alpha"]:
+	for p in ["halo_alpha", "ring_count", "ring_period", "ring_px", "ring_alpha", "cargo_fill"]:
 		expect.append("view." + p)
 	for id in expect:
 		assert_true(ids.has(id), id)
@@ -397,9 +397,9 @@ func test_ring_width_slider_regenerates_picture_and_field_knobs_do_not() -> void
 	assert_ne(Tuning.picture, after, "ring_density regenerates")
 	var kept: Dictionary = Tuning.picture
 	_panel.sliders["planet.band_width"].value = 2000.0
-	_panel.sliders["planet.asteroids_per_band"].value = 9.0
+	_panel.sliders["planet.asteroids_per_band"].value = 150.0
 	assert_eq(Tuning.planet.band_width, 2000.0)
-	assert_eq(Tuning.planet.asteroids_per_band, 9.0)
+	assert_eq(Tuning.planet.asteroids_per_band, 150.0)
 	assert_same(Tuning.picture, kept)
 	Tuning.picture = old_picture
 	Telemetry.seed = old_seed

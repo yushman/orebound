@@ -129,7 +129,7 @@ func test_view_pushes_uniforms_and_view_knobs():
 	assert_eq(m.get_shader_parameter("ring_period"), w.ring_period)
 	assert_eq(m.get_shader_parameter("ring_px"), w.ring_px)
 	assert_eq(m.get_shader_parameter("ring_alpha"), w.ring_alpha)
-	assert_eq(m.get_shader_parameter("halo_color"), GravityHaloView.HALO_COLOR)
+	assert_eq(m.get_shader_parameter("halo_color"), Color(Palette.HALO.r, Palette.HALO.g, Palette.HALO.b))
 
 
 func test_view_follows_tuning_view_per_refresh():

@@ -8,7 +8,7 @@ extends Node2D
 const STROKE_PX := 2.0
 const HEAD_PX := 8.0
 const MIN_SPEED := 1.0
-const COLOR := Color(1.0, 1.0, 1.0, 0.85)
+const COLOR := Color(Palette.HALO, 0.85)
 
 @onready var ship: Node2D = get_node("../Ship")
 

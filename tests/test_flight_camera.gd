@@ -34,3 +34,10 @@ func test_discretize_zoom_follows_stop_schedule() -> void:
 	assert_almost_eq(_cam.discretize_zoom(36.0), 34.0, 1e-9)
 	assert_almost_eq(_cam.discretize_zoom(40.0), 40.0, 1e-9)
 	assert_almost_eq(_cam.discretize_zoom(50.0), 40.0, 1e-9)
+
+
+func test_ship_scene_visual_is_node2d_without_bare_polygon() -> void:
+	var ship: Node = load("res://scenes/Ship.tscn").instantiate()
+	add_child_autofree(ship)
+	assert_true(ship.get_node_or_null("Visual") is Node2D)
+	assert_null(ship.get_node_or_null("Polygon2D"))

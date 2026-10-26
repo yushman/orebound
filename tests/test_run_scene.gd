@@ -108,7 +108,7 @@ func test_ship_icon_scales_with_zoom():
 	var run = _run()
 	var ship = run.get_node("Ship")
 	var cam = run.get_node("FlightCamera")
-	var poly: Polygon2D = ship.get_node("Polygon2D")
+	var poly: Node2D = ship.get_node("Visual")
 	assert_eq(poly.scale, Vector2.ONE)
 	cam._target_zoom = 8.0
 	cam._process(1.0)
@@ -146,7 +146,12 @@ func test_run_scene_is_main_scene_with_ship():
 	var ship = run.get_node_or_null("Ship")
 	assert_not_null(ship, "has Ship")
 	assert_true(ship is CharacterBody2D)
-	assert_eq(ship.find_children("*", "Polygon2D", false, false).size(), 1)
+	assert_null(ship.get_node_or_null("Polygon2D"), "no bare Polygon2D child")
+	var visual = ship.get_node_or_null("Visual")
+	assert_true(visual is Node2D)
+	var hull: Array = visual.find_children("*", "Polygon2D", false, false).filter(
+			func(n): return not (n.name == &"Flame" or n.name == &"Glow"))
+	assert_between(hull.size(), 3, 4)
 	var cs = ship.find_children("*", "CollisionShape2D", false, false)
 	assert_eq(cs.size(), 1)
 	assert_true(cs[0].shape is CircleShape2D)
@@ -358,7 +363,7 @@ func test_run_has_ring_and_asteroid_views_between_well_view_and_ship():
 	var names: Array = []
 	for c in run.get_children():
 		names.append(str(c.name))
-	assert_eq(names.slice(0, 6), ["AtmosphereView", "GravityHaloView", "WellView", "RingView", "AsteroidView", "Ship"])
+	assert_eq(names.slice(0, 10), ["AtmosphereView", "GravityHaloView", "WellView", "RingView", "AsteroidView", "Planet", "Moon1", "Moon2", "Moon3", "Ship"])
 	var ring = run.get_node_or_null("RingView")
 	if ring != null:
 		assert_eq(ring.script.resource_path, "res://scenes/RingView.gd")
@@ -380,3 +385,13 @@ func test_run_has_hud_next_to_tuning_panel_ignoring_mouse():
 	await get_tree().process_frame
 	await get_tree().process_frame
 	assert_eq(hud.ship, run.get_node("Ship"), "HUD resolves Run's Ship")
+
+
+func test_bodies_draw_before_ship():
+	var run = _run()
+	var ship_index: int = run.get_node("Ship").get_index()
+	var after_ast: int = run.get_node("AsteroidView").get_index()
+	for n in ["Planet", "Moon1", "Moon2", "Moon3"]:
+		var i: int = run.get_node(n).get_index()
+		assert_lt(i, ship_index, "%s before Ship" % n)
+		assert_gt(i, after_ast, "%s after AsteroidView" % n)

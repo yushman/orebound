@@ -46,7 +46,7 @@ const ROWS := [
 	["planet", "band_width", 200.0, 5000.0, 10.0],
 	["planet", "chunk_arc", 500.0, 20000.0, 50.0],
 	["planet", "chunk_gen_radius", 2000.0, 60000.0, 100.0],
-	["planet", "asteroids_per_band", 0.0, 50.0, 0.5],
+	["planet", "asteroids_per_band", 100.0, 500.0, 1.0],
 	["planet", "drop_start", 0.0, 30.0, 1.0],
 	["planet", "drop_ratio", 0.05, 1.0, 0.01],
 	["planet", "above_factor", 0.0, 1.0, 0.01],
@@ -60,6 +60,7 @@ const ROWS := [
 	["view", "ring_period", 0.2, 10.0, 0.1],
 	["view", "ring_px", 0.5, 5.0, 0.05],
 	["view", "ring_alpha", 0.0, 1.0, 0.01],
+	["view", "cargo_fill", 0.0, 1.0, 0.01],
 ]
 
 var sliders := {}
