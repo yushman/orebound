@@ -342,3 +342,16 @@ func test_planet_potential_eff_strictly_increasing_on_tier_span():
 			var v: float = GravityField.planet_potential_eff(r)
 			assert_gt(v, prev)
 			prev = v
+
+
+func test_frame_omega_follows_changed_carrier_radius_and_planet_mass():
+	var saved: FieldParams = Tuning.field
+	Tuning.field = saved.duplicate(true)
+	var w0: float = GravityField.frame_omega()
+	Tuning.field.carrier_orbit_radius *= 1.1
+	var w1: float = GravityField.frame_omega()
+	assert_ne(w1, w0)
+	Tuning.field.bodies[0].mass *= 2.0
+	assert_ne(GravityField.frame_omega(), w1)
+	Tuning.field = saved
+	assert_eq(GravityField.frame_omega(), w0)

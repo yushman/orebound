@@ -6,7 +6,7 @@ static func reference_body(pos: Vector2, t: float) -> int:
 	return GravityField.dominant(pos, t)
 
 
-static func sync_reference(pos: Vector2, t: float, snapshot = null, mined := {}) -> Dictionary:
+static func sync_reference(pos: Vector2, t: float, snapshot = null, broken := {}) -> Dictionary:
 	# candidates: all bodies, the carrier point and asteroids; nearest within sync_radius wins
 	var best_d := Tuning.ship.sync_radius
 	var index := -1
@@ -22,7 +22,7 @@ static func sync_reference(pos: Vector2, t: float, snapshot = null, mined := {})
 		index = -1
 		is_carrier = true
 		best_d = d_carrier
-	for a in _asteroids(pos, t, best_d, snapshot, mined):
+	for a in _asteroids(pos, t, best_d, snapshot, broken):
 		var d: float = pos.distance_to(a["pos"])
 		if d < best_d:
 			best_d = d
@@ -64,7 +64,7 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 		# drift sync with the nearest reference (body, carrier or asteroid);
 		# no reference within sync_radius: converge to band drift
 		s.hold_time = 0.0
-		var ref := sync_reference(s.pos, t, snapshot, s.mined)
+		var ref := sync_reference(s.pos, t, snapshot, s.broken)
 		if ref["valid"]:
 			var v_ref := Vector2.ZERO
 			if not ref["asteroid"].is_empty():
@@ -110,12 +110,11 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 	s.vel *= exp(-Tuning.planet.atmosphere_drag * atmosphere_density(s.pos) * dt)
 	s.vel += (GravityField.accel(s.pos, t) + GravityField.frame_accel(s.pos, s.vel) + nose * thr + a_b) * dt
 	s.pos += s.vel * dt
-	var near = null
-	if input.beam:
-		near = _mine(s, input.aim, t, dt, snapshot)
+	_beam(s, input, t, dt, snapshot)
 	_moon_contact(s, t)
-	_asteroid_contact(s, t, snapshot, near)
+	_asteroid_contact(s, t, snapshot)
 	SmallObjects.update(s, t, dt)
+	_collect(s, input, dt)
 	_small_contact(s)
 	s.hull = maxf(s.hull - Tuning.planet.atmosphere_damage * atmosphere_density(s.pos) * dt, 0.0)
 	s.crashed = s.pos.length() <= Tuning.field.planet_surface_radius or s.hull <= 0.0
@@ -154,7 +153,7 @@ static func _contact(s: ShipState, n: Vector2, v_n: float, bounce: float, hull_l
 	s.hull = maxf(s.hull - hull_loss, 0.0)
 
 
-static func _asteroids(pos: Vector2, t: float, radius: float, snapshot, mined := {}) -> Array:
+static func _asteroids(pos: Vector2, t: float, radius: float, snapshot, broken := {}) -> Array:
 	var raw: Array
 	var out: Array = []
 	if snapshot == null:
@@ -175,10 +174,10 @@ static func _asteroids(pos: Vector2, t: float, radius: float, snapshot, mined :=
 			var ap := Vector2(cos(ang), sin(ang)) * r
 			if ap.distance_squared_to(pos) <= r2:
 				out.append({"key": Vector3i(a["band"], a["chunk"], a["idx"]), "pos": ap, "vel": om * Vector2(-ap.y, ap.x), "radius": a["radius"], "points": a["points"], "rot": om * t, "type": a["type"], "amount": a["amount"]})
-	if not mined.is_empty():
+	if not broken.is_empty():
 		var layered: Array = []
 		for a in out:
-			var l := Beam.layer(a, mined)
+			var l := Beam.layer(a, broken)
 			if not l.is_empty():
 				layered.append(l)
 		out = layered
@@ -197,34 +196,61 @@ static func _key_less(a: Dictionary, b: Dictionary) -> bool:
 	return ka.z < kb.z
 
 
-static func _mine(s: ShipState, aim: float, t: float, dt: float, snapshot) -> Array:
-	var p: ShipParams = Tuning.ship
-	var cands := _asteroids(s.pos, t, p.beam_range + maxf(Tuning.planet.ast_radius_min, Tuning.planet.ast_radius_max), snapshot, s.mined)
-	var h := Beam.hit(s.pos, aim, p.beam_range, cands)
-	if h.is_empty():
-		return cands
-	for i in cands.size():
-		var a: Dictionary = cands[i]
-		if a["key"] != h["key"]:
-			continue
-		var remaining: float = a["amount"]
-		var added := Hold.add(s, a["type"], minf(p.beam_rate * dt, remaining))
-		if added > 0.0:
-			s.mined[h["key"]] = remaining - added
-			var left := remaining - added
-			if left <= Beam.MIN_REMAINING:
-				cands.remove_at(i)
-			else:
-				a["radius"] = float(a["radius"]) * sqrt(left / remaining)
-		break
+static func beam_candidates(s: ShipState, t: float, snapshot = null) -> Array:
+	var cr: float = Tuning.planet.collect_radius
+	var cands: Array = []
+	for a in _asteroids(s.pos, t, Tuning.ship.beam_range + maxf(Tuning.planet.ast_radius_min, Tuning.planet.ast_radius_max), snapshot, s.broken):
+		if a["radius"] > cr:
+			cands.append(a)
+	for b in s.bodies:
+		if b.radius > cr:
+			cands.append({"key": b.id, "pos": b.pos, "points": b.points, "rot": 0.0, "body": b})
 	return cands
 
 
-static func _asteroid_contact(s: ShipState, t: float, snapshot = null, near = null) -> void:
+static func _beam(s: ShipState, input: ShipInput, t: float, dt: float, snapshot) -> void:
+	var p: ShipParams = Tuning.ship
+	var target = null
+	var entry := {}
+	if input.beam:
+		var cands := beam_candidates(s, t, snapshot)
+		var h := Beam.hit(s.pos, input.aim, p.beam_range, cands)
+		if not h.is_empty():
+			target = h["key"]
+			for e in cands:
+				if typeof(e["key"]) == typeof(target) and e["key"] == target:
+					entry = e
+					break
+	if target == null or typeof(target) != typeof(s.beam_target) or target != s.beam_target:
+		s.beam_charge = 0.0
+	s.beam_target = target
+	if target == null:
+		return
+	s.beam_charge += p.beam_damage * dt
+	if s.beam_charge < Tuning.planet.break_per_sqrt_radius * sqrt(sqrt(AsteroidField._area(entry["points"]) / PI)):
+		return
+	var parent: FreeBody
+	if entry.has("body"):
+		parent = entry["body"]
+		s.bodies.erase(parent)
+	else:
+		parent = FreeBody.new()
+		parent.id = target
+		parent.pos = entry["pos"]
+		parent.vel = entry["vel"]
+		parent.radius = entry["radius"]
+		parent.points = entry["points"]
+		parent.type = entry["type"]
+		parent.amount = entry["amount"]
+		s.broken[target] = true
+	s.bodies.append_array(Split.pieces(parent, Tuning.planet.split_count, Tuning.planet.piece_scatter, Tuning.planet.piece_spread, Tuning.planet.split_area_divisor))
+	s.beam_target = null
+	s.beam_charge = 0.0
+
+
+static func _asteroid_contact(s: ShipState, t: float, snapshot = null) -> void:
 	var pl: PlanetParams = Tuning.planet
-	if near == null:
-		near = _asteroids(s.pos, t, maxf(pl.ast_radius_min, pl.ast_radius_max), snapshot, s.mined)
-	for a in near:
+	for a in _asteroids(s.pos, t, maxf(pl.ast_radius_min, pl.ast_radius_max), snapshot, s.broken):
 		var d: Vector2 = s.pos - a["pos"]
 		if d.length() >= a["radius"]:
 			continue
@@ -234,6 +260,20 @@ static func _asteroid_contact(s: ShipState, t: float, snapshot = null, near = nu
 		_contact(s, n, v_n, pl.asteroid_bounce, -pl.asteroid_impact_damage * v_n)
 
 
+static func _collect(s: ShipState, input: ShipInput, dt: float) -> void:
+	var p: ShipParams = Tuning.ship
+	var reach := 0.5 * p.beam_range
+	var half := deg_to_rad(p.collect_angle) * 0.5
+	for b in s.bodies:
+		var d := s.pos - b.pos
+		if input.collect and b.radius <= Tuning.planet.collect_radius and d.length() <= reach \
+				and absf(wrapf((-d).angle() - input.aim, -PI, PI)) <= half and Hold.room(s, b.type) > 0.0:
+			b.pull_speed += p.collect_accel * dt
+			b.pos += d.normalized() * minf(b.pull_speed * dt, d.length())
+		else:
+			b.pull_speed = 0.0
+
+
 static func _small_contact(s: ShipState) -> void:
 	var pl: PlanetParams = Tuning.planet
 	var kept: Array[FreeBody] = []
@@ -241,7 +281,12 @@ static func _small_contact(s: ShipState) -> void:
 		if s.pos.distance_to(b.pos) >= Tuning.ship.hit_radius + b.radius:
 			kept.append(b)
 			continue
-		if b.radius < pl.swallow_radius:
+		if b.radius <= pl.collect_radius:
+			b.amount -= Hold.add(s, b.type, b.amount)
+			if b.amount > Hold.EPS:
+				kept.append(b)
+			continue
+		if b.radius < pl.piece_swallow_radius:
 			s.hull = maxf(s.hull - impact_damage((s.vel - b.vel).length()), 0.0)
 			continue
 		var d := s.pos - b.pos
@@ -249,7 +294,7 @@ static func _small_contact(s: ShipState) -> void:
 		s.pos = b.pos + n * (Tuning.ship.hit_radius + b.radius)
 		var v_rel := s.vel - b.vel
 		var v_n := v_rel.dot(n)
-		_contact(s, n, v_n, pl.small_bounce, impact_damage(-v_n))
+		_contact(s, n, v_n, pl.piece_bounce, impact_damage(-v_n))
 		kept.append(b)
 	s.bodies = kept
 

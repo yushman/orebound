@@ -9,26 +9,15 @@ func _entry(extra: Dictionary = {}) -> Dictionary:
 	return e
 
 
-func test_layer_unmined_passes_unchanged() -> void:
+func test_layer_drops_a_broken_asteroid_and_passes_others_unchanged() -> void:
 	var e := _entry()
-	var l := Beam.layer(e, {})
+	assert_true(Beam.layer(e, {Vector3i(1, 2, 3): true}).is_empty())
+	var l := Beam.layer(e, {Vector3i(9, 9, 9): true})
 	assert_eq(l["radius"], 20.0)
 	assert_eq(l["points"], e["points"])
 	assert_eq(l["amount"], 4.0)
 	assert_eq(l["key"], Vector3i(1, 2, 3))
-
-
-func test_layer_scales_by_sqrt_remaining() -> void:
-	var l := Beam.layer(_entry(), {Vector3i(1, 2, 3): 1.0})
-	assert_almost_eq(l["radius"], 10.0, 1e-4)
-	assert_almost_eq((l["points"] as PackedVector2Array)[0].x, -5.0, 1e-4)
-	assert_eq(l["amount"], 1.0)
-	assert_eq(l["key"], Vector3i(1, 2, 3))
-
-
-func test_layer_drops_mined_out() -> void:
-	assert_true(Beam.layer(_entry(), {Vector3i(1, 2, 3): 1e-3}).is_empty())
-	assert_true(Beam.layer(_entry(), {Vector3i(1, 2, 3): 0.0}).is_empty())
+	assert_eq(Beam.layer(e, {}), e)
 
 
 func test_hit_nearest_edge() -> void:
@@ -60,9 +49,3 @@ func test_hit_in_gap_between_hull_and_radius_misses() -> void:
 	var h := Beam.hit(Vector2(100, -50), Vector2.DOWN, 300.0, [e])
 	assert_almost_eq((h["point"] as Vector2).y, -10.0, 1e-3)
 
-
-func test_layer_clamps_remaining_to_amount() -> void:
-	var l := Beam.layer(_entry(), {Vector3i(1, 2, 3): 8.0})
-	assert_almost_eq(l["radius"], 20.0, 1e-4)
-	assert_almost_eq((l["points"] as PackedVector2Array)[0].x, -10.0, 1e-4)
-	assert_eq(l["amount"], 4.0)

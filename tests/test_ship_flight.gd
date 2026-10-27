@@ -23,8 +23,6 @@ func before_each():
 	Tuning.planet.atmosphere_drag = 0.0
 	Tuning.planet.atmosphere_damage = 0.0
 	Tuning.planet = Tuning.planet.duplicate()
-	var no_small: Array[float] = [0.0, 0.0, 0.0, 0.0]
-	Tuning.planet.small_rate = no_small
 
 
 func after_each():
@@ -1029,15 +1027,15 @@ func _beam_setup() -> Dictionary:
 	return {"a": a, "key": key, "pos": pos, "aim": aim}
 
 
-func test_live_and_snapshot_asteroid_queries_return_the_same_layered_key_sorted_entries() -> void:
+func test_live_and_snapshot_asteroid_queries_return_the_same_key_sorted_entries() -> void:
 	_dense_planet()
 	var pos := Vector2(AsteroidField.band_centre(0), 0.0)
 	var snap := AsteroidField.near(pos, 0.0, 3000.0)
 	var first: Dictionary = AsteroidField.near(pos, 0.0, 1500.0)[0]
 	var key := Vector3i(first["band"], first["chunk"], first["idx"])
-	var mined := {key: first["amount"] * 0.25}
-	var live := ShipFlight._asteroids(pos, 5.0, 1500.0, null, mined)
-	var snapped := ShipFlight._asteroids(pos, 5.0, 1500.0, snap, mined)
+	var broken := {}
+	var live := ShipFlight._asteroids(pos, 5.0, 1500.0, null, broken)
+	var snapped := ShipFlight._asteroids(pos, 5.0, 1500.0, snap, broken)
 	assert_gt(live.size(), 2)
 	assert_eq(live.size(), snapped.size())
 	for i in live.size():
@@ -1048,14 +1046,14 @@ func test_live_and_snapshot_asteroid_queries_return_the_same_layered_key_sorted_
 	for a in live:
 		for f in ["key", "pos", "vel", "radius", "points", "rot", "type", "amount"]:
 			assert_true(a.has(f), f)
-		if a["key"] == key:
-			assert_almost_eq(float(a["amount"]), first["amount"] * 0.25, 1e-6)
-	mined[key] = 0.0
-	for a in ShipFlight._asteroids(pos, 5.0, 1500.0, null, mined):
+	broken[key] = true
+	for a in ShipFlight._asteroids(pos, 5.0, 1500.0, null, broken):
+		assert_ne(a["key"], key)
+	for a in ShipFlight._asteroids(pos, 5.0, 1500.0, snap, broken):
 		assert_ne(a["key"], key)
 
 
-func test_mined_out_asteroid_is_ignored_by_contact_and_sync() -> void:
+func test_broken_asteroid_is_ignored_by_contact_and_sync() -> void:
 	var a := _dense_asteroid()
 	var pos: Vector2 = a["pos"] + Vector2(a["radius"] * 0.5, 0.0)
 	var entry := {}
@@ -1063,69 +1061,296 @@ func test_mined_out_asteroid_is_ignored_by_contact_and_sync() -> void:
 		if q["pos"].distance_to(a["pos"]) < 0.001:
 			entry = q
 	var s := _state(pos, a["vel"] + Vector2(-10, 0))
-	s.mined[entry["key"]] = 0.0
+	s.broken[entry["key"]] = true
 	assert_eq(ShipFlight.step(s, ShipInput.new(), 0.0, DT).hull, s.hull)
-	assert_true(ShipFlight.sync_reference(pos, 0.0, null, s.mined).asteroid.is_empty() or ShipFlight.sync_reference(pos, 0.0, null, s.mined).asteroid["pos"] != a["pos"])
+	assert_true(ShipFlight.sync_reference(pos, 0.0, null, s.broken).asteroid.is_empty() or ShipFlight.sync_reference(pos, 0.0, null, s.broken).asteroid["pos"] != a["pos"])
 
 
-func test_holding_the_beam_on_an_asteroid_moves_its_type_into_the_hold_at_beam_rate() -> void:
+func test_beam_charge_grows_by_beam_damage_per_second_on_one_asteroid_and_resets_when_released_or_retargeted() -> void:
 	var c := _beam_setup()
 	var s := _state(c["pos"])
 	var inp := ShipInput.new()
 	inp.beam = true
 	inp.aim = c["aim"]
-	var m0 := Hold.mass(s)
-	var e0 := Hold.energy(s)
-	var out := ShipFlight.step(s, inp, 0.0, DT)
-	var want: float = Tuning.ship.beam_rate * DT
-	assert_gt(Hold.mass(out), m0)
-	assert_eq(Hold.energy(out), e0)
-	assert_almost_eq(out.mined[c["key"]], c["a"]["amount"] - want, 1e-6)
-	var got := 0.0
-	for cell in out.hold:
-		if cell.type == c["a"]["type"]:
-			got += cell.fill
-	assert_gt(got, 0.0)
-	assert_true(s.mined.is_empty())
-
-
-func test_beam_without_hold_flag_or_on_a_miss_mines_nothing() -> void:
-	var c := _beam_setup()
-	var s := _state(c["pos"])
-	var inp := ShipInput.new()
-	inp.aim = c["aim"]
-	assert_true(ShipFlight.step(s, inp, 0.0, DT).mined.is_empty())
-	inp.beam = true
+	var one := ShipFlight.step(s, inp, 0.0, DT)
+	assert_not_null(one.beam_target)
+	assert_almost_eq(one.beam_charge, Tuning.ship.beam_damage * DT, 1e-6)
+	assert_null(s.beam_target)
+	var two := ShipFlight.step(one, inp, 0.0, DT)
+	assert_eq(two.beam_target, one.beam_target)
+	assert_almost_eq(two.beam_charge, Tuning.ship.beam_damage * DT * 2.0, 1e-6)
+	var released := ShipFlight.step(two, ShipInput.new(), 0.0, DT)
+	assert_null(released.beam_target)
+	assert_eq(released.beam_charge, 0.0)
+	var other := two.copy()
+	other.beam_target = Vector3i(-1, -1, -1)
+	var re := ShipFlight.step(other, inp, 0.0, DT)
+	assert_eq(re.beam_target, two.beam_target)
+	assert_almost_eq(re.beam_charge, Tuning.ship.beam_damage * DT, 1e-6)
 	var saved_ship = Tuning.ship
 	Tuning.ship = saved_ship.duplicate()
 	Tuning.ship.beam_range = 1.0
-	var out := ShipFlight.step(s, inp, 0.0, DT)
+	var miss := ShipFlight.step(two, inp, 0.0, DT)
 	Tuning.ship = saved_ship
-	assert_true(out.mined.is_empty())
+	assert_null(miss.beam_target)
+	assert_eq(miss.beam_charge, 0.0)
 
 
-func test_full_hold_adds_nothing_and_leaves_the_asteroid() -> void:
+func _beam_hit_entry(c: Dictionary) -> Dictionary:
+	var cands := ShipFlight._asteroids(c["pos"], 0.0, Tuning.ship.beam_range + 200.0, null)
+	var h := Beam.hit(c["pos"], c["aim"], Tuning.ship.beam_range, cands)
+	for e in cands:
+		if e["key"] == h["key"]:
+			return e
+	return {}
+
+
+func test_asteroid_breaks_at_sqrt_radius_threshold_into_split_count_pieces_summing_to_its_amount() -> void:
 	var c := _beam_setup()
+	var e := _beam_hit_entry(c)
+	var threshold: float = _break_threshold(e["points"])
+	var gain: float = Tuning.ship.beam_damage * DT
+	var inp := ShipInput.new()
+	inp.beam = true
+	inp.aim = c["aim"]
 	var s := _state(c["pos"])
-	Hold.add(s, &"ore_middle", 1000.0)
+	s.beam_target = e["key"]
+	s.beam_charge = threshold - gain * 2.0
+	var below := ShipFlight.step(s, inp, 0.0, DT)
+	assert_false(below.broken.has(e["key"]))
+	assert_eq(below.bodies.size(), 0)
+	s.beam_charge = threshold - gain * 0.5
+	var out := ShipFlight.step(s, inp, 0.0, DT)
+	assert_true(out.broken.has(e["key"]))
+	assert_eq(out.bodies.size(), Tuning.planet.split_count)
+	assert_eq(out.beam_charge, 0.0)
+	var sum := 0.0
+	for b in out.bodies:
+		sum += b.amount
+		assert_almost_eq(b.radius, e["radius"] / sqrt(Tuning.planet.split_area_divisor * Tuning.planet.split_count), 0.01)
+		assert_true(b.piece)
+	assert_almost_eq(sum, e["amount"], 0.01)
+
+
+func _break_threshold(points: PackedVector2Array) -> float:
+	return Tuning.planet.break_per_sqrt_radius * sqrt(sqrt(AsteroidField._area(points) / PI))
+
+
+func test_break_threshold_grows_with_sqrt_of_the_area_radius() -> void:
+	Tuning.planet.asteroids_per_band = 0.0
+	Tuning.planet.break_per_sqrt_radius = 0.8
+	var R: float = Tuning.field.carrier_orbit_radius
+	var inp := ShipInput.new()
+	inp.beam = true
+	inp.aim = 0.0
+	var gain: float = Tuning.ship.beam_damage * DT
+	var thresholds := []
+	for r in [30.0, 120.0]:
+		var s := _state(Vector2(R, 0))
+		var body := _square_body(Vector2(R + 300.0, 0), r, 31)
+		s.bodies = [body]
+		var thr: float = 0.8 * sqrt(sqrt(4.0 * r * r / PI))
+		thresholds.append(thr)
+		s.beam_target = 31
+		s.beam_charge = thr - gain * 1.5
+		var below := ShipFlight.step(s, inp, 0.0, DT)
+		assert_eq(below.bodies.size(), 1, "no break one tick early at r=%s" % r)
+		s.beam_charge = thr - gain * 0.5
+		var out := ShipFlight.step(s, inp, 0.0, DT)
+		assert_eq(out.bodies.size(), Tuning.planet.split_count, "breaks at r=%s" % r)
+	assert_almost_eq(thresholds[1] / thresholds[0], 2.0, 1e-3)
+
+
+func _square_body(pos: Vector2, r: float, id) -> FreeBody:
+	var b := FreeBody.new()
+	b.pos = pos
+	b.radius = r
+	b.points = PackedVector2Array([Vector2(-r, -r), Vector2(r, -r), Vector2(r, r), Vector2(-r, r)])
+	b.type = &"ore_middle"
+	b.amount = 4.0
+	b.id = id
+	return b
+
+
+func test_beam_breaks_a_non_collectible_body_and_passes_through_a_collectible_one() -> void:
+	Tuning.planet.asteroids_per_band = 0.0
+	var R: float = Tuning.field.carrier_orbit_radius
+	var s := _state(Vector2(R, 0))
+	var big := _square_body(Vector2(R + 200.0, 0), 40.0, 11)
+	var small := _square_body(Vector2(R + 100.0, 0), 15.0, 12)
+	s.bodies = [small, big]
+	var inp := ShipInput.new()
+	inp.beam = true
+	inp.aim = 0.0
+	var out := ShipFlight.step(s, inp, 0.0, DT)
+	assert_eq(out.beam_target, 11)
+	assert_gt(out.beam_charge, 0.0)
+	var threshold: float = _break_threshold(big.points)
+	s.beam_target = 11
+	s.beam_charge = threshold
+	out = ShipFlight.step(s, inp, 0.0, DT)
+	assert_eq(out.bodies.size(), 1 + Tuning.planet.split_count)
+	assert_null(out.beam_target)
+	var sum := 0.0
+	for b in out.bodies:
+		assert_ne(b.id, 11)
+		if b.piece:
+			sum += b.amount
+			assert_almost_eq(b.radius, 40.0 / sqrt(Tuning.planet.split_area_divisor * Tuning.planet.split_count), 0.01)
+			assert_true(b.radius <= Tuning.planet.collect_radius + 1e-4)
+	assert_almost_eq(sum, 4.0, 0.01)
+	var only_small := _state(Vector2(R, 0))
+	only_small.bodies = [small.copy()]
+	out = ShipFlight.step(only_small, inp, 0.0, DT)
+	assert_null(out.beam_target)
+	assert_eq(out.bodies.size(), 1)
+
+
+func test_beam_moving_from_an_asteroid_to_a_body_retargets_without_mixed_key_error() -> void:
+	var c := _beam_setup()
+	var pos: Vector2 = c["pos"] - Vector2.from_angle(c["aim"]) * 200.0
+	var s := _state(pos)
+	s.beam_target = c["key"]
+	s.beam_charge = 5.0
+	var body := _square_body(pos + Vector2.from_angle(c["aim"]) * 120.0, 40.0, 21)
+	s.bodies = [body]
 	var inp := ShipInput.new()
 	inp.beam = true
 	inp.aim = c["aim"]
 	var out := ShipFlight.step(s, inp, 0.0, DT)
-	assert_true(out.mined.is_empty())
+	assert_eq(out.beam_target, 21)
+	assert_almost_eq(out.beam_charge, Tuning.ship.beam_damage * DT, 1e-6)
+
+
+func test_beam_splits_a_body_at_threshold_with_asteroids_among_candidates() -> void:
+	var c := _beam_setup()
+	var pos: Vector2 = c["pos"] - Vector2.from_angle(c["aim"]) * 200.0
+	var s := _state(pos)
+	var body := _square_body(pos + Vector2.from_angle(c["aim"]) * 120.0, 40.0, 22)
+	s.bodies = [body]
+	var inp := ShipInput.new()
+	inp.beam = true
+	inp.aim = c["aim"]
+	var out := ShipFlight.step(s, inp, 0.0, DT)
+	assert_eq(out.beam_target, 22)
+	s.beam_target = 22
+	s.beam_charge = _break_threshold(body.points)
+	out = ShipFlight.step(s, inp, 0.0, DT)
+	assert_null(out.beam_target)
+	for b in out.bodies:
+		assert_ne(b.id, 22)
+	assert_gt(out.bodies.size(), 1)
+
+
+func test_collectible_piece_inside_the_ship_circle_goes_into_the_hold_without_damage() -> void:
+	Tuning.planet.asteroids_per_band = 0.0
+	var R: float = Tuning.field.carrier_orbit_radius
+	for collect in [false, true]:
+		var s := _state(Vector2(R, 0))
+		var b := _square_body(s.pos + Vector2(5.0, 0.0), 15.0, 21)
+		b.vel = Vector2(-80.0, 0.0)
+		b.amount = 0.5
+		s.bodies = [b]
+		var inp := ShipInput.new()
+		inp.collect = collect
+		var m0 := Hold.mass(s)
+		var out := ShipFlight.step(s, inp, 0.0, DT)
+		assert_eq(out.hull, s.hull)
+		assert_eq(out.bodies.size(), 0)
+		var got := 0.0
+		for cell in out.hold:
+			if cell.type == &"ore_middle":
+				got += cell.fill
+		assert_almost_eq(got, 0.5, 1e-6)
+		assert_gt(Hold.mass(out), m0)
+	var part := _state(Vector2(R, 0))
+	var room := Hold.room(part, &"ore_middle")
+	var p := _square_body(part.pos, 15.0, 22)
+	p.amount = room + 1.5
+	part.bodies = [p]
+	var out2 := ShipFlight.step(part, ShipInput.new(), 0.0, DT)
+	assert_eq(out2.bodies.size(), 1)
+	assert_almost_eq(out2.bodies[0].amount, 1.5, 1e-6)
+	assert_almost_eq(Hold.room(out2, &"ore_middle"), 0.0, 1e-6)
+	var full := _state(Vector2(R, 0))
+	Hold.add(full, &"ore_middle", 1000.0)
+	var q := _square_body(full.pos, 15.0, 23)
+	q.vel = Vector2(-80.0, 0.0)
+	full.bodies = [q]
+	var out3 := ShipFlight.step(full, ShipInput.new(), 0.0, DT)
+	assert_eq(out3.hull, full.hull)
+	assert_eq(out3.bodies.size(), 1)
+	assert_eq(out3.bodies[0].amount, 4.0)
+
+
+func test_collector_pulls_a_collectible_piece_in_the_sector_toward_the_ship_without_changing_its_velocity() -> void:
+	Tuning.planet.asteroids_per_band = 0.0
+	var R: float = Tuning.field.carrier_orbit_radius
+	var s := _state(Vector2(R, 0))
+	var b := _square_body(Vector2(R + 100.0, 0.0), 15.0, 31)
+	b.vel = Vector2(0.0, 3.0)
+	s.bodies = [b]
+	var off := ShipInput.new()
+	var on := ShipInput.new()
+	on.collect = true
+	var base := ShipFlight.step(s, off, 0.0, DT)
+	var one := ShipFlight.step(s, on, 0.0, DT)
+	assert_almost_eq(one.bodies[0].pos.x, base.bodies[0].pos.x - Tuning.ship.collect_accel * DT * DT, 1e-2)
+	assert_almost_eq(one.bodies[0].pos.y, base.bodies[0].pos.y, 1e-3)
+	assert_eq(one.bodies[0].vel, base.bodies[0].vel)
+	assert_almost_eq(one.bodies[0].pull_speed, Tuning.ship.collect_accel * DT, 1e-6)
+	var two := ShipFlight.step(one, on, 0.0, DT)
+	assert_almost_eq(two.bodies[0].pull_speed, Tuning.ship.collect_accel * DT * 2.0, 1e-6)
+	var released := ShipFlight.step(two, off, 0.0, DT)
+	assert_eq(released.bodies[0].pull_speed, 0.0)
+	var wrong := ShipInput.new()
+	wrong.collect = true
+	wrong.aim = PI * 0.5
+	var out := ShipFlight.step(two, wrong, 0.0, DT)
+	assert_eq(out.bodies[0].pull_speed, 0.0)
+	assert_eq(out.bodies[0].pos, ShipFlight.step(two, off, 0.0, DT).bodies[0].pos)
+	var far := s.copy()
+	far.bodies[0].pos = Vector2(R + 0.5 * Tuning.ship.beam_range + 20.0, 0.0)
+	assert_eq(ShipFlight.step(far, on, 0.0, DT).bodies[0].pull_speed, 0.0)
+	var full := s.copy()
+	Hold.add(full, &"ore_middle", 1000.0)
+	assert_eq(ShipFlight.step(full, on, 0.0, DT).bodies[0].pull_speed, 0.0)
+	var big := s.copy()
+	big.bodies[0].radius = 40.0
+	assert_eq(ShipFlight.step(big, ShipInput.new(), 0.0, DT).beam_charge, 0.0)
+	assert_eq(ShipFlight.step(big, on, 0.0, DT).beam_charge, 0.0)
+	assert_eq(ShipFlight.step(big, on, 0.0, DT).bodies[0].pull_speed, 0.0)
+
+
+func test_breaking_an_asteroid_fully_and_collecting_all_pieces_puts_exactly_its_amount_into_the_hold() -> void:
+	Tuning.planet.asteroids_per_band = 0.0
+	var R: float = Tuning.field.carrier_orbit_radius
+	var s := _state(Vector2(R, 0))
+	s.bodies = [_square_body(Vector2(R + 100.0, 0.0), 40.0, 41)]
+	var inp := ShipInput.new()
+	inp.beam = true
+	inp.collect = true
+	var guard := 0
+	while not s.bodies.is_empty() and guard < 1500:
+		s = ShipFlight.step(s, inp, 0.0, DT)
+		guard += 1
+	assert_true(s.bodies.is_empty())
+	var got := 0.0
+	for cell in s.hold:
+		if cell.type == &"ore_middle":
+			got += cell.fill
+	assert_between(got, 3.9, 4.0 + 1e-5)
+
+
+func test_beam_adds_nothing_to_the_hold() -> void:
+	var c := _beam_setup()
+	var s := _state(c["pos"])
+	var inp := ShipInput.new()
+	inp.beam = true
+	inp.aim = c["aim"]
+	var out := ShipFlight.step(s, inp, 0.0, DT)
 	assert_eq(Hold.mass(out), Hold.mass(s))
-
-
-func test_asteroid_vanishes_when_drilled_empty() -> void:
-	var c := _beam_setup()
-	var s := _state(c["pos"])
-	s.mined[c["key"]] = Tuning.ship.beam_rate * DT * 0.5
-	var inp := ShipInput.new()
-	inp.beam = true
-	inp.aim = c["aim"]
-	var out := ShipFlight.step(s, inp, 0.0, DT)
-	for q in ShipFlight._asteroids(c["pos"], 0.0, 600.0, null, out.mined):
-		assert_ne(q["key"], c["key"])
+	assert_eq(out.hold.size(), s.hold.size())
 
 
 func test_impact_damage_is_zero_at_v_safe_and_quadratic_above() -> void:
@@ -1150,7 +1375,7 @@ func _small_body(offset: Vector2, vel: Vector2, radius: float) -> FreeBody:
 
 func test_small_body_is_swallowed_with_impact_damage() -> void:
 	var s := _state(Vector2(121500, 0))
-	s.bodies.append(_small_body(Vector2(5, 0), Vector2(30, 0), 10.0))
+	s.bodies.append(_small_body(Vector2(5, 0), Vector2(30, 0), 22.0))
 	var ref := s.bodies[0].copy()
 	var out := ShipFlight.step(s, ShipInput.new(), 0.0, DT)
 	FreeBody.integrate(ref, 0.0, DT)
@@ -1181,7 +1406,7 @@ func test_large_body_pushes_ship_out_and_bounces_it() -> void:
 	assert_eq(out.bodies[0].vel, ref.vel)
 	assert_almost_eq(out.pos.distance_to(ref.pos), Tuning.ship.hit_radius + 40.0, 1e-3)
 	var n := (out.pos - ref.pos).normalized()
-	assert_almost_eq((out.vel - ref.vel).dot(n), Tuning.planet.small_bounce * 30.0, 0.1)
+	assert_almost_eq((out.vel - ref.vel).dot(n), Tuning.planet.piece_bounce * 30.0, 0.1)
 	assert_almost_eq(s.hull - out.hull, ShipFlight.impact_damage(30.0), 0.2)
 
 

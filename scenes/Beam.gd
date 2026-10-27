@@ -1,25 +1,10 @@
 class_name Beam
 extends RefCounted
 
-const MIN_REMAINING := 1e-3
-
-
-static func layer(entry: Dictionary, mined: Dictionary) -> Dictionary:
-	var key: Vector3i = entry["key"]
-	if not mined.has(key):
-		return entry
-	var remaining: float = minf(mined[key], float(entry["amount"]))
-	if remaining <= MIN_REMAINING:
+static func layer(entry: Dictionary, broken: Dictionary) -> Dictionary:
+	if broken.has(entry["key"]):
 		return {}
-	var k := sqrt(remaining / float(entry["amount"]))
-	var out := entry.duplicate()
-	out["radius"] = float(entry["radius"]) * k
-	var pts := PackedVector2Array()
-	for p in entry["points"] as PackedVector2Array:
-		pts.append(p * k)
-	out["points"] = pts
-	out["amount"] = remaining
-	return out
+	return entry
 
 
 ## aim is a world direction vector or a world angle.

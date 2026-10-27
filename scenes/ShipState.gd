@@ -15,7 +15,9 @@ var hull: float = Tuning.ship.hull_max
 var crashed: bool
 var hold: Array[HoldCell] = []
 var tank: Array[HoldCell] = []
-var mined: Dictionary = {}
+var broken: Dictionary = {}
+var beam_target = null
+var beam_charge := 0.0
 var bodies: Array[FreeBody] = []
 
 
@@ -42,7 +44,9 @@ func copy() -> ShipState:
 		c.hold.append(cell.copy())
 	for cell in tank:
 		c.tank.append(cell.copy())
-	c.mined = mined.duplicate()
+	c.broken = broken.duplicate()
+	c.beam_target = beam_target
+	c.beam_charge = beam_charge
 	for b in bodies:
 		c.bodies.append(b.copy())
 	return c

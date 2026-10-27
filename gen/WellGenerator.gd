@@ -5,9 +5,29 @@ const PHI_REL_TOL := 1e-9
 const MAX_ITER := 200
 
 
+static var _key: Array = []
+static var _memo: Dictionary = {}
+static var _shares: Array = []
+static var _lock := Mutex.new()
+
+
+static func _fresh(f: FieldParams, b: BodyParams, shares: Array, offset: float) -> bool:
+	return not _memo.is_empty() and _key[0] == f.k and _key[1] == f.eps and _key[2] == f.fade_width \
+		and _key[3] == f.atmosphere_edge and _key[4] == f.carrier_orbit_radius and _key[5] == b.mass \
+		and _key[6] == b.p and _key[7] == b.influence_radius and _key[8] == offset and _shares == shares
+
+
 static func tiers() -> Dictionary:
 	var f: FieldParams = Tuning.field
 	var shares: Array = Tuning.planet.tier_shares
+	var b0: BodyParams = f.bodies[0]
+	var offset: float = Tuning.planet.ceiling_offset
+	_lock.lock()
+	if _fresh(f, b0, shares, offset):
+		var hit := _memo
+		_lock.unlock()
+		return hit
+	_lock.unlock()
 	var lo_phi: float = GravityField.planet_potential_eff(f.atmosphere_edge)
 	var swing: float = GravityField.planet_potential_eff(f.carrier_orbit_radius) - lo_phi
 	var boundaries: Array[float] = [f.atmosphere_edge]
@@ -16,7 +36,15 @@ static func tiers() -> Dictionary:
 		cum += shares[3 - i]
 		boundaries.append(_radius_at(lo_phi + cum * swing, f.atmosphere_edge, f.carrier_orbit_radius, absf(swing) * PHI_REL_TOL))
 	boundaries.append(f.carrier_orbit_radius)
-	return {"boundaries": boundaries, "tow": boundaries[2], "ceiling": f.carrier_orbit_radius + Tuning.planet.ceiling_offset}
+	var out := {"boundaries": boundaries, "tow": boundaries[2], "ceiling": f.carrier_orbit_radius + offset}
+	boundaries.make_read_only()
+	out.make_read_only()
+	_lock.lock()
+	_key = [f.k, f.eps, f.fade_width, f.atmosphere_edge, f.carrier_orbit_radius, b0.mass, b0.p, b0.influence_radius, offset]
+	_shares = shares.duplicate()
+	_memo = out
+	_lock.unlock()
+	return out
 
 
 static func tier_of(r: float) -> int:

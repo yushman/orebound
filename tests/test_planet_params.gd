@@ -81,18 +81,39 @@ func test_default_composition_knobs():
 
 func test_default_small_object_knobs():
 	var p: PlanetParams = Tuning.planet
-	assert_eq(p.small_rate.size(), 4)
-	for r in p.small_rate:
-		assert_gt(r, 0.0)
-	assert_gt(p.small_window, 0.0)
-	assert_between(p.small_e_min, 0.0, 1.0)
-	assert_between(p.small_e_max, p.small_e_min, 1.0)
-	assert_lt(p.small_e_max, 1.0)
-	assert_gt(p.small_radius_min, 0.0)
-	assert_gt(p.small_radius_max, p.small_radius_min)
-	assert_between(p.swallow_radius, p.small_radius_min, p.small_radius_max)
-	assert_gt(p.small_despawn_radius, p.small_spawn_radius)
-	assert_gt(p.small_max_bodies, 0)
-	assert_between(p.small_bounce, 0.0, 1.0)
+	assert_gt(p.piece_swallow_radius, 0.0)
+	assert_gt(p.piece_despawn_radius, p.piece_swallow_radius)
+	assert_between(p.piece_bounce, 0.0, 1.0)
 	assert_eq(p.v_safe, 12.0)
 	assert_gt(p.impact_k, 0.0)
+
+
+func test_default_split_and_piece_knobs() -> void:
+	var p: PlanetParams = Tuning.planet
+	assert_eq(p.split_count, 3)
+	assert_eq(p.split_area_divisor, 1.5)
+	assert_eq(p.collect_radius, 20.0)
+	assert_eq(p.break_per_sqrt_radius, 0.5)
+	assert_false("break_per_area" in p)
+	assert_eq(p.piece_lifetime, 100.0)
+	assert_eq(p.piece_min_radius, 5.0)
+	assert_eq(p.piece_spread, 0.7)
+	assert_almost_eq(p.piece_scatter, 5.0 / 3.0, 1e-6)
+
+
+func test_scheduled_small_body_params_are_gone() -> void:
+	var names: Array = []
+	for pr in PlanetParams.new().get_property_list():
+		names.append(pr["name"])
+	for n in ["small_rate", "small_window", "small_e_min", "small_e_max", "small_radius_min",
+			"small_radius_max", "small_spawn_radius", "small_max_bodies"]:
+		assert_false(names.has(n), n)
+
+
+func test_piece_knobs_use_piece_names() -> void:
+	var p := PlanetParams.new()
+	assert_eq(p.get("piece_despawn_radius"), 3000.0)
+	assert_eq(p.get("piece_swallow_radius"), 25.0)
+	assert_eq(p.get("piece_bounce"), 0.5)
+	for n in ["small_despawn_radius", "swallow_radius", "small_bounce"]:
+		assert_null(p.get(n), n)

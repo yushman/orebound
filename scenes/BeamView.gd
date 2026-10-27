@@ -25,7 +25,7 @@ func refresh(state: ShipState, input: ShipInput, t: float) -> void:
 	if not input.beam:
 		return
 	var range_ := Tuning.ship.beam_range
-	var cands := ShipFlight._asteroids(state.pos, t, range_ + maxf(Tuning.planet.ast_radius_min, Tuning.planet.ast_radius_max), null, state.mined)
+	var cands := ShipFlight.beam_candidates(state, t)
 	var h := Beam.hit(state.pos, input.aim, range_, cands)
 	var end: Vector2 = h["point"] if not h.is_empty() else state.pos + Vector2.RIGHT.rotated(input.aim) * range_
 	points = PackedVector2Array([state.pos, end])

@@ -9,6 +9,7 @@ var boost: bool
 var soft_brake: bool
 var drift_sync: bool
 var beam: bool
+var collect: bool
 var aim: float
 
 
@@ -19,7 +20,7 @@ static func screen_heading(stick: Vector2, pos: Vector2) -> float:
 
 
 ## Beam aim in world angle: right stick (screen-relative), else the mouse
-## world point while LMB is held, else the nose.
+## world point while LMB or RMB is held, else the nose.
 static func aim_angle(stick: Vector2, mouse_held: bool, mouse_world: Vector2, pos: Vector2, rot: float) -> float:
 	if stick != Vector2.ZERO:
 		return wrapf(screen_heading(stick, pos) - PI / 2, -PI, PI)
@@ -38,5 +39,6 @@ func copy() -> ShipInput:
 	c.soft_brake = soft_brake
 	c.drift_sync = drift_sync
 	c.beam = beam
+	c.collect = collect
 	c.aim = aim
 	return c

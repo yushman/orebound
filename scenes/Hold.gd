@@ -43,6 +43,21 @@ static func add(s: ShipState, type: StringName, amount: float) -> float:
 	return amount - left
 
 
+static func room(s: ShipState, type: StringName) -> float:
+	var p: ShipParams = Tuning.ship
+	var cells: Array[HoldCell] = s.tank if type == &"fuel" else s.hold
+	var capacity: float = p.tank_capacity if type == &"fuel" else p.hold_capacity
+	var volume: float = Tuning.resources[type].volume
+	var free := 0.0
+	for i in range(cells.size() - 1, -1, -1):
+		if cells[i].type == type and cells[i].fill < 1.0 - EPS:
+			free = 1.0 - cells[i].fill
+			break
+	if volume > 0.0:
+		free += maxf(floorf((capacity - used_volume(cells)) / volume + EPS), 0.0)
+	return free
+
+
 static func energy(s: ShipState) -> float:
 	var e := 0.0
 	for c in s.tank:

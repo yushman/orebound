@@ -8,7 +8,7 @@ func before_each():
 
 
 func after_each():
-	Tuning.field = _saved_field
+	_set_field(_saved_field)
 
 
 func _planet() -> BodyParams:
@@ -37,14 +37,14 @@ func _field(bodies: Array, carrier_orbit_radius: float) -> FieldParams:
 func test_orbit_radii_from_field():
 	var WellViewScript = load("res://scenes/WellView.gd")
 	# planet-only field: the carrier orbit is the only r = const arc
-	Tuning.field = _field([_planet()], 121500.0)
+	_set_field(_field([_planet()], 121500.0))
 	var radii: Array[float] = WellViewScript.orbit_radii()
 	assert_eq(radii.size(), 1)
 	assert_eq(radii[0], 121500.0)
 	# planet + two moons: carrier + moon orbits, sorted; moon with
 	# orbit_radius 0 is excluded
-	Tuning.field = _field(
-		[_planet(), _moon(130000.0), _moon(90000.0), _moon(0.0)], 121500.0)
+	_set_field(_field(
+		[_planet(), _moon(130000.0), _moon(90000.0), _moon(0.0)], 121500.0))
 	radii = WellViewScript.orbit_radii()
 	assert_eq(radii.size(), 3)
 	assert_eq(radii[0], 90000.0)
@@ -89,9 +89,9 @@ func test_screen_px_scales_with_semantic_zoom():
 func test_carrier_marker_data():
 	var WellViewScript = load("res://scenes/WellView.gd")
 	# carrier point is the frame origin, read from Tuning on every call
-	Tuning.field = _field([_planet()], 121500.0)
+	_set_field(_field([_planet()], 121500.0))
 	assert_eq(WellViewScript.carrier_marker_pos(), Vector2(121500.0, 0.0))
-	Tuning.field = _field([_planet()], 50000.0)
+	_set_field(_field([_planet()], 50000.0))
 	assert_eq(WellViewScript.carrier_marker_pos(), Vector2(50000.0, 0.0))
 	# constant screen size, dim marker
 	assert_between(WellViewScript.CARRIER_MARKER_PX, 3.0, 5.0)
@@ -111,7 +111,7 @@ func test_run_scene_has_well_view():
 
 func test_carrier_orbit_has_own_style():
 	var WellViewScript = load("res://scenes/WellView.gd")
-	Tuning.field = _field([_planet()], 121500.0)
+	_set_field(_field([_planet()], 121500.0))
 	# pinned playtest constants: white ~0.55 alpha, 1.5 px
 	assert_almost_eq(WellViewScript.CARRIER_ORBIT_COLOR.a, 0.55, 0.05)
 	assert_eq(WellViewScript.CARRIER_ORBIT_PX, 1.5)
@@ -131,7 +131,7 @@ func test_carrier_orbit_has_own_style():
 
 func test_boundary_style_distinct_from_orbit_styles():
 	var W = load("res://scenes/WellView.gd")
-	Tuning.field = _field([_planet()], 121500.0)
+	_set_field(_field([_planet()], 121500.0))
 	var atm: Dictionary = W.boundary_style("atmosphere")
 	assert_eq(atm["color"], W.ATMOSPHERE_COLOR)
 	assert_eq(atm["px"], W.ATMOSPHERE_PX)
@@ -190,7 +190,7 @@ func test_special_rings_at_generator_radii():
 
 func test_stroke_hues_come_from_palette():
 	var W = load("res://scenes/WellView.gd")
-	Tuning.field = _field([_planet()], 121500.0)
+	_set_field(_field([_planet()], 121500.0))
 	var hues := {
 		"carrier": [W.orbit_style(121500.0, false)["color"], Palette.SAFE],
 		"orbit": [W.orbit_style(130000.0, false)["color"], Palette.HALO],
@@ -213,3 +213,9 @@ func test_surface_arc_removed():
 	var consts: Dictionary = W.get_script_constant_map()
 	assert_false("SURFACE_COLOR" in consts)
 	assert_false("SURFACE_PX" in consts)
+
+
+func _set_field(f: FieldParams) -> void:
+	Tuning.lock.lock()
+	Tuning.field = f
+	Tuning.lock.unlock()

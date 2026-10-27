@@ -7,8 +7,6 @@ var _saved_planet_small
 func before_each() -> void:
 	_saved_planet_small = Tuning.planet
 	Tuning.planet = Tuning.planet.duplicate()
-	var no_small: Array[float] = [0.0, 0.0, 0.0, 0.0]
-	Tuning.planet.small_rate = no_small
 
 
 func after_each() -> void:
@@ -236,3 +234,11 @@ func test_read_input_maps_beam_and_aim() -> void:
 	Input.action_press("ship_beam")
 	assert_true(ship._read_input().beam)
 	Input.action_release("ship_beam")
+
+
+func test_read_input_maps_collect() -> void:
+	var ship = _make()
+	assert_false(ship._read_input().collect)
+	Input.action_press("ship_collect")
+	assert_true(ship._read_input().collect)
+	Input.action_release("ship_collect")

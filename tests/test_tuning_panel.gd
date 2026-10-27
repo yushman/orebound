@@ -51,16 +51,15 @@ func test_slider_set_covers_all_parameters() -> void:
 			"heat_growth_boost", "heat_threshold", "heat_cooldown", "min_thrust_fraction",
 			"sync_accel", "sync_fuel_mult", "predict_every", "predict_short_steps", "hull_max",
 				"hull_mass", "hold_capacity", "ref_mass", "loadout_fuel_cells", "tank_capacity",
-				"beam_range", "beam_rate", "return_margin", "hit_radius"]:
+				"beam_range", "beam_damage", "collect_angle", "collect_accel", "return_margin", "hit_radius"]:
 		expect.append("ship." + p)
 	for p in ["atmosphere_drag", "atmosphere_damage", "density_shape", "moon_mass_k", "moon_mass_exp",
 			"moon_influence_k", "moon_margin", "moon_bounce", "moon_impact_damage",
 				"ring_width", "ring_density", "band_width", "chunk_arc", "chunk_gen_radius",
 				"asteroids_per_band", "drop_start", "drop_ratio", "above_factor", "field_radius",
 				"ast_radius_min", "ast_radius_max", "asteroid_bounce", "asteroid_impact_damage", "rest_speed", "amount_per_area", "top_ice_share",
-					"small_rate0", "small_rate1", "small_rate2", "small_rate3", "small_window", "small_e_min", "small_e_max",
-					"small_radius_min", "small_radius_max", "swallow_radius", "small_spawn_radius", "small_despawn_radius",
-					"small_max_bodies", "small_bounce", "v_safe", "impact_k"]:
+					"piece_swallow_radius", "piece_despawn_radius", "piece_bounce", "v_safe", "impact_k",
+					"split_count", "split_area_divisor", "collect_radius", "break_per_sqrt_radius", "piece_lifetime", "piece_min_radius", "piece_scatter", "piece_spread"]:
 		expect.append("planet." + p)
 	for p in ["halo_alpha", "ring_count", "ring_period", "ring_px", "ring_alpha"]:
 		expect.append("view." + p)
@@ -527,8 +526,8 @@ func test_hold_slider_without_ship_does_not_error() -> void:
 	assert_eq(Tuning.ship.hold_capacity, 12)
 
 
-func test_panel_has_rows_for_amount_per_area_top_ice_share_beam_range_beam_rate() -> void:
-	for id in ["planet.amount_per_area", "planet.top_ice_share", "ship.beam_range", "ship.beam_rate"]:
+func test_panel_has_rows_for_amount_per_area_top_ice_share_beam_range_beam_damage() -> void:
+	for id in ["planet.amount_per_area", "planet.top_ice_share", "ship.beam_range", "ship.beam_damage"]:
 		assert_true(_panel.sliders.has(id), id)
 
 
@@ -541,11 +540,6 @@ func test_return_knob_sliders_write_into_tuning_ship() -> void:
 
 func test_small_object_sliders_write_without_regenerate() -> void:
 	var before: int = Telemetry.seed
-	_panel.sliders["planet.small_rate2"].value = 7.0
-	_panel.sliders["planet.small_max_bodies"].value = 5.0
 	_panel.sliders["ship.hit_radius"].value = 20.0
-	assert_eq(Tuning.planet.small_rate[2], 7.0)
-	assert_eq(Tuning.planet.small_rate[0], 2.0)
-	assert_eq(Tuning.planet.small_max_bodies, 5)
 	assert_eq(Tuning.ship.hit_radius, 20.0)
 	assert_eq(Telemetry.seed, before)

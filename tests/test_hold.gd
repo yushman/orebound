@@ -134,3 +134,24 @@ func test_drain_touches_only_the_tank() -> void:
 	assert_eq(s.hold.size(), 2)
 	assert_eq(s.hold[0].fill, 1.0)
 	assert_eq(s.hold[1].fill, 1.0)
+
+
+func test_room_is_zero_for_a_full_hold_and_counts_the_free_part_of_a_partial_cell() -> void:
+	var s := _empty()
+	assert_eq(Hold.room(s, &"ice"), float(Tuning.ship.hold_capacity))
+	assert_eq(Hold.room(s, &"fuel"), float(Tuning.ship.tank_capacity))
+	s.hold.append(_cell(&"ice", 0.25))
+	var free := Hold.room(s, &"ice")
+	assert_eq(Hold.room(s, &"ice"), free)
+	assert_eq(s.hold.size(), 1)
+	assert_eq(s.hold[0].fill, 0.25)
+	var probe := _empty()
+	probe.hold.append(_cell(&"ice", 0.25))
+	assert_almost_eq(Hold.add(probe, &"ice", 1000.0), free, 1e-6)
+	var full := _empty()
+	for i in Tuning.ship.hold_capacity:
+		full.hold.append(_cell(&"ice", 1.0))
+	assert_eq(Hold.room(full, &"ice"), 0.0)
+	full.hold[0].fill = 0.5
+	assert_almost_eq(Hold.room(full, &"ice"), 0.5, 1e-6)
+	assert_eq(Hold.room(full, &"ore_middle"), 0.0)

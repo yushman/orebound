@@ -9,11 +9,11 @@ func before_each():
 	_saved_field = Tuning.field
 	_saved_seed = Telemetry.seed
 	_saved_flight = Telemetry.flight
-	Tuning.field = _saved_field.duplicate(true)
+	_set_field(_saved_field.duplicate(true))
 
 
 func after_each():
-	Tuning.field = _saved_field
+	_set_field(_saved_field)
 	Telemetry.seed = _saved_seed
 	Telemetry.flight = _saved_flight
 
@@ -182,7 +182,7 @@ func test_run_has_planet_and_three_moon_bodies():
 
 func test_body_nodes_follow_preset_and_hide_without_body():
 	var run = _run()
-	Tuning.field = _three_body_field()
+	_set_field(_three_body_field())
 	var t := GravityField.time()
 	for c in run.get_children():
 		if c.scene_file_path != "res://scenes/Body.tscn":
@@ -191,7 +191,7 @@ func test_body_nodes_follow_preset_and_hide_without_body():
 		assert_eq(c.visible, c.index < 3, "body %d visible" % c.index)
 		if c.visible:
 			assert_eq(c.position, GravityField.body_pos(c.index, t))
-	Tuning.field = _three_body_field()
+	_set_field(_three_body_field())
 	var field_two: FieldParams = Tuning.field
 	field_two.bodies = [field_two.bodies[0], field_two.bodies[1]]
 	for c in run.get_children():
@@ -203,7 +203,7 @@ func test_body_nodes_follow_preset_and_hide_without_body():
 func test_run_has_reference_marker_on_reference_body():
 	# Needs its own 3-body field: the marker tracks bodies[1] (a moon).
 	var run = _run()
-	Tuning.field = _three_body_field()
+	_set_field(_three_body_field())
 	var marker = run.get_node_or_null("ReferenceMarker")
 	assert_not_null(marker, "has ReferenceMarker")
 	assert_true(marker is Node2D)
@@ -221,7 +221,7 @@ func test_marker_tracks_sync_reference_body_or_carrier():
 	# Маркер стоит на ориентире синхронизации: у луны — луна, у матки — точка
 	# матки, вне sync_radius — доминантное тело; яркость — чистым хелпером.
 	var run = _run()
-	Tuning.field = _three_body_field()
+	_set_field(_three_body_field())
 	var marker = run.get_node("ReferenceMarker")
 	var ship = run.get_node("Ship")
 	var t := GravityField.time()
@@ -363,7 +363,7 @@ func test_run_has_ring_and_asteroid_views_between_well_view_and_ship():
 	var names: Array = []
 	for c in run.get_children():
 		names.append(str(c.name))
-	assert_eq(names.slice(0, 12), ["AtmosphereView", "GravityHaloView", "WellView", "RingView", "AsteroidView", "SmallObjectView", "Planet", "Moon1", "Moon2", "Moon3", "BeamView", "Ship"])
+	assert_eq(names.slice(0, 13), ["AtmosphereView", "GravityHaloView", "WellView", "RingView", "AsteroidView", "SmallObjectView", "Planet", "Moon1", "Moon2", "Moon3", "BeamView", "CollectorView", "Ship"])
 	var ring = run.get_node_or_null("RingView")
 	if ring != null:
 		assert_eq(ring.script.resource_path, "res://scenes/RingView.gd")
@@ -412,3 +412,17 @@ func test_beam_view_sits_after_asteroid_view_before_ship():
 	assert_gt(b.get_index(), run.get_node("AsteroidView").get_index())
 	assert_lt(b.get_index(), run.get_node("Ship").get_index())
 	assert_eq(b.script.resource_path, "res://scenes/BeamView.gd")
+
+
+func test_collector_view_sits_right_after_beam_view():
+	var run = _run()
+	var v = run.get_node_or_null("CollectorView")
+	assert_not_null(v)
+	assert_eq(v.get_index(), run.get_node("BeamView").get_index() + 1)
+	assert_eq(v.script.resource_path, "res://scenes/CollectorView.gd")
+
+
+func _set_field(f: FieldParams) -> void:
+	Tuning.lock.lock()
+	Tuning.field = f
+	Tuning.lock.unlock()

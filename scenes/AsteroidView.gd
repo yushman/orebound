@@ -23,14 +23,14 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	var ship := get_node_or_null("../Ship")
 	if ship != null:
-		refresh(ship.state.pos, GravityField.time(), ship.state.mined)
+		refresh(ship.state.pos, GravityField.time(), ship.state.broken)
 
 
-func refresh(pos: Vector2, t: float, mined := {}) -> void:
+func refresh(pos: Vector2, t: float, broken := {}) -> void:
 	var list := []
 	for a in AsteroidField.near(pos, t, Tuning.planet.chunk_gen_radius):
 		a["key"] = Vector3i(a["band"], a["chunk"], a["idx"])
-		a = Beam.layer(a, mined)
+		a = Beam.layer(a, broken)
 		if not a.is_empty():
 			list.append(a)
 	var keys := []

@@ -16,96 +16,10 @@ func after_each():
 	Tuning.planet = _saved_planet
 
 
-func _event(angle := 0.7, e := 0.5, nu := 1.0) -> Dictionary:
-	return {"time": 0.0, "angle": angle, "e": e, "nu": nu, "radius": 30.0,
-		"points": PackedVector2Array([Vector2(-10, -10), Vector2(10, -10), Vector2(0, 12)]),
-		"type": &"ice", "amount": 5.0, "id": 42}
-
-
-func test_spawn_sits_at_spawn_radius_from_ship() -> void:
-	var ship := Vector2(121500.0, 0.0)
-	var b := SmallObjects.spawn(_event(), ship, 0.0)
-	assert_not_null(b)
-	assert_almost_eq(b.pos.distance_to(ship), Tuning.planet.small_spawn_radius, 1e-2)
-	assert_almost_eq((b.pos - ship).angle(), 0.7, 1e-4)
-	assert_eq(b.id, 42)
-	assert_eq(b.type, &"ice")
-	assert_eq(b.radius, 30.0)
-
-
-func test_spawn_velocity_gives_orbit_of_event_eccentricity() -> void:
-	var ship := Vector2(121500.0, 0.0)
-	for e in [0.3, 0.55, 0.8]:
-		var b := SmallObjects.spawn(_event(0.7, e, 2.0), ship, 0.0)
-		var r := b.pos.length()
-		var gm := r * r * GravityField.accel_of(0, b.pos, 0.0).length()
-		var om := GravityField.frame_omega()
-		var v := b.vel + om * Vector2(-b.pos.y, b.pos.x)
-		var h := b.pos.cross(v)
-		var energy := 0.5 * v.length_squared() - gm / r
-		var ecc := sqrt(maxf(1.0 + 2.0 * energy * h * h / (gm * gm), 0.0))
-		assert_almost_eq(ecc, e, 1e-3)
-
-
-func test_spawn_skips_atmosphere_and_moon() -> void:
-	var inside := Vector2(101600.0, 0.0)
-	assert_null(SmallObjects.spawn(_event(PI), inside, 0.0))
-	var f: FieldParams = Tuning.field.duplicate(true)
-	var moon := BodyParams.new()
-	moon.parent = 0
-	moon.orbit_radius = 121500.0
-	moon.phase = 0.0
-	moon.radius = 500.0
-	moon.mass = 1.0
-	moon.p = 2.0
-	var bodies: Array[BodyParams] = [f.bodies[0], moon]
-	f.bodies = bodies
-	Tuning.field = f
-	var ship := Vector2(121500.0, Tuning.planet.small_spawn_radius)
-	assert_null(SmallObjects.spawn(_event(-PI / 2.0), ship, 0.0))
-
-
-func _busy() -> void:
-	var rates: Array[float] = [20.0, 20.0, 20.0, 20.0]
-	Tuning.planet.small_rate = rates
-
-
 func _ship_at(pos: Vector2) -> ShipState:
 	var s := ShipState.new()
 	s.pos = pos
 	return s
-
-
-func _ids(s: ShipState) -> Array:
-	var out: Array = []
-	for b in s.bodies:
-		out.append(b.id)
-	return out
-
-
-func test_update_spawns_only_events_due_in_the_step() -> void:
-	_busy()
-	var ship := Vector2(121500.0, 0.0)
-	var events := SmallObjectSchedule.schedule(Tuning.picture["seed"], Tuning.picture["flight"], 3, 0)
-	assert_gt(events.size(), 1)
-	var ev: Dictionary = events[0]
-	var dt := 1.0 / 60.0
-	var s := _ship_at(ship)
-	SmallObjects.update(s, ev["time"] - 2.0 * dt, dt)
-	assert_false(_ids(s).has(ev["id"]))
-	SmallObjects.update(s, ev["time"], dt)
-	assert_true(_ids(s).has(ev["id"]))
-	SmallObjects.update(s, ev["time"], dt)
-	assert_eq(_ids(s).count(ev["id"]), 1)
-
-
-func test_update_stops_at_max_bodies() -> void:
-	_busy()
-	Tuning.planet.small_max_bodies = 2
-	Tuning.planet.small_despawn_radius = 1e9
-	var s := _ship_at(Vector2(121500.0, 0.0))
-	SmallObjects.update(s, 30.0, 30.0)
-	assert_eq(s.bodies.size(), 2)
 
 
 func test_update_integrates_bodies_like_free_body() -> void:
@@ -115,8 +29,6 @@ func test_update_integrates_bodies_like_free_body() -> void:
 	b.vel = Vector2(-30.0, 10.0)
 	s.bodies.append(b)
 	var ref := b.copy()
-	var rates: Array[float] = [0.0, 0.0, 0.0, 0.0]
-	Tuning.planet.small_rate = rates
 	SmallObjects.update(s, 1.0, 1.0 / 60.0)
 	FreeBody.integrate(ref, 1.0, 1.0 / 60.0)
 	assert_eq(s.bodies.size(), 1)
@@ -134,8 +46,6 @@ func test_update_removes_far_atmosphere_and_moon_bodies() -> void:
 	var bodies: Array[BodyParams] = [f.bodies[0], moon]
 	f.bodies = bodies
 	Tuning.field = f
-	var rates: Array[float] = [0.0, 0.0, 0.0, 0.0]
-	Tuning.planet.small_rate = rates
 	var s := _ship_at(Vector2(121500.0, 1000.0))
 	for pos in [Vector2(121500.0, 5000.0), Vector2(101000.0, 0.0), Vector2(121500.0, 100.0), Vector2(121500.0, 1500.0)]:
 		var b := FreeBody.new()
@@ -144,3 +54,105 @@ func test_update_removes_far_atmosphere_and_moon_bodies() -> void:
 	SmallObjects.update(s, 0.0, 1.0 / 60.0)
 	assert_eq(s.bodies.size(), 1)
 	assert_almost_eq(s.bodies[0].pos.y, 1500.0, 1.0)
+
+
+func _near_body(is_piece: bool) -> FreeBody:
+	var b := FreeBody.new()
+	b.pos = Vector2(121500.0, 500.0)
+	b.piece = is_piece
+	return b
+
+
+func test_piece_crumbles_at_lifetime() -> void:
+	Tuning.planet.piece_lifetime = 1.0
+	var s := _ship_at(Vector2(121500.0, 0.0))
+	s.bodies.append(_near_body(true))
+	var dt := 0.25
+	SmallObjects.update(s, 1.0, dt)
+	assert_eq(s.bodies.size(), 1)
+	assert_almost_eq(s.bodies[0].age, dt, 1e-6)
+	for i in 3:
+		SmallObjects.update(s, 1.0, dt)
+	assert_eq(s.bodies.size(), 0)
+
+
+func _sized_piece(radius: float) -> FreeBody:
+	var b := _near_body(true)
+	b.radius = radius
+	b.radius0 = radius
+	return b
+
+
+func test_piece_lifetime_scales_with_radius_over_collect_radius() -> void:
+	Tuning.planet.piece_lifetime = 10.0
+	Tuning.planet.collect_radius = 20.0
+	var cases := [[40.0, 19.0, 1], [40.0, 20.0, 0], [10.0, 10.0, 0], [10.0, 9.0, 1]]
+	for c in cases:
+		var s := _ship_at(Vector2(121500.0, 0.0))
+		s.bodies.append(_sized_piece(c[0]))
+		SmallObjects.update(s, 1.0, c[1])
+		assert_eq(s.bodies.size(), c[2], "r %s age %s" % [c[0], c[1]])
+
+
+func test_update_with_no_bodies_spawns_nothing() -> void:
+	var s := _ship_at(Vector2(121500.0, 0.0))
+	for i in 300:
+		SmallObjects.update(s, float(i + 1), 1.0)
+	assert_eq(s.bodies.size(), 0)
+
+
+func _shrinking_piece(r0: float) -> FreeBody:
+	var b := _sized_piece(r0)
+	b.amount = 6.0
+	b.points = PackedVector2Array([Vector2(-r0, -r0), Vector2(r0, -r0), Vector2(r0, r0), Vector2(-r0, r0)])
+	return b
+
+
+func test_piece_area_falls_linearly_to_min_radius_over_its_life() -> void:
+	Tuning.planet.piece_lifetime = 10.0
+	Tuning.planet.collect_radius = 20.0
+	Tuning.planet.piece_min_radius = 5.0
+	var life := 20.0
+	var s := _ship_at(Vector2(121500.0, 0.0))
+	s.bodies.append(_shrinking_piece(40.0))
+	var dt := 0.5
+	for i in int(life / 2.0 / dt):
+		SmallObjects.update(s, 1.0, dt)
+	var k := (1.0 + pow(5.0 / 40.0, 2)) / 2.0
+	var b: FreeBody = s.bodies[0]
+	assert_almost_eq(b.amount, 6.0 * k, 1e-3)
+	assert_almost_eq(b.radius, 40.0 * sqrt(k), 1e-3)
+	assert_almost_eq(b.points[1].x, 40.0 * sqrt(k), 1e-3)
+	while s.bodies.size() > 0 and s.bodies[0].age < life - dt - 1e-6:
+		SmallObjects.update(s, 1.0, dt)
+	assert_eq(s.bodies.size(), 1)
+	var k_late := 1.0 - (1.0 - pow(5.0 / 40.0, 2)) * s.bodies[0].age / life
+	assert_almost_eq(s.bodies[0].radius, 40.0 * sqrt(k_late), 1e-3)
+	SmallObjects.update(s, 1.0, dt)
+	assert_eq(s.bodies.size(), 0)
+
+
+func test_partial_pickup_is_not_restored_by_shrinking() -> void:
+	Tuning.planet.piece_lifetime = 10.0
+	Tuning.planet.piece_min_radius = 5.0
+	var s := _ship_at(Vector2(121500.0, 0.0))
+	s.bodies.append(_shrinking_piece(40.0))
+	for i in 10:
+		SmallObjects.update(s, 1.0, 0.5)
+	var before: float = s.bodies[0].amount
+	s.bodies[0].amount = before / 2.0
+	SmallObjects.update(s, 1.0, 0.5)
+	assert_lt(s.bodies[0].amount, before / 2.0)
+	assert_gt(s.bodies[0].amount, before / 2.0 * 0.9)
+
+
+func test_piece_born_below_min_radius_keeps_its_size() -> void:
+	Tuning.planet.piece_lifetime = 10.0
+	Tuning.planet.piece_min_radius = 5.0
+	var s := _ship_at(Vector2(121500.0, 0.0))
+	s.bodies.append(_shrinking_piece(4.0))
+	SmallObjects.update(s, 1.0, 5.0)
+	assert_eq(s.bodies[0].radius, 4.0)
+	assert_eq(s.bodies[0].amount, 6.0)
+	SmallObjects.update(s, 1.0, 5.0)
+	assert_eq(s.bodies.size(), 0)

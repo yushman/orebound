@@ -67,7 +67,7 @@ func test_tuning_ship_hold_defaults() -> void:
 
 func test_tuning_ship_beam_defaults() -> void:
 	assert_eq(Tuning.ship.get("beam_range"), 300.0)
-	assert_eq(Tuning.ship.get("beam_rate"), 0.5)
+	assert_false("beam_rate" in Tuning.ship)
 
 
 func test_tuning_ship_return_defaults() -> void:
@@ -78,3 +78,9 @@ func test_tuning_ship_return_defaults() -> void:
 
 func test_tuning_ship_hit_radius_default() -> void:
 	assert_eq(Tuning.ship.get("hit_radius"), 15.0)
+
+
+func test_tuning_ship_collector_and_beam_damage_defaults() -> void:
+	assert_gt(Tuning.ship.get("beam_damage"), 0.0)
+	assert_eq(Tuning.ship.get("collect_angle"), 60.0)
+	assert_eq(Tuning.ship.get("collect_accel"), 200.0)

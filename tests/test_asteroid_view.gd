@@ -129,20 +129,17 @@ func test_asteroid_polygons_are_coloured_by_type():
 		assert_eq(polys[i].color, AsteroidViewScript.color_of(want[i]["type"]))
 
 
-func test_asteroid_view_shrinks_a_partly_mined_asteroid_and_hides_a_mined_out_one():
+func test_asteroid_view_hides_a_broken_asteroid():
 	var v = add_child_autofree(AsteroidViewScript.new())
 	var pos := _spot()
 	var want: Array = AsteroidField.near(pos, 10.0, Tuning.planet.chunk_gen_radius)
-	var a: Dictionary = want[0]
-	var k0 := Vector3i(a["band"], a["chunk"], a["idx"])
 	var b: Dictionary = want[1]
 	var k1 := Vector3i(b["band"], b["chunk"], b["idx"])
-	v.refresh(pos, 10.0, {k0: a["amount"] * 0.25})
+	v.refresh(pos, 10.0, {})
 	var polys := _polys(v)
 	assert_eq(polys.size(), want.size())
-	assert_almost_eq(polys[0].polygon[0].length(), a["points"][0].length() * 0.5, 0.001)
 	assert_eq(polys[1].polygon, b["points"])
-	v.refresh(pos, 10.0, {k0: a["amount"] * 0.25, k1: 0.0})
+	v.refresh(pos, 10.0, {k1: true})
 	polys = _polys(v)
 	assert_eq(polys.size(), want.size() - 1)
 	assert_eq(polys[1].polygon, want[2]["points"])

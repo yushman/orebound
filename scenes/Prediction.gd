@@ -6,13 +6,26 @@ const WIDTH_PX := 2.0
 
 @onready var ship: Node2D = get_node("../Ship")
 
+var _task := -1
+var _task_gen := 0
+var _task_tick := -1000000
+var _gen := 0
+var _fresh := false
+var _result := PackedVector2Array()
+
 
 func _init() -> void:
 	default_color = Palette.HALO
 
 
 func _ready() -> void:
-	ship.respawned.connect(_update)
+	ship.respawned.connect(_on_respawned)
+
+
+func _exit_tree() -> void:
+	if _task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_task)
+		_task = -1
 
 
 func _process(_delta: float) -> void:
@@ -20,15 +33,35 @@ func _process(_delta: float) -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	if GravityField.tick % maxi(Tuning.ship.predict_every, 1) == 0:
-		_update()
+	var tick := GravityField.tick
+	if _task >= 0 and WorkerThreadPool.is_task_completed(_task):
+		WorkerThreadPool.wait_for_task_completion(_task)
+		_task = -1
+		if _task_gen == _gen:
+			points = _result.slice(tick - _task_tick) if tick - _task_tick < _result.size() else PackedVector2Array()
+	if _task < 0 and (_fresh or tick - _task_tick >= maxi(Tuning.ship.predict_every, 1)):
+		_start(tick)
 
 
-func _update() -> void:
+func _on_respawned() -> void:
+	_gen += 1
+	_fresh = true
+	points = PackedVector2Array()
+
+
+func _start(tick: int) -> void:
 	var held: ShipInput = ship.input.copy()
 	held.turn = 0.0
-	points = ShipPrediction.run(ship.state, held, GravityField.tick, Tuning.ship.predict_short_steps)
-	width = WIDTH_PX / _camera_zoom()
+	_fresh = false
+	_task_gen = _gen
+	_task_tick = tick
+	_task = WorkerThreadPool.add_task(_run.bind(ship.state.copy(), held, tick, Tuning.ship.predict_short_steps))
+
+
+func _run(state: ShipState, held: ShipInput, tick: int, steps: int) -> void:
+	Tuning.lock.lock()
+	_result = ShipPrediction.run(state, held, tick, steps)
+	Tuning.lock.unlock()
 
 
 func _camera_zoom() -> float:

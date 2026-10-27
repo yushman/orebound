@@ -56,3 +56,25 @@ func test_beam_view_runs_full_range_on_a_miss():
 	v.refresh(s, _inp(true, PI * 0.5), 1.0)
 	assert_true(v.visible)
 	assert_almost_eq(v.points[1], s.pos + Vector2(0, Tuning.ship.beam_range), Vector2(0.01, 0.01))
+
+
+func test_beam_view_ends_at_the_hit_point_on_a_non_collectible_body_and_passes_through_a_collectible_one():
+	var v = add_child_autofree(BeamView.new())
+	var s := ShipState.new()
+	var R: float = Tuning.field.carrier_orbit_radius
+	s.pos = Vector2(R, 0.0)
+	var big := FreeBody.new()
+	big.pos = s.pos + Vector2(150.0, 0.0)
+	big.radius = 40.0
+	big.points = PackedVector2Array([Vector2(-40, -40), Vector2(40, -40), Vector2(40, 40), Vector2(-40, 40)])
+	big.id = 1
+	var small := big.copy()
+	small.pos = s.pos + Vector2(80.0, 0.0)
+	small.radius = 15.0
+	small.id = 2
+	s.bodies = [small, big]
+	v.refresh(s, _inp(true, 0.0), 0.0)
+	assert_almost_eq(v.points[1], s.pos + Vector2(110.0, 0.0), Vector2(0.01, 0.01))
+	s.bodies = [small]
+	v.refresh(s, _inp(true, 0.0), 0.0)
+	assert_almost_eq(v.points[1], s.pos + Vector2(Tuning.ship.beam_range, 0.0), Vector2(0.01, 0.01))

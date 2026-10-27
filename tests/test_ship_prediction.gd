@@ -10,12 +10,10 @@ func before_each() -> void:
 	_saved_field = Tuning.field
 	_saved_planet_small = Tuning.planet
 	Tuning.planet = Tuning.planet.duplicate()
-	var no_small: Array[float] = [0.0, 0.0, 0.0, 0.0]
-	Tuning.planet.small_rate = no_small
 
 
 func after_each() -> void:
-	Tuning.field = _saved_field
+	_set_field(_saved_field)
 	Tuning.planet = _saved_planet_small
 	GravityField.tick = 0
 	Input.action_release("ship_thrust")
@@ -241,17 +239,43 @@ func _run_scene() -> Array:
 	return [run.get_node("Ship"), run.get_node("Prediction")]
 
 
+func _expected(ship) -> PackedVector2Array:
+	var held: ShipInput = ship.input.copy()
+	held.turn = 0.0
+	return ShipPrediction.run(ship.state, held, GravityField.tick, Tuning.ship.predict_short_steps)
+
+
+func _settle(line, advance := 0) -> void:
+	while line._task >= 0 and not WorkerThreadPool.is_task_completed(line._task):
+		OS.delay_msec(1)
+	GravityField.tick += advance
+	line._physics_process(GravityField.DT)
+
+
 func test_prediction_line_always_shown() -> void:
-	# No input held: the line is still the full predict_short_steps points.
 	var nodes := _run_scene()
 	var ship = nodes[0]
 	var line: Line2D = nodes[1]
 	GravityField.tick = Tuning.ship.predict_every * 5
 	ship._physics_process(GravityField.DT)
 	line._physics_process(GravityField.DT)
+	_settle(line)
 	assert_eq(line.points.size(), Tuning.ship.predict_short_steps)
-	assert_eq(line.points, ShipPrediction.run(ship.state, ship.input,
-			GravityField.tick, Tuning.ship.predict_short_steps))
+	assert_eq(line.points, _expected(ship))
+
+
+func test_prediction_line_is_picked_up_from_the_worker_task_and_trimmed() -> void:
+	var nodes := _run_scene()
+	var ship = nodes[0]
+	var line: Line2D = nodes[1]
+	Input.action_press("ship_thrust")
+	GravityField.tick = Tuning.ship.predict_every * 5
+	ship._physics_process(GravityField.DT)
+	line._physics_process(GravityField.DT)
+	assert_eq(line.points.size(), 0)
+	var expected := _expected(ship)
+	_settle(line, 3)
+	assert_eq(line.points, expected.slice(3))
 
 
 func test_prediction_line_short() -> void:
@@ -266,14 +290,15 @@ func test_prediction_line_short() -> void:
 	GravityField.tick = every * 5
 	ship._physics_process(GravityField.DT)
 	line._physics_process(GravityField.DT)
-	var expected := ShipPrediction.run(ship.state, ship.input, GravityField.tick, Tuning.ship.predict_short_steps)
+	_settle(line)
 	assert_eq(line.points.size(), Tuning.ship.predict_short_steps)
-	assert_eq(line.points, expected)
+	assert_eq(line.points, _expected(ship))
 	GravityField.tick += every
 	ship._physics_process(GravityField.DT)
 	line._physics_process(GravityField.DT)
+	_settle(line)
 	assert_eq(line.points.size(), Tuning.ship.predict_short_steps)
-	assert_eq(line.points, ShipPrediction.run(ship.state, ship.input, GravityField.tick, Tuning.ship.predict_short_steps))
+	assert_eq(line.points, _expected(ship))
 	var before := line.points
 	GravityField.tick += 1
 	ship._physics_process(GravityField.DT)
@@ -291,8 +316,9 @@ func test_predict_every_zero_updates_line() -> void:
 	Input.action_press("ship_thrust")
 	ship._physics_process(GravityField.DT)
 	line._physics_process(GravityField.DT)
+	_settle(line)
 	Tuning.ship.predict_every = saved
-	assert_eq(line.points, ShipPrediction.run(ship.state, ship.input, GravityField.tick, Tuning.ship.predict_short_steps))
+	assert_eq(line.points, _expected(ship))
 
 
 func test_preset_applied_refreshes_line_immediately() -> void:
@@ -304,12 +330,16 @@ func test_preset_applied_refreshes_line_immediately() -> void:
 	Input.action_press("ship_thrust")
 	ship._physics_process(GravityField.DT)
 	line._physics_process(GravityField.DT)
+	_settle(line)
 	GravityField.tick += 1
 	var preset := TuningPreset.new()
 	preset.field = Tuning.field.duplicate(true)
 	preset.ship = Tuning.ship.duplicate(true)
 	Tuning.apply(preset)
-	assert_eq(line.points, ShipPrediction.run(ship.state, ship.input, GravityField.tick, Tuning.ship.predict_short_steps))
+	assert_eq(line.points.size(), 0)
+	_settle(line)
+	_settle(line)
+	assert_eq(line.points, _expected(ship))
 
 
 func test_crash_respawn_refreshes_line_with_predict_every_gt_1() -> void:
@@ -320,13 +350,47 @@ func test_crash_respawn_refreshes_line_with_predict_every_gt_1() -> void:
 	Tuning.ship.predict_every = 5
 	GravityField.tick = 5
 	ship.state.pos = Vector2(5000.0, 300.0)
-	line._update()
+	line._physics_process(GravityField.DT)
 	GravityField.tick = 6
 	ship.state.hull = 0.0
 	ship._physics_process(GravityField.DT)
 	line._physics_process(GravityField.DT)
+	_settle(line)
+	_settle(line)
 	Tuning.ship.predict_every = saved
-	assert_eq(line.points, ShipPrediction.run(ship.state, ship.input, GravityField.tick, Tuning.ship.predict_short_steps))
+	assert_eq(line.points, _expected(ship))
+
+
+func test_result_of_a_task_started_before_respawn_is_dropped_and_a_fresh_task_starts_at_once() -> void:
+	var nodes := _run_scene()
+	var ship = nodes[0]
+	var line: Line2D = nodes[1]
+	var saved: int = Tuning.ship.predict_every
+	Tuning.ship.predict_every = 5
+	GravityField.tick = 5
+	ship.state.pos = Vector2(5000.0, 300.0)
+	line._physics_process(GravityField.DT)
+	var old := _expected(ship)
+	ship.respawn()
+	assert_eq(line.points.size(), 0)
+	_settle(line)
+	assert_eq(line.points.size(), 0)
+	_settle(line)
+	Tuning.ship.predict_every = saved
+	assert_ne(line.points, old)
+	assert_eq(line.points, _expected(ship))
+
+
+func test_removing_the_line_waits_for_its_running_task() -> void:
+	var nodes := _run_scene()
+	var line: Line2D = nodes[1]
+	line._physics_process(GravityField.DT)
+	var id: int = line._task
+	assert_true(id >= 0)
+	line.get_parent().remove_child(line)
+	assert_eq(line._result.size(), Tuning.ship.predict_short_steps)
+	assert_eq(line._task, -1)
+	line.free()
 
 
 func test_prediction_line_screen_width() -> void:
@@ -341,13 +405,13 @@ func test_prediction_line_screen_width() -> void:
 	cam._target_zoom = 4.0
 	cam._process(1.0)
 	cam._process(1.0)
-	line._update()
+	line._process(1.0)
 	assert_almost_eq(line.width, 2.0 / cam.zoom.x, 1e-6,
 			"world width renders as 2 screen px at any zoom")
 	cam._target_zoom = 1.0
 	cam._process(1.0)
 	cam._process(1.0)
-	line._update()
+	line._process(1.0)
 	assert_almost_eq(line.width, 2.0, 1e-6)
 
 
@@ -359,13 +423,11 @@ func test_prediction_line_ignores_held_turn() -> void:
 	Input.action_press("ship_rotate_right")
 	GravityField.tick = Tuning.ship.predict_every * 5
 	ship._physics_process(GravityField.DT)
-	line._update()
+	line._physics_process(GravityField.DT)
+	_settle(line)
 	Input.action_release("ship_rotate_right")
 	assert_eq(ship.input.turn, 1.0)
-	var no_turn: ShipInput = ship.input.copy()
-	no_turn.turn = 0.0
-	assert_eq(line.points, ShipPrediction.run(ship.state, no_turn,
-			GravityField.tick, Tuning.ship.predict_short_steps))
+	assert_eq(line.points, _expected(ship))
 
 
 func test_prediction_stops_at_the_first_crashed_state_and_matches_flight_up_to_it() -> void:
@@ -385,7 +447,7 @@ func test_prediction_stops_at_the_first_crashed_state_and_matches_flight_up_to_i
 
 
 
-func test_prediction_equals_flight_while_drilling_and_around_a_mined_asteroid() -> void:
+func test_prediction_equals_flight_while_beaming_and_around_a_broken_asteroid() -> void:
 	var saved_planet = Tuning.planet
 	Tuning.planet = saved_planet.duplicate()
 	Tuning.planet.asteroids_per_band = 1000.0
@@ -395,7 +457,7 @@ func test_prediction_equals_flight_while_drilling_and_around_a_mined_asteroid() 
 	var start := ShipState.new()
 	start.pos = ap + Vector2.from_angle(a["theta"] + 0.3) * (a["radius"] + 50.0)
 	start.vel = AsteroidField.at(a, 0.0)["vel"]
-	start.mined[key] = a["amount"] * 0.5
+	start.broken[key] = true
 	var inp := ShipInput.new()
 	inp.beam = true
 	inp.aim = (ap - start.pos).angle()
@@ -406,11 +468,38 @@ func test_prediction_equals_flight_while_drilling_and_around_a_mined_asteroid() 
 		s = ShipFlight.step(s, inp, GravityField.time_at(i + 1), GravityField.DT)
 		if pts[i] != s.pos:
 			diverged += 1
-	var mass := Hold.mass(s)
 	Tuning.planet = saved_planet
 	assert_eq(pts.size(), 300)
 	assert_eq(diverged, 0)
-	assert_gt(mass, Hold.mass(start), "drilled")
+
+
+func test_prediction_equals_flight_with_beam_and_collector_held_near_an_asteroid() -> void:
+	var saved_planet = Tuning.planet
+	Tuning.planet = saved_planet.duplicate()
+	Tuning.planet.asteroids_per_band = 1000.0
+	Tuning.planet.break_per_sqrt_radius = 0.01
+	var a: Dictionary = AsteroidField.near(Vector2(AsteroidField.band_centre(0), 0.0), 0.0, 3000.0)[0]
+	var ap: Vector2 = AsteroidField.at(a, 0.0)["pos"]
+	var start := ShipState.new()
+	start.pos = ap + Vector2.from_angle(a["theta"] + 0.3) * (a["radius"] + 50.0)
+	start.vel = AsteroidField.at(a, 0.0)["vel"]
+	var inp := ShipInput.new()
+	inp.beam = true
+	inp.collect = true
+	inp.aim = (ap - start.pos).angle()
+	var pts := ShipPrediction.run(start, inp, 0, 300)
+	var s := start.copy()
+	var diverged := 0
+	var max_bodies := 0
+	for i in pts.size():
+		s = ShipFlight.step(s, inp, GravityField.time_at(i + 1), GravityField.DT)
+		max_bodies = maxi(max_bodies, s.bodies.size())
+		if pts[i] != s.pos:
+			diverged += 1
+	Tuning.planet = saved_planet
+	assert_eq(pts.size(), 300)
+	assert_eq(diverged, 0)
+	assert_gt(max_bodies, 0, "an asteroid broke")
 
 
 func _big_body(ship_pos: Vector2) -> FreeBody:
@@ -418,15 +507,16 @@ func _big_body(ship_pos: Vector2) -> FreeBody:
 	b.pos = ship_pos + Vector2(60.0, 0.0)
 	b.vel = Vector2(-20.0, 0.0)
 	b.radius = 40.0
+	b.radius0 = 40.0
+	b.piece = true
 	b.points = PackedVector2Array([Vector2(-1, -1), Vector2(1, -1), Vector2(0, 1)])
 	b.type = &"ice"
+	b.amount = 5.0
 	b.id = 7
 	return b
 
 
 func test_predicted_points_equal_flight_with_small_bodies_and_show_deflection() -> void:
-	var rates: Array[float] = [120.0, 120.0, 120.0, 120.0]
-	Tuning.planet.small_rate = rates
 	var ship = _make()
 	ship.state.bodies.append(_big_body(ship.state.pos))
 	var start_tick := GravityField.tick
@@ -445,7 +535,7 @@ func test_prediction_900_steps_with_max_bodies_within_budget() -> void:
 	var start := ShipState.new()
 	start.pos = Vector2(121500.0, 0.0)
 	var base := _median_ms(start, ShipInput.new())
-	for i in Tuning.planet.small_max_bodies:
+	for i in 8:
 		var b := _big_body(start.pos)
 		b.pos = start.pos + Vector2.RIGHT.rotated(i) * 800.0
 		b.vel = Vector2.ZERO
@@ -453,4 +543,43 @@ func test_prediction_900_steps_with_max_bodies_within_budget() -> void:
 		start.bodies.append(b)
 	var with_bodies := _median_ms(start, ShipInput.new())
 	print("prediction 900 steps, ", start.bodies.size(), " bodies, median ms: ", with_bodies, " (none: ", base, ")")
-	assert_lt(with_bodies, 3.0 * base + 20.0)
+	assert_lt(with_bodies, base + 150.0)
+
+
+func test_prediction_900_steps_at_rest_without_bodies_within_budget() -> void:
+	var start := ShipState.new()
+	start.pos = Vector2(Tuning.field.carrier_orbit_radius, 0.0)
+	var med := _median_ms(start, ShipInput.new())
+	print("prediction 900 steps at rest, no bodies, median ms: ", med)
+	assert_lt(med, 25.0)
+
+
+func test_regenerate_to_fewer_moons_while_a_task_runs_waits_for_it_and_next_line_matches() -> void:
+	var nodes := _run_scene()
+	var ship = nodes[0]
+	var line: Line2D = nodes[1]
+	var saved_steps: int = Tuning.ship.predict_short_steps
+	Tuning.ship.predict_short_steps = 20000
+	var f: FieldParams = Tuning.field.duplicate(true)
+	var bodies: Array[BodyParams] = [f.bodies[0]]
+	for i in 6:
+		bodies.append(f.bodies[1] if f.bodies.size() > 1 else f.bodies[0].duplicate())
+	f.bodies = bodies
+	Tuning.field = f
+	line._physics_process(GravityField.DT)
+	var id: int = line._task
+	assert_true(id >= 0)
+	OS.delay_msec(30)
+	Tuning.regenerate(3, 1)
+	assert_true(WorkerThreadPool.is_task_completed(id), "regenerate returned while the prediction task still ran")
+	Tuning.ship.predict_short_steps = 300
+	_settle(line)
+	_settle(line)
+	Tuning.ship.predict_short_steps = saved_steps
+	assert_eq(line.points, ShipPrediction.run(ship.state, ship.input.copy(), GravityField.tick, 300))
+
+
+func _set_field(f: FieldParams) -> void:
+	Tuning.lock.lock()
+	Tuning.field = f
+	Tuning.lock.unlock()

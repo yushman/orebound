@@ -8,21 +8,26 @@ var planet: PlanetParams = _default_planet()
 var view: ViewParams = ViewParams.new()
 var picture: Dictionary = {"seed": 1, "flight": 1, "moons": [], "ring": {}}
 var resources: Dictionary = _default_resources()
+var lock := Mutex.new()
 
 
 func apply(preset: TuningPreset, emit := true) -> void:
+	lock.lock()
 	field = preset.field.duplicate(true)
 	ship = preset.ship.duplicate(true)
+	lock.unlock()
 	if emit:
 		preset_applied.emit()
 
 
 func regenerate(seed: int, flight: int) -> void:
 	var pic := WellGenerator.picture(seed, flight)
+	lock.lock()
 	var bodies: Array[BodyParams] = [field.bodies[0]]
 	bodies.append_array(pic["moons"])
 	field.bodies = bodies
 	picture = pic
+	lock.unlock()
 	Telemetry.seed = pic["seed"]
 	Telemetry.flight = pic["flight"]
 	preset_applied.emit()

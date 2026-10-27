@@ -19,6 +19,25 @@ func after_each():
 	Tuning.planet = _saved_planet
 
 
+var _worker_result: Dictionary = {}
+
+
+func _worker_tiers() -> void:
+	_worker_result = WellGenerator.tiers()
+
+
+func test_tiers_on_worker_waits_while_memo_lock_is_held():
+	var expected: Array = WellGenerator.tiers()["boundaries"].duplicate()
+	WellGenerator._lock.lock()
+	var id := WorkerThreadPool.add_task(_worker_tiers)
+	OS.delay_msec(50)
+	var done_while_locked := WorkerThreadPool.is_task_completed(id)
+	WellGenerator._lock.unlock()
+	WorkerThreadPool.wait_for_task_completion(id)
+	assert_false(done_while_locked, "tiers() must wait for the memo lock")
+	assert_eq(Array(_worker_result["boundaries"]), expected)
+
+
 func _setups() -> Array:
 	var out := [null]
 	out.append_array(PRESETS)
@@ -293,3 +312,33 @@ func test_tier_of_maps_radii_to_tiers_and_clamps():
 		assert_eq(WellGenerator.tier_of(0.5 * (b[i] + b[i + 1])), i)
 	assert_eq(WellGenerator.tier_of(b[1]), 1)
 	assert_eq(WellGenerator.tier_of(b[4] + 5000.0), 3)
+
+
+func test_tiers_follow_changed_inputs_on_the_next_call():
+	var base: Dictionary = WellGenerator.tiers()
+	Tuning.field = Tuning.field.duplicate(true)
+	Tuning.field.carrier_orbit_radius += 1000.0
+	var moved: Dictionary = WellGenerator.tiers()
+	assert_eq(moved["boundaries"][4], Tuning.field.carrier_orbit_radius)
+	assert_ne(moved["boundaries"][2], base["boundaries"][2])
+	var before: float = moved["boundaries"][2]
+	Tuning.field.bodies[0].p = 1.5
+	assert_ne(WellGenerator.tiers()["boundaries"][2], before)
+	Tuning.planet = Tuning.planet.duplicate()
+	var cur: float = WellGenerator.tiers()["boundaries"][2]
+	var shares: Array[float] = [0.4, 0.3, 0.2, 0.1]
+	Tuning.planet.tier_shares = shares
+	assert_ne(WellGenerator.tiers()["boundaries"][2], cur)
+	Tuning.planet.ceiling_offset = 1234.0
+	assert_eq(WellGenerator.tiers()["ceiling"], Tuning.field.carrier_orbit_radius + 1234.0)
+	var again: Array[float] = [0.25, 0.4, 0.25, 0.1]
+	Tuning.planet.tier_shares = again
+	var a: float = WellGenerator.tiers()["boundaries"][1]
+	Tuning.planet.tier_shares[3] = 0.2
+	assert_ne(WellGenerator.tiers()["boundaries"][1], a)
+
+
+func test_tiers_result_is_read_only():
+	var t: Dictionary = WellGenerator.tiers()
+	assert_true(t.is_read_only())
+	assert_true(t["boundaries"].is_read_only())

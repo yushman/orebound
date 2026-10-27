@@ -102,3 +102,14 @@ func test_beam_and_aim_actions_bound():
 		assert_true(_has_axis(a, JOY_AXIS_RIGHT_X), a)
 	for a in ["ship_aim_up", "ship_aim_down"]:
 		assert_true(_has_axis(a, JOY_AXIS_RIGHT_Y), a)
+
+
+func test_collect_action_bound_to_rmb_and_lb():
+	assert_true(InputMap.has_action("ship_collect"))
+	assert_true(_has_mouse_button("ship_collect", MOUSE_BUTTON_RIGHT))
+	assert_true(_has_joy_button("ship_collect", JOY_BUTTON_LEFT_SHOULDER))
+	for a in InputMap.get_actions():
+		if a == "ship_collect":
+			continue
+		assert_false(_has_mouse_button(a, MOUSE_BUTTON_RIGHT), a)
+		assert_false(_has_joy_button(a, JOY_BUTTON_LEFT_SHOULDER), a)

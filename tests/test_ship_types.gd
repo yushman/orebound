@@ -115,16 +115,25 @@ func test_state_copy_deep_copies_hold_and_tank_cells() -> void:
 	assert_eq(s.tank.size(), 1)
 
 
-func test_state_copy_deep_copies_the_mined_layer() -> void:
+func test_state_copy_deep_copies_the_broken_layer() -> void:
 	var s := ShipState.new()
-	assert_true(s.mined.is_empty())
-	s.mined[Vector3i(1, 2, 3)] = 0.5
+	assert_true(s.broken.is_empty())
+	s.broken[Vector3i(1, 2, 3)] = true
 	var c := s.copy()
-	assert_eq(c.mined[Vector3i(1, 2, 3)], 0.5)
-	c.mined[Vector3i(1, 2, 3)] = 0.1
-	c.mined[Vector3i(0, 0, 0)] = 1.0
-	assert_eq(s.mined[Vector3i(1, 2, 3)], 0.5)
-	assert_eq(s.mined.size(), 1)
+	assert_true(c.broken[Vector3i(1, 2, 3)])
+	c.broken[Vector3i(0, 0, 0)] = true
+	assert_eq(s.broken.size(), 1)
+
+
+func test_state_copy_carries_beam_target_and_charge() -> void:
+	var s := ShipState.new()
+	assert_null(s.beam_target)
+	assert_eq(s.beam_charge, 0.0)
+	s.beam_target = Vector3i(1, 2, 3)
+	s.beam_charge = 0.4
+	var c := s.copy()
+	assert_eq(c.beam_target, Vector3i(1, 2, 3))
+	assert_eq(c.beam_charge, 0.4)
 
 
 func test_input_copy_carries_beam_and_aim() -> void:
@@ -165,3 +174,12 @@ func test_state_copy_deep_copies_bodies() -> void:
 	c.bodies.append(FreeBody.new())
 	assert_eq(s.bodies[0].pos, Vector2(1, 2))
 	assert_eq(s.bodies.size(), 1)
+
+
+func test_input_copy_carries_collect() -> void:
+	var i := ShipInput.new()
+	i.collect = true
+	var c := i.copy()
+	assert_true(c.collect)
+	c.collect = false
+	assert_true(i.collect)
