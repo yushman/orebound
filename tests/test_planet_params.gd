@@ -77,3 +77,22 @@ func test_default_band_chunk_and_asteroid_knobs():
 func test_default_composition_knobs():
 	assert_eq(Tuning.planet.top_ice_share, 0.6)
 	assert_almost_eq(Tuning.planet.amount_per_area, 1.1e-4, 1e-9)
+
+
+func test_default_small_object_knobs():
+	var p: PlanetParams = Tuning.planet
+	assert_eq(p.small_rate.size(), 4)
+	for r in p.small_rate:
+		assert_gt(r, 0.0)
+	assert_gt(p.small_window, 0.0)
+	assert_between(p.small_e_min, 0.0, 1.0)
+	assert_between(p.small_e_max, p.small_e_min, 1.0)
+	assert_lt(p.small_e_max, 1.0)
+	assert_gt(p.small_radius_min, 0.0)
+	assert_gt(p.small_radius_max, p.small_radius_min)
+	assert_between(p.swallow_radius, p.small_radius_min, p.small_radius_max)
+	assert_gt(p.small_despawn_radius, p.small_spawn_radius)
+	assert_gt(p.small_max_bodies, 0)
+	assert_between(p.small_bounce, 0.0, 1.0)
+	assert_eq(p.v_safe, 12.0)
+	assert_gt(p.impact_k, 0.0)

@@ -115,6 +115,8 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 		near = _mine(s, input.aim, t, dt, snapshot)
 	_moon_contact(s, t)
 	_asteroid_contact(s, t, snapshot, near)
+	SmallObjects.update(s, t, dt)
+	_small_contact(s)
 	s.hull = maxf(s.hull - Tuning.planet.atmosphere_damage * atmosphere_density(s.pos) * dt, 0.0)
 	s.crashed = s.pos.length() <= Tuning.field.planet_surface_radius or s.hull <= 0.0
 	return s
@@ -134,17 +136,22 @@ static func _moon_contact(s: ShipState, t: float) -> void:
 		s.pos = center + n * radius
 		var v_rel := s.vel - GravityField.body_vel(i, t)
 		var v_n := v_rel.dot(n)
-		_contact(s, n, v_n, pl.moon_bounce, pl.moon_impact_damage)
+		_contact(s, n, v_n, pl.moon_bounce, -pl.moon_impact_damage * v_n)
 
 
-static func _contact(s: ShipState, n: Vector2, v_n: float, bounce: float, damage: float) -> void:
+static func impact_damage(v_rel: float) -> float:
+	var over := maxf(0.0, v_rel - Tuning.planet.v_safe)
+	return Tuning.planet.impact_k * over * over
+
+
+static func _contact(s: ShipState, n: Vector2, v_n: float, bounce: float, hull_loss: float) -> void:
 	if v_n >= 0.0:
 		return
 	if -v_n < Tuning.planet.rest_speed:
 		s.vel -= n * v_n
 		return
 	s.vel -= n * v_n * (1.0 + bounce)
-	s.hull = maxf(s.hull + damage * v_n, 0.0)
+	s.hull = maxf(s.hull - hull_loss, 0.0)
 
 
 static func _asteroids(pos: Vector2, t: float, radius: float, snapshot, mined := {}) -> Array:
@@ -224,7 +231,27 @@ static func _asteroid_contact(s: ShipState, t: float, snapshot = null, near = nu
 		var n := d.normalized() if d.length() > 0.0 else Vector2.RIGHT
 		s.pos = a["pos"] + n * a["radius"]
 		var v_n: float = (s.vel - a["vel"]).dot(n)
-		_contact(s, n, v_n, pl.asteroid_bounce, pl.asteroid_impact_damage)
+		_contact(s, n, v_n, pl.asteroid_bounce, -pl.asteroid_impact_damage * v_n)
+
+
+static func _small_contact(s: ShipState) -> void:
+	var pl: PlanetParams = Tuning.planet
+	var kept: Array[FreeBody] = []
+	for b in s.bodies:
+		if s.pos.distance_to(b.pos) >= Tuning.ship.hit_radius + b.radius:
+			kept.append(b)
+			continue
+		if b.radius < pl.swallow_radius:
+			s.hull = maxf(s.hull - impact_damage((s.vel - b.vel).length()), 0.0)
+			continue
+		var d := s.pos - b.pos
+		var n := d.normalized() if d.length() > 0.0 else Vector2.RIGHT
+		s.pos = b.pos + n * (Tuning.ship.hit_radius + b.radius)
+		var v_rel := s.vel - b.vel
+		var v_n := v_rel.dot(n)
+		_contact(s, n, v_n, pl.small_bounce, impact_damage(-v_n))
+		kept.append(b)
+	s.bodies = kept
 
 
 static func _soft_brake_accel(vel: Vector2, nose: Vector2, p: ShipParams) -> Vector2:

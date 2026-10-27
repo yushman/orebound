@@ -38,3 +38,16 @@ extends Resource
 @export var asteroid_impact_damage: float = 0.05
 @export var top_ice_share: float = 0.6
 @export var amount_per_area: float = 1.1e-4
+@export var small_rate: Array[float] = [2.0, 2.0, 2.0, 2.0]
+@export var small_window: float = 30.0
+@export var small_e_min: float = 0.3
+@export var small_e_max: float = 0.8
+@export var small_radius_min: float = 10.0
+@export var small_radius_max: float = 60.0
+@export var swallow_radius: float = 25.0
+@export var small_spawn_radius: float = 1500.0
+@export var small_despawn_radius: float = 3000.0
+@export var small_max_bodies: int = 8
+@export var small_bounce: float = 0.5
+@export var v_safe: float = 12.0
+@export var impact_k: float = 0.05

@@ -74,3 +74,7 @@ func test_tuning_ship_return_defaults() -> void:
 	assert_eq(Tuning.ship.get("return_margin"), 1.2)
 	for k in ["mode", "tau"]:
 		assert_null(Tuning.ship.get("return_" + "speed_" + k))
+
+
+func test_tuning_ship_hit_radius_default() -> void:
+	assert_eq(Tuning.ship.get("hit_radius"), 15.0)

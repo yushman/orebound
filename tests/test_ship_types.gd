@@ -148,3 +148,20 @@ func test_beam_aim_prefers_stick_then_mouse_then_nose() -> void:
 	assert_almost_eq(a, PI / 2, 0.0001)
 	a = ShipInput.aim_angle(Vector2.ZERO, false, pos + Vector2(0, 100), pos, 0.3)
 	assert_almost_eq(Vector2.RIGHT.rotated(a).dot(Vector2.UP.rotated(0.3)), 1.0, 0.0001)
+
+
+func test_state_copy_deep_copies_bodies() -> void:
+	var s := ShipState.new()
+	assert_eq(s.bodies.size(), 0)
+	var b := FreeBody.new()
+	b.pos = Vector2(1, 2)
+	b.id = 3
+	s.bodies.append(b)
+	var c := s.copy()
+	assert_eq(c.bodies.size(), 1)
+	assert_eq(c.bodies[0].pos, Vector2(1, 2))
+	assert_eq(c.bodies[0].id, 3)
+	c.bodies[0].pos = Vector2(9, 9)
+	c.bodies.append(FreeBody.new())
+	assert_eq(s.bodies[0].pos, Vector2(1, 2))
+	assert_eq(s.bodies.size(), 1)

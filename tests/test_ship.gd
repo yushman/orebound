@@ -1,7 +1,18 @@
 extends GutTest
 
 
+var _saved_planet_small
+
+
+func before_each() -> void:
+	_saved_planet_small = Tuning.planet
+	Tuning.planet = Tuning.planet.duplicate()
+	var no_small: Array[float] = [0.0, 0.0, 0.0, 0.0]
+	Tuning.planet.small_rate = no_small
+
+
 func after_each() -> void:
+	Tuning.planet = _saved_planet_small
 	GravityField.tick = 0
 
 

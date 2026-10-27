@@ -31,3 +31,4 @@ extends Resource
 @export var beam_range: float = 300.0
 @export var beam_rate: float = 0.5
 @export var return_margin: float = 1.2
+@export var hit_radius: float = 15.0

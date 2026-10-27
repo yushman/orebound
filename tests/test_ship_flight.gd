@@ -22,6 +22,9 @@ func before_each():
 	Tuning.ship.climb_coefficient = 0.01
 	Tuning.planet.atmosphere_drag = 0.0
 	Tuning.planet.atmosphere_damage = 0.0
+	Tuning.planet = Tuning.planet.duplicate()
+	var no_small: Array[float] = [0.0, 0.0, 0.0, 0.0]
+	Tuning.planet.small_rate = no_small
 
 
 func after_each():
@@ -1123,3 +1126,83 @@ func test_asteroid_vanishes_when_drilled_empty() -> void:
 	var out := ShipFlight.step(s, inp, 0.0, DT)
 	for q in ShipFlight._asteroids(c["pos"], 0.0, 600.0, null, out.mined):
 		assert_ne(q["key"], c["key"])
+
+
+func test_impact_damage_is_zero_at_v_safe_and_quadratic_above() -> void:
+	var pl: PlanetParams = Tuning.planet
+	assert_eq(ShipFlight.impact_damage(pl.v_safe), 0.0)
+	assert_eq(ShipFlight.impact_damage(pl.v_safe * 0.5), 0.0)
+	var one := ShipFlight.impact_damage(pl.v_safe + 10.0)
+	assert_almost_eq(one, pl.impact_k * 100.0, 1e-4)
+	assert_almost_eq(ShipFlight.impact_damage(pl.v_safe + 20.0), 4.0 * one, 1e-4)
+
+
+func _small_body(offset: Vector2, vel: Vector2, radius: float) -> FreeBody:
+	var b := FreeBody.new()
+	b.pos = Vector2(121500, 0) + offset
+	b.vel = vel
+	b.radius = radius
+	b.points = PackedVector2Array([Vector2(-1, -1), Vector2(1, -1), Vector2(0, 1)])
+	b.type = &"ice"
+	b.id = 1
+	return b
+
+
+func test_small_body_is_swallowed_with_impact_damage() -> void:
+	var s := _state(Vector2(121500, 0))
+	s.bodies.append(_small_body(Vector2(5, 0), Vector2(30, 0), 10.0))
+	var ref := s.bodies[0].copy()
+	var out := ShipFlight.step(s, ShipInput.new(), 0.0, DT)
+	FreeBody.integrate(ref, 0.0, DT)
+	assert_eq(out.bodies.size(), 0)
+	assert_eq(s.bodies.size(), 1)
+	var expected := s.hull - ShipFlight.impact_damage((out.vel - ref.vel).length())
+	assert_gt(s.hull - expected, 0.0)
+	assert_almost_eq(out.hull, expected, 1e-4)
+	assert_eq(out.vel, ShipFlight.step(_state(Vector2(121500, 0)), ShipInput.new(), 0.0, DT).vel)
+
+
+func test_distant_small_body_is_left_alone() -> void:
+	var s := _state(Vector2(121500, 0))
+	s.bodies.append(_small_body(Vector2(0, 500), Vector2(30, 0), 10.0))
+	var out := ShipFlight.step(s, ShipInput.new(), 0.0, DT)
+	assert_eq(out.bodies.size(), 1)
+	assert_eq(out.hull, s.hull)
+
+
+func test_large_body_pushes_ship_out_and_bounces_it() -> void:
+	var s := _state(Vector2(121500, 0))
+	s.bodies.append(_small_body(Vector2(20, 0), Vector2(-30, 0), 40.0))
+	var ref := s.bodies[0].copy()
+	var out := ShipFlight.step(s, ShipInput.new(), 0.0, DT)
+	FreeBody.integrate(ref, 0.0, DT)
+	assert_eq(out.bodies.size(), 1)
+	assert_eq(out.bodies[0].pos, ref.pos)
+	assert_eq(out.bodies[0].vel, ref.vel)
+	assert_almost_eq(out.pos.distance_to(ref.pos), Tuning.ship.hit_radius + 40.0, 1e-3)
+	var n := (out.pos - ref.pos).normalized()
+	assert_almost_eq((out.vel - ref.vel).dot(n), Tuning.planet.small_bounce * 30.0, 0.1)
+	assert_almost_eq(s.hull - out.hull, ShipFlight.impact_damage(30.0), 0.2)
+
+
+func test_graze_of_large_body_costs_no_hull() -> void:
+	var s := _state(Vector2(121500, 0))
+	s.bodies.append(_small_body(Vector2(80.0 * DT, 20), Vector2(-80, -0.5), 40.0))
+	var out := ShipFlight.step(s, ShipInput.new(), 0.0, DT)
+	assert_almost_eq(out.hull, s.hull, 1e-4)
+
+
+func test_slow_contact_with_large_body_rests_without_damage() -> void:
+	var s := _state(Vector2(121500, 0))
+	s.bodies.append(_small_body(Vector2(20, 0), Vector2(-0.1, 0), 40.0))
+	var out := ShipFlight.step(s, ShipInput.new(), 0.0, DT)
+	assert_eq(out.hull, s.hull)
+	var n := (out.pos - out.bodies[0].pos).normalized()
+	assert_almost_eq((out.vel - out.bodies[0].vel).dot(n), 0.0, 0.05)
+
+
+func test_contact_takes_the_precomputed_hull_loss() -> void:
+	var s := _state()
+	s.hull = 50.0
+	ShipFlight._contact(s, Vector2.RIGHT, -5.0, 0.5, 3.0)
+	assert_almost_eq(s.hull, 47.0, 0.001)

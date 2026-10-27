@@ -51,13 +51,16 @@ func test_slider_set_covers_all_parameters() -> void:
 			"heat_growth_boost", "heat_threshold", "heat_cooldown", "min_thrust_fraction",
 			"sync_accel", "sync_fuel_mult", "predict_every", "predict_short_steps", "hull_max",
 				"hull_mass", "hold_capacity", "ref_mass", "loadout_fuel_cells", "tank_capacity",
-				"beam_range", "beam_rate", "return_margin"]:
+				"beam_range", "beam_rate", "return_margin", "hit_radius"]:
 		expect.append("ship." + p)
 	for p in ["atmosphere_drag", "atmosphere_damage", "density_shape", "moon_mass_k", "moon_mass_exp",
 			"moon_influence_k", "moon_margin", "moon_bounce", "moon_impact_damage",
 				"ring_width", "ring_density", "band_width", "chunk_arc", "chunk_gen_radius",
 				"asteroids_per_band", "drop_start", "drop_ratio", "above_factor", "field_radius",
-				"ast_radius_min", "ast_radius_max", "asteroid_bounce", "asteroid_impact_damage", "rest_speed", "amount_per_area", "top_ice_share"]:
+				"ast_radius_min", "ast_radius_max", "asteroid_bounce", "asteroid_impact_damage", "rest_speed", "amount_per_area", "top_ice_share",
+					"small_rate0", "small_rate1", "small_rate2", "small_rate3", "small_window", "small_e_min", "small_e_max",
+					"small_radius_min", "small_radius_max", "swallow_radius", "small_spawn_radius", "small_despawn_radius",
+					"small_max_bodies", "small_bounce", "v_safe", "impact_k"]:
 		expect.append("planet." + p)
 	for p in ["halo_alpha", "ring_count", "ring_period", "ring_px", "ring_alpha"]:
 		expect.append("view." + p)
@@ -137,8 +140,10 @@ func test_planet_defaults_fit_slider_ranges() -> void:
 	for row in _panel.ROWS:
 		if not (row[0] is String and row[0] == "planet"):
 			continue
-		var s: HSlider = _panel.sliders["planet." + row[1]]
-		assert_between(Tuning.planet.get(row[1]), s.min_value, s.max_value, row[1])
+		var idx: int = row[5] if row.size() > 5 else -1
+		var s: HSlider = _panel.sliders["planet." + row[1] + (str(idx) if idx >= 0 else "")]
+		var v = Tuning.planet.get(row[1])
+		assert_between(v[idx] if idx >= 0 else v, s.min_value, s.max_value, row[1])
 
 
 func test_planet_atmosphere_sliders_write_into_current_tuning_planet() -> void:
@@ -532,3 +537,15 @@ func test_return_knob_sliders_write_into_tuning_ship() -> void:
 	assert_eq(Tuning.ship.return_margin, 1.5)
 	for k in ["mode", "tau"]:
 		assert_false(_panel.sliders.has("ship.return_" + "speed_" + k))
+
+
+func test_small_object_sliders_write_without_regenerate() -> void:
+	var before: int = Telemetry.seed
+	_panel.sliders["planet.small_rate2"].value = 7.0
+	_panel.sliders["planet.small_max_bodies"].value = 5.0
+	_panel.sliders["ship.hit_radius"].value = 20.0
+	assert_eq(Tuning.planet.small_rate[2], 7.0)
+	assert_eq(Tuning.planet.small_rate[0], 2.0)
+	assert_eq(Tuning.planet.small_max_bodies, 5)
+	assert_eq(Tuning.ship.hit_radius, 20.0)
+	assert_eq(Telemetry.seed, before)

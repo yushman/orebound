@@ -363,7 +363,7 @@ func test_run_has_ring_and_asteroid_views_between_well_view_and_ship():
 	var names: Array = []
 	for c in run.get_children():
 		names.append(str(c.name))
-	assert_eq(names.slice(0, 11), ["AtmosphereView", "GravityHaloView", "WellView", "RingView", "AsteroidView", "Planet", "Moon1", "Moon2", "Moon3", "BeamView", "Ship"])
+	assert_eq(names.slice(0, 12), ["AtmosphereView", "GravityHaloView", "WellView", "RingView", "AsteroidView", "SmallObjectView", "Planet", "Moon1", "Moon2", "Moon3", "BeamView", "Ship"])
 	var ring = run.get_node_or_null("RingView")
 	if ring != null:
 		assert_eq(ring.script.resource_path, "res://scenes/RingView.gd")
@@ -395,6 +395,14 @@ func test_bodies_draw_before_ship():
 		var i: int = run.get_node(n).get_index()
 		assert_lt(i, ship_index, "%s before Ship" % n)
 		assert_gt(i, after_ast, "%s after AsteroidView" % n)
+
+
+func test_small_object_view_sits_right_after_asteroid_view():
+	var run = _run()
+	var v = run.get_node_or_null("SmallObjectView")
+	assert_not_null(v)
+	assert_eq(v.get_index(), run.get_node("AsteroidView").get_index() + 1)
+	assert_eq(v.script.resource_path, "res://scenes/SmallObjectView.gd")
 
 
 func test_beam_view_sits_after_asteroid_view_before_ship():

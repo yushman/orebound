@@ -3,14 +3,20 @@ extends GutTest
 const N := 120
 
 var _saved_field: FieldParams
+var _saved_planet_small
 
 
 func before_each() -> void:
 	_saved_field = Tuning.field
+	_saved_planet_small = Tuning.planet
+	Tuning.planet = Tuning.planet.duplicate()
+	var no_small: Array[float] = [0.0, 0.0, 0.0, 0.0]
+	Tuning.planet.small_rate = no_small
 
 
 func after_each() -> void:
 	Tuning.field = _saved_field
+	Tuning.planet = _saved_planet_small
 	GravityField.tick = 0
 	Input.action_release("ship_thrust")
 	Input.action_release("ship_brake")
@@ -405,3 +411,46 @@ func test_prediction_equals_flight_while_drilling_and_around_a_mined_asteroid() 
 	assert_eq(pts.size(), 300)
 	assert_eq(diverged, 0)
 	assert_gt(mass, Hold.mass(start), "drilled")
+
+
+func _big_body(ship_pos: Vector2) -> FreeBody:
+	var b := FreeBody.new()
+	b.pos = ship_pos + Vector2(60.0, 0.0)
+	b.vel = Vector2(-20.0, 0.0)
+	b.radius = 40.0
+	b.points = PackedVector2Array([Vector2(-1, -1), Vector2(1, -1), Vector2(0, 1)])
+	b.type = &"ice"
+	b.id = 7
+	return b
+
+
+func test_predicted_points_equal_flight_with_small_bodies_and_show_deflection() -> void:
+	var rates: Array[float] = [120.0, 120.0, 120.0, 120.0]
+	Tuning.planet.small_rate = rates
+	var ship = _make()
+	ship.state.bodies.append(_big_body(ship.state.pos))
+	var start_tick := GravityField.tick
+	var pts := ShipPrediction.run(ship.state, ship.input, start_tick, N)
+	assert_eq(pts.size(), N)
+	var deflected := false
+	for i in N:
+		GravityField.tick += 1
+		ship._physics_process(GravityField.DT)
+		assert_eq(pts[i], ship.state.pos, "point %d" % i)
+		deflected = deflected or ship.state.vel.x < -1.0
+	assert_true(deflected, "ship was pushed by the large body")
+
+
+func test_prediction_900_steps_with_max_bodies_within_budget() -> void:
+	var start := ShipState.new()
+	start.pos = Vector2(121500.0, 0.0)
+	var base := _median_ms(start, ShipInput.new())
+	for i in Tuning.planet.small_max_bodies:
+		var b := _big_body(start.pos)
+		b.pos = start.pos + Vector2.RIGHT.rotated(i) * 800.0
+		b.vel = Vector2.ZERO
+		b.id = i
+		start.bodies.append(b)
+	var with_bodies := _median_ms(start, ShipInput.new())
+	print("prediction 900 steps, ", start.bodies.size(), " bodies, median ms: ", with_bodies, " (none: ", base, ")")
+	assert_lt(with_bodies, 3.0 * base + 20.0)

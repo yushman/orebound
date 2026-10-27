@@ -16,6 +16,7 @@ var crashed: bool
 var hold: Array[HoldCell] = []
 var tank: Array[HoldCell] = []
 var mined: Dictionary = {}
+var bodies: Array[FreeBody] = []
 
 
 func _init(with_loadout := true) -> void:
@@ -42,4 +43,6 @@ func copy() -> ShipState:
 	for cell in tank:
 		c.tank.append(cell.copy())
 	c.mined = mined.duplicate()
+	for b in bodies:
+		c.bodies.append(b.copy())
 	return c

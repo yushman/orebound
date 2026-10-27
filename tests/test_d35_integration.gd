@@ -12,14 +12,20 @@ const BOTTOM_RADIUS := 101500.0
 const OMEGA_F := 0.00255
 
 var _saved_field
+var _saved_planet_small
 
 
 func before_each() -> void:
 	_saved_field = Tuning.field
+	_saved_planet_small = Tuning.planet
+	Tuning.planet = Tuning.planet.duplicate()
+	var no_small: Array[float] = [0.0, 0.0, 0.0, 0.0]
+	Tuning.planet.small_rate = no_small
 
 
 func after_each() -> void:
 	Tuning.field = _saved_field
+	Tuning.planet = _saved_planet_small
 
 
 func _d35_field() -> FieldParams:

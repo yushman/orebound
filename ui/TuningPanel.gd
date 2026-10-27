@@ -70,6 +70,23 @@ const ROWS := [
 	["planet", "rest_speed", 0.0, 2.0, 0.01],
 	["planet", "amount_per_area", 0.00001, 0.001, 0.000001],
 	["planet", "top_ice_share", 0.0, 1.0, 0.01],
+	["planet", "small_rate", 0.0, 60.0, 0.1, 0],
+	["planet", "small_rate", 0.0, 60.0, 0.1, 1],
+	["planet", "small_rate", 0.0, 60.0, 0.1, 2],
+	["planet", "small_rate", 0.0, 60.0, 0.1, 3],
+	["planet", "small_window", 1.0, 300.0, 1.0],
+	["planet", "small_e_min", 0.0, 0.99, 0.01],
+	["planet", "small_e_max", 0.0, 0.99, 0.01],
+	["planet", "small_radius_min", 1.0, 200.0, 1.0],
+	["planet", "small_radius_max", 1.0, 200.0, 1.0],
+	["planet", "swallow_radius", 1.0, 200.0, 1.0],
+	["planet", "small_spawn_radius", 100.0, 10000.0, 10.0],
+	["planet", "small_despawn_radius", 100.0, 20000.0, 10.0],
+	["planet", "small_max_bodies", 0.0, 64.0, 1.0],
+	["planet", "small_bounce", 0.0, 1.0, 0.01],
+	["planet", "v_safe", 0.0, 100.0, 0.5],
+	["planet", "impact_k", 0.0, 1.0, 0.005],
+	["ship", "hit_radius", 0.0, 100.0, 1.0],
 	["view", "halo_alpha", 0.0, 1.0, 0.01],
 	["view", "ring_count", 1.0, 12.0, 1.0],
 	["view", "ring_period", 0.2, 10.0, 0.1],
@@ -207,7 +224,9 @@ func _on_save() -> void:
 		push_error("TuningPanel: save to %s failed (%d)" % [_preset_path(), err])
 
 
-func _id(target: Variant, prop: String) -> String:
+func _id(target: Variant, prop: String, idx := -1) -> String:
+	if idx >= 0:
+		prop += str(idx)
 	if target is int:
 		return "body%d.%s" % [target, prop]
 	return "%s.%s" % [target, prop]
@@ -226,7 +245,8 @@ func _holder(target: Variant) -> Object:
 func _add_row(row: Array) -> void:
 	var target: Variant = row[0]
 	var prop: String = row[1]
-	var id := _id(target, prop)
+	var idx: int = row[5] if row.size() > 5 else -1
+	var id := _id(target, prop, idx)
 	var hb := HBoxContainer.new()
 	hb.focus_mode = Control.FOCUS_NONE
 	var label := Label.new()
@@ -250,12 +270,15 @@ func _add_row(row: Array) -> void:
 	row_boxes[id] = hb
 	sliders[id] = s
 	_values[id] = val
-	s.value_changed.connect(_on_changed.bind(target, prop, val))
+	s.value_changed.connect(_on_changed.bind(target, prop, val, idx))
 
 
-func _on_changed(v: float, target: Variant, prop: String, val: Label) -> void:
+func _on_changed(v: float, target: Variant, prop: String, val: Label, idx := -1) -> void:
 	var holder := _holder(target)
-	holder.set(prop, int(v) if holder.get(prop) is int else v)
+	if idx >= 0:
+		holder.get(prop)[idx] = v
+	else:
+		holder.set(prop, int(v) if holder.get(prop) is int else v)
 	val.text = _fmt(v)
 	_respawn_for_hold(target, prop)
 	if target is String and target == "planet" and prop in REGEN_PROPS:
@@ -273,12 +296,13 @@ func _sync() -> void:
 	# Rows of bodies the field does not have stay hidden and unsynced.
 	var body_count := Tuning.field.bodies.size()
 	for row in ROWS:
-		var id := _id(row[0], row[1])
+		var idx: int = row[5] if row.size() > 5 else -1
+		var id := _id(row[0], row[1], idx)
 		if row[0] is int and row[0] >= body_count:
 			row_boxes[id].visible = false
 			continue
 		row_boxes[id].visible = true
-		var v: float = _holder(row[0]).get(row[1])
+		var v: float = _holder(row[0]).get(row[1])[idx] if idx >= 0 else _holder(row[0]).get(row[1])
 		var s: HSlider = sliders[id]
 		s.allow_lesser = true
 		s.allow_greater = true
