@@ -48,7 +48,7 @@ func test_asteroid_view_shows_one_polygon_per_asteroid_within_gen_radius():
 	var first = polys[0]
 	assert_eq(first.polygon, want[0]["points"])
 	assert_eq(first.position, want[0]["pos"])
-	assert_eq(first.color, AsteroidViewScript.color_for(want[0]["pos"].length()))
+	assert_eq(first.color, AsteroidViewScript.color_of(want[0]["type"]))
 	# positions follow t, pool is kept
 	v.refresh(pos, t + 5.0)
 	var again := _polys(v)
@@ -114,10 +114,35 @@ func test_asteroid_view_hides_all_after_preset_applied_leaves_no_asteroids():
 	assert_eq(_polys(v).size(), 0)
 
 
-func test_color_for_maps_tiers_to_palette_top_to_bottom():
-	var b: Array = WellGenerator.tiers()["boundaries"]
-	var mid := func(i: int) -> float: return 0.5 * (b[i] + b[i + 1])
-	assert_eq(AsteroidViewScript.color_for(mid.call(3)), Palette.ICE)
-	assert_eq(AsteroidViewScript.color_for(mid.call(2)), Palette.MOON)
-	assert_eq(AsteroidViewScript.color_for(mid.call(1)), Palette.ORE)
-	assert_eq(AsteroidViewScript.color_for(mid.call(0)), Palette.ORE_BRIGHT)
+func test_asteroid_polygons_are_coloured_by_type():
+	assert_eq(AsteroidViewScript.color_of(&"ice"), Palette.ICE)
+	assert_eq(AsteroidViewScript.color_of(&"ore_base"), Palette.ORE_BASE)
+	assert_eq(AsteroidViewScript.color_of(&"ore_middle"), Palette.ORE)
+	assert_eq(AsteroidViewScript.color_of(&"ore_rare"), Palette.ORE_RARE)
+	assert_eq(AsteroidViewScript.color_of(&"ore_unique"), Palette.ORE_BRIGHT)
+	var v = add_child_autofree(AsteroidViewScript.new())
+	var pos := _spot()
+	v.refresh(pos, 10.0)
+	var want: Array = AsteroidField.near(pos, 10.0, Tuning.planet.chunk_gen_radius)
+	var polys := _polys(v)
+	for i in want.size():
+		assert_eq(polys[i].color, AsteroidViewScript.color_of(want[i]["type"]))
+
+
+func test_asteroid_view_shrinks_a_partly_mined_asteroid_and_hides_a_mined_out_one():
+	var v = add_child_autofree(AsteroidViewScript.new())
+	var pos := _spot()
+	var want: Array = AsteroidField.near(pos, 10.0, Tuning.planet.chunk_gen_radius)
+	var a: Dictionary = want[0]
+	var k0 := Vector3i(a["band"], a["chunk"], a["idx"])
+	var b: Dictionary = want[1]
+	var k1 := Vector3i(b["band"], b["chunk"], b["idx"])
+	v.refresh(pos, 10.0, {k0: a["amount"] * 0.25})
+	var polys := _polys(v)
+	assert_eq(polys.size(), want.size())
+	assert_almost_eq(polys[0].polygon[0].length(), a["points"][0].length() * 0.5, 0.001)
+	assert_eq(polys[1].polygon, b["points"])
+	v.refresh(pos, 10.0, {k0: a["amount"] * 0.25, k1: 0.0})
+	polys = _polys(v)
+	assert_eq(polys.size(), want.size() - 1)
+	assert_eq(polys[1].polygon, want[2]["points"])

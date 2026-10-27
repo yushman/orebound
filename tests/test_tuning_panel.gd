@@ -50,15 +50,16 @@ func test_slider_set_covers_all_parameters() -> void:
 			"brake_fuel_mult", "climb_coefficient", "ramp_time", "ramp_min_fraction", "heat_growth_engine",
 			"heat_growth_boost", "heat_threshold", "heat_cooldown", "min_thrust_fraction",
 			"sync_accel", "sync_fuel_mult", "predict_every", "predict_short_steps", "hull_max",
-				"hull_mass", "hold_capacity", "ref_mass", "loadout_fuel_cells", "tank_capacity"]:
+				"hull_mass", "hold_capacity", "ref_mass", "loadout_fuel_cells", "tank_capacity",
+				"beam_range", "beam_rate", "return_margin"]:
 		expect.append("ship." + p)
 	for p in ["atmosphere_drag", "atmosphere_damage", "density_shape", "moon_mass_k", "moon_mass_exp",
 			"moon_influence_k", "moon_margin", "moon_bounce", "moon_impact_damage",
 				"ring_width", "ring_density", "band_width", "chunk_arc", "chunk_gen_radius",
 				"asteroids_per_band", "drop_start", "drop_ratio", "above_factor", "field_radius",
-				"ast_radius_min", "ast_radius_max", "asteroid_bounce", "asteroid_impact_damage", "rest_speed"]:
+				"ast_radius_min", "ast_radius_max", "asteroid_bounce", "asteroid_impact_damage", "rest_speed", "amount_per_area", "top_ice_share"]:
 		expect.append("planet." + p)
-	for p in ["halo_alpha", "ring_count", "ring_period", "ring_px", "ring_alpha", "cargo_fill"]:
+	for p in ["halo_alpha", "ring_count", "ring_period", "ring_px", "ring_alpha"]:
 		expect.append("view." + p)
 	for id in expect:
 		assert_true(ids.has(id), id)
@@ -130,28 +131,6 @@ func test_hold_ship_sliders_write_ints_as_int() -> void:
 
 func test_hull_mass_slider_min_is_positive() -> void:
 	assert_gt(_panel.sliders["ship.hull_mass"].min_value, 0.0)
-
-
-func test_separate_tank_checkbox_writes_tuning_ship() -> void:
-	Tuning.ship = Tuning.ship.duplicate(true)
-	var c: CheckBox = _panel.checks["ship.separate_tank"]
-	assert_eq(c.focus_mode, Control.FOCUS_NONE)
-	assert_false(c.button_pressed)
-	c.button_pressed = true
-	assert_true(Tuning.ship.separate_tank)
-	c.button_pressed = false
-	assert_false(Tuning.ship.separate_tank)
-
-
-func test_sync_sets_separate_tank_checkbox_without_write_back() -> void:
-	Tuning.ship = Tuning.ship.duplicate(true)
-	Tuning.ship.separate_tank = true
-	_panel._sync()
-	assert_true(_panel.checks["ship.separate_tank"].button_pressed)
-	assert_true(Tuning.ship.separate_tank)
-	Tuning.ship.separate_tank = false
-	_panel._sync()
-	assert_false(_panel.checks["ship.separate_tank"].button_pressed)
 
 
 func test_planet_defaults_fit_slider_ranges() -> void:
@@ -517,7 +496,7 @@ func _stub_ship() -> Node:
 	return stub
 
 
-func test_hold_sliders_and_tank_checkbox_respawn_the_ship() -> void:
+func test_hold_sliders_respawn_the_ship() -> void:
 	var stub := _stub_ship()
 	var n := 0
 	for p in ["loadout_fuel_cells", "hold_capacity", "tank_capacity"]:
@@ -525,9 +504,6 @@ func test_hold_sliders_and_tank_checkbox_respawn_the_ship() -> void:
 		s.value = s.value + 1.0
 		n += 1
 		assert_eq(stub.calls, n, p)
-	_panel.checks["ship.separate_tank"].button_pressed = true
-	assert_eq(stub.calls, n + 1, "separate_tank")
-	assert_true(Tuning.ship.separate_tank)
 
 
 func test_other_ship_sliders_and_sync_do_not_respawn() -> void:
@@ -536,7 +512,6 @@ func test_other_ship_sliders_and_sync_do_not_respawn() -> void:
 	_panel.sliders["ship.hull_mass"].value = 5.5
 	_panel.sliders["ship.ref_mass"].value = 12.0
 	_panel.sliders["ship.climb_coefficient"].value = 0.5
-	_panel.sliders["view.cargo_fill"].value = 0.3
 	_panel._sync()
 	assert_eq(stub.calls, 0)
 
@@ -545,3 +520,15 @@ func test_hold_slider_without_ship_does_not_error() -> void:
 	_panel.ship = null
 	_panel.sliders["ship.hold_capacity"].value = 12.0
 	assert_eq(Tuning.ship.hold_capacity, 12)
+
+
+func test_panel_has_rows_for_amount_per_area_top_ice_share_beam_range_beam_rate() -> void:
+	for id in ["planet.amount_per_area", "planet.top_ice_share", "ship.beam_range", "ship.beam_rate"]:
+		assert_true(_panel.sliders.has(id), id)
+
+
+func test_return_knob_sliders_write_into_tuning_ship() -> void:
+	_panel.sliders["ship.return_margin"].value = 1.5
+	assert_eq(Tuning.ship.return_margin, 1.5)
+	for k in ["mode", "tau"]:
+		assert_false(_panel.sliders.has("ship.return_" + "speed_" + k))

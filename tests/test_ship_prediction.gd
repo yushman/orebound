@@ -25,8 +25,8 @@ func _make() -> Node:
 func _check(thrust: bool, soft_brake := false, cargo := false, sliver := -1.0) -> void:
 	var ship = _make()
 	if sliver >= 0.0:
-		ship.state.hold.resize(1)
-		ship.state.hold[0].fill = sliver
+		ship.state.tank.resize(1)
+		ship.state.tank[0].fill = sliver
 	if cargo:
 		Hold.add(ship.state, &"ore_middle", 5.0)
 	GravityField.tick = 50
@@ -377,3 +377,31 @@ func test_prediction_stops_at_the_first_crashed_state_and_matches_flight_up_to_i
 		assert_eq(pts[i], s.pos, "point %d" % i)
 		assert_eq(s.crashed, i == pts.size() - 1, "crashed at %d" % i)
 
+
+
+func test_prediction_equals_flight_while_drilling_and_around_a_mined_asteroid() -> void:
+	var saved_planet = Tuning.planet
+	Tuning.planet = saved_planet.duplicate()
+	Tuning.planet.asteroids_per_band = 1000.0
+	var a: Dictionary = AsteroidField.near(Vector2(AsteroidField.band_centre(0), 0.0), 0.0, 3000.0)[0]
+	var key := Vector3i(a["band"], a["chunk"], a["idx"])
+	var ap: Vector2 = AsteroidField.at(a, 0.0)["pos"]
+	var start := ShipState.new()
+	start.pos = ap + Vector2.from_angle(a["theta"] + 0.3) * (a["radius"] + 50.0)
+	start.vel = AsteroidField.at(a, 0.0)["vel"]
+	start.mined[key] = a["amount"] * 0.5
+	var inp := ShipInput.new()
+	inp.beam = true
+	inp.aim = (ap - start.pos).angle()
+	var pts := ShipPrediction.run(start, inp, 0, 300)
+	var s := start.copy()
+	var diverged := 0
+	for i in pts.size():
+		s = ShipFlight.step(s, inp, GravityField.time_at(i + 1), GravityField.DT)
+		if pts[i] != s.pos:
+			diverged += 1
+	var mass := Hold.mass(s)
+	Tuning.planet = saved_planet
+	assert_eq(pts.size(), 300)
+	assert_eq(diverged, 0)
+	assert_gt(mass, Hold.mass(start), "drilled")

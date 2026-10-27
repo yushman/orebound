@@ -19,6 +19,14 @@ static func tiers() -> Dictionary:
 	return {"boundaries": boundaries, "tow": boundaries[2], "ceiling": f.carrier_orbit_radius + Tuning.planet.ceiling_offset}
 
 
+static func tier_of(r: float) -> int:
+	var b: Array[float] = tiers()["boundaries"]
+	var i := 0
+	while i < 3 and r >= b[i + 1]:
+		i += 1
+	return i
+
+
 static func _radius_at(target: float, r_lo: float, r_hi: float, phi_tol: float) -> float:
 	var lo := r_lo
 	var hi := r_hi

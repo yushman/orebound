@@ -15,6 +15,7 @@ var hull: float = Tuning.ship.hull_max
 var crashed: bool
 var hold: Array[HoldCell] = []
 var tank: Array[HoldCell] = []
+var mined: Dictionary = {}
 
 
 func _init(with_loadout := true) -> void:
@@ -40,4 +41,5 @@ func copy() -> ShipState:
 		c.hold.append(cell.copy())
 	for cell in tank:
 		c.tank.append(cell.copy())
+	c.mined = mined.duplicate()
 	return c

@@ -5,6 +5,8 @@ func test_constants_are_meaning_bound_values():
 	assert_eq(Palette.ICE, Color("7FC8F8"))
 	assert_eq(Palette.ORE, Color("F2A93B"))
 	assert_eq(Palette.ORE_BRIGHT, Color("FFE27A"))
+	assert_eq(Palette.ORE_BASE, Color("8A7D6B"))
+	assert_eq(Palette.ORE_RARE, Color("F8C65A"))
 	assert_eq(Palette.DANGER, Color("FF5A36"))
 	assert_eq(Palette.HALO, Color("B8D8C0"))
 	assert_eq(Palette.SAFE, Color("FFD45C"))
@@ -51,3 +53,6 @@ func test_lit_half_follows_light_direction():
 func test_default_clear_color_matches_background():
 	var c: Color = ProjectSettings.get_setting("rendering/environment/defaults/default_clear_color")
 	assert_eq(c, Palette.BACKGROUND)
+
+func test_fuel_color():
+	assert_eq(Palette.FUEL, Color("8FE0A0"))

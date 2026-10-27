@@ -36,3 +36,5 @@ extends Resource
 @export var ast_radius_max: float = 120.0
 @export var asteroid_bounce: float = 0.5
 @export var asteroid_impact_damage: float = 0.05
+@export var top_ice_share: float = 0.6
+@export var amount_per_area: float = 1.1e-4

@@ -2,7 +2,7 @@ extends Control
 
 const REGEN_PROPS := ["moon_mass_k", "moon_mass_exp", "moon_influence_k", "moon_margin", "ring_width", "ring_density"]
 
-const HOLD_PROPS := ["loadout_fuel_cells", "hold_capacity", "tank_capacity", "separate_tank"]
+const HOLD_PROPS := ["loadout_fuel_cells", "hold_capacity", "tank_capacity"]
 
 const GRAVITY_PROPS := ["k", "eps", "fade_width", "mass", "p"]
 
@@ -41,6 +41,9 @@ const ROWS := [
 	["ship", "ref_mass", 1.0, 100.0, 0.5],
 	["ship", "loadout_fuel_cells", 0.0, 20.0, 1.0],
 	["ship", "tank_capacity", 0.0, 20.0, 1.0],
+	["ship", "beam_range", 0.0, 1000.0, 10.0],
+	["ship", "beam_rate", 0.0, 5.0, 0.05],
+	["ship", "return_margin", 1.0, 3.0, 0.05],
 	["planet", "atmosphere_drag", 0.0, 2.0, 0.005],
 	["planet", "atmosphere_damage", 0.0, 100.0, 0.1],
 	["planet", "density_shape", 0.5, 5.0, 0.05],
@@ -65,20 +68,16 @@ const ROWS := [
 	["planet", "asteroid_bounce", 0.0, 1.0, 0.01],
 	["planet", "asteroid_impact_damage", 0.0, 1.0, 0.005],
 	["planet", "rest_speed", 0.0, 2.0, 0.01],
+	["planet", "amount_per_area", 0.00001, 0.001, 0.000001],
+	["planet", "top_ice_share", 0.0, 1.0, 0.01],
 	["view", "halo_alpha", 0.0, 1.0, 0.01],
 	["view", "ring_count", 1.0, 12.0, 1.0],
 	["view", "ring_period", 0.2, 10.0, 0.1],
 	["view", "ring_px", 0.5, 5.0, 0.05],
 	["view", "ring_alpha", 0.0, 1.0, 0.01],
-	["view", "cargo_fill", 0.0, 1.0, 0.01],
-]
-
-const CHECKS := [
-	["ship", "separate_tank"],
 ]
 
 var sliders := {}
-var checks := {}
 var row_boxes := {}
 var presets_dir := "res://presets"
 var preset_select: OptionButton
@@ -109,8 +108,6 @@ func _ready() -> void:
 	_add_header()
 	for row in ROWS:
 		_add_row(row)
-	for check in CHECKS:
-		_add_check(check)
 	_sync()
 	Tuning.preset_applied.connect(_sync)
 
@@ -256,18 +253,6 @@ func _add_row(row: Array) -> void:
 	s.value_changed.connect(_on_changed.bind(target, prop, val))
 
 
-func _add_check(row: Array) -> void:
-	var id := _id(row[0], row[1])
-	var c := CheckBox.new()
-	c.text = id
-	c.focus_mode = Control.FOCUS_NONE
-	_box.add_child(c)
-	checks[id] = c
-	c.toggled.connect(func(on: bool) -> void:
-		_holder(row[0]).set(row[1], on)
-		_respawn_for_hold(row[0], row[1]))
-
-
 func _on_changed(v: float, target: Variant, prop: String, val: Label) -> void:
 	var holder := _holder(target)
 	holder.set(prop, int(v) if holder.get(prop) is int else v)
@@ -301,5 +286,3 @@ func _sync() -> void:
 		s.allow_lesser = false
 		s.allow_greater = false
 		_values[id].text = _fmt(v)
-	for check in CHECKS:
-		checks[_id(check[0], check[1])].set_pressed_no_signal(_holder(check[0]).get(check[1]))

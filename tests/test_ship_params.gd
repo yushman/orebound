@@ -20,7 +20,7 @@ func test_no_fuel_per_dv_property() -> void:
 
 
 func test_climb_coefficient_default() -> void:
-	assert_eq(Tuning.ship.get("climb_coefficient"), 0.2)
+	assert_eq(Tuning.ship.get("climb_coefficient"), 0.05)
 
 
 func test_tuning_ship_d36_control_defaults() -> void:
@@ -61,5 +61,16 @@ func test_tuning_ship_hold_defaults() -> void:
 	assert_eq(s.get("hold_capacity"), 10)
 	assert_eq(s.get("ref_mass"), 10.0)
 	assert_eq(s.get("loadout_fuel_cells"), 2)
-	assert_eq(s.get("separate_tank"), false)
+	assert_false("separate_tank" in s)
 	assert_eq(s.get("tank_capacity"), 4)
+
+
+func test_tuning_ship_beam_defaults() -> void:
+	assert_eq(Tuning.ship.get("beam_range"), 300.0)
+	assert_eq(Tuning.ship.get("beam_rate"), 0.5)
+
+
+func test_tuning_ship_return_defaults() -> void:
+	assert_eq(Tuning.ship.get("return_margin"), 1.2)
+	for k in ["mode", "tau"]:
+		assert_null(Tuning.ship.get("return_" + "speed_" + k))

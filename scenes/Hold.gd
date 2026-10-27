@@ -21,7 +21,7 @@ static func used_volume(cells: Array[HoldCell]) -> float:
 
 static func add(s: ShipState, type: StringName, amount: float) -> float:
 	var p: ShipParams = Tuning.ship
-	var to_tank: bool = type == &"fuel" and p.separate_tank
+	var to_tank: bool = type == &"fuel"
 	var cells: Array[HoldCell] = s.tank if to_tank else s.hold
 	var capacity: float = p.tank_capacity if to_tank else p.hold_capacity
 	var volume: float = Tuning.resources[type].volume
@@ -43,45 +43,32 @@ static func add(s: ShipState, type: StringName, amount: float) -> float:
 	return amount - left
 
 
-static func _burnable(s: ShipState) -> Array:
-	var out := []
-	if Tuning.ship.separate_tank:
-		out.append([s.tank, &"fuel"])
-	else:
-		out.append([s.hold, &"fuel"])
-		out.append([s.hold, &"ice"])
-	return out
-
-
 static func energy(s: ShipState) -> float:
 	var e := 0.0
-	for b in _burnable(s):
-		for c in b[0]:
-			if c.type == b[1]:
-				e += c.fill * Tuning.resources[c.type].energy
+	for c in s.tank:
+		if c.type == &"fuel":
+			e += c.fill * Tuning.resources[c.type].energy
 	return e
 
 
 static func drain(s: ShipState, amount: float) -> float:
+	var per: float = Tuning.resources[&"fuel"].energy
+	if per <= 0.0:
+		return 0.0
+	var order: Array[HoldCell] = []
+	for c in s.tank:
+		if c.type == &"fuel" and c.fill < 1.0:
+			order.append(c)
+	for c in s.tank:
+		if c.type == &"fuel" and c.fill >= 1.0:
+			order.append(c)
 	var left := amount
-	for b in _burnable(s):
-		var cells: Array[HoldCell] = b[0]
-		var per: float = Tuning.resources[b[1]].energy
-		if per <= 0.0:
-			continue
-		var order: Array[HoldCell] = []
-		for c in cells:
-			if c.type == b[1] and c.fill < 1.0:
-				order.append(c)
-		for c in cells:
-			if c.type == b[1] and c.fill >= 1.0:
-				order.append(c)
-		for c in order:
-			if left <= 0.0:
-				break
-			var d := minf(left, c.fill * per)
-			c.fill -= d / per
-			left -= d
-			if c.fill <= EPS:
-				cells.erase(c)
+	for c in order:
+		if left <= 0.0:
+			break
+		var d := minf(left, c.fill * per)
+		c.fill -= d / per
+		left -= d
+		if c.fill <= EPS:
+			s.tank.erase(c)
 	return amount - left

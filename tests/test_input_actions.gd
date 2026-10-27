@@ -92,3 +92,13 @@ func test_zoom_actions_bound_to_keys():
 	assert_true(_has_key("camera_zoom_in", KEY_KP_ADD))
 	assert_true(_has_key("camera_zoom_out", KEY_MINUS))
 	assert_true(_has_key("camera_zoom_out", KEY_KP_SUBTRACT))
+
+
+func test_beam_and_aim_actions_bound():
+	assert_true(InputMap.has_action("ship_beam"))
+	assert_true(_has_mouse_button("ship_beam", MOUSE_BUTTON_LEFT))
+	assert_true(_has_joy_button("ship_beam", JOY_BUTTON_RIGHT_SHOULDER))
+	for a in ["ship_aim_left", "ship_aim_right"]:
+		assert_true(_has_axis(a, JOY_AXIS_RIGHT_X), a)
+	for a in ["ship_aim_up", "ship_aim_down"]:
+		assert_true(_has_axis(a, JOY_AXIS_RIGHT_Y), a)

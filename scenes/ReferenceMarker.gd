@@ -9,7 +9,7 @@ const RING_STROKE_PX := 2.0
 
 func _physics_process(_delta: float) -> void:
 	var t := GravityField.time()
-	var ref := ShipFlight.sync_reference(ship.state.pos, t)
+	var ref := ShipFlight.sync_reference(ship.state.pos, t, null, ship.state.mined)
 	visible = ref["valid"]
 	if visible:
 		position = marker_pos(ref, t)

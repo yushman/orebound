@@ -8,12 +8,24 @@ var thrust: bool
 var boost: bool
 var soft_brake: bool
 var drift_sync: bool
+var beam: bool
+var aim: float
 
 
 ## Gamepad stick heading in world axes: the camera rotates by
 ## FlightCamera.rotation_for(pos), so stick-up means screen-up.
 static func screen_heading(stick: Vector2, pos: Vector2) -> float:
 	return wrapf(stick.angle() + PI / 2 + FlightCamera.rotation_for(pos), -PI, PI)
+
+
+## Beam aim in world angle: right stick (screen-relative), else the mouse
+## world point while LMB is held, else the nose.
+static func aim_angle(stick: Vector2, mouse_held: bool, mouse_world: Vector2, pos: Vector2, rot: float) -> float:
+	if stick != Vector2.ZERO:
+		return wrapf(screen_heading(stick, pos) - PI / 2, -PI, PI)
+	if mouse_held:
+		return (mouse_world - pos).angle()
+	return wrapf(rot - PI / 2, -PI, PI)
 
 
 func copy() -> ShipInput:
@@ -25,4 +37,6 @@ func copy() -> ShipInput:
 	c.boost = boost
 	c.soft_brake = soft_brake
 	c.drift_sync = drift_sync
+	c.beam = beam
+	c.aim = aim
 	return c

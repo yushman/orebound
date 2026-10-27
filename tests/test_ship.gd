@@ -215,3 +215,13 @@ func test_preset_change_restores_hull_without_touching_the_crash_counter() -> vo
 	Telemetry.crashes = saved_crashes
 	Tuning.field = saved_field
 	Tuning.ship = saved_ship
+
+
+func test_read_input_maps_beam_and_aim() -> void:
+	var ship = _make()
+	var inp: ShipInput = ship._read_input()
+	assert_false(inp.beam)
+	assert_almost_eq(Vector2.RIGHT.rotated(inp.aim).dot(Vector2.UP.rotated(ship.state.rot)), 1.0, 0.0001)
+	Input.action_press("ship_beam")
+	assert_true(ship._read_input().beam)
+	Input.action_release("ship_beam")

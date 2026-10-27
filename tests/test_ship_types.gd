@@ -97,6 +97,7 @@ func _cell(type: StringName, fill: float) -> HoldCell:
 func test_state_copy_deep_copies_hold_and_tank_cells() -> void:
 	var s := ShipState.new()
 	s.hold.clear()
+	s.tank.clear()
 	s.hold.append(_cell(&"ice", 0.5))
 	s.tank.append(_cell(&"fuel", 1.0))
 	var c := s.copy()
@@ -112,3 +113,38 @@ func test_state_copy_deep_copies_hold_and_tank_cells() -> void:
 	assert_eq(s.tank[0].fill, 1.0)
 	assert_eq(s.hold.size(), 1)
 	assert_eq(s.tank.size(), 1)
+
+
+func test_state_copy_deep_copies_the_mined_layer() -> void:
+	var s := ShipState.new()
+	assert_true(s.mined.is_empty())
+	s.mined[Vector3i(1, 2, 3)] = 0.5
+	var c := s.copy()
+	assert_eq(c.mined[Vector3i(1, 2, 3)], 0.5)
+	c.mined[Vector3i(1, 2, 3)] = 0.1
+	c.mined[Vector3i(0, 0, 0)] = 1.0
+	assert_eq(s.mined[Vector3i(1, 2, 3)], 0.5)
+	assert_eq(s.mined.size(), 1)
+
+
+func test_input_copy_carries_beam_and_aim() -> void:
+	var i := ShipInput.new()
+	i.beam = true
+	i.aim = 0.7
+	var c := i.copy()
+	assert_true(c.beam)
+	assert_eq(c.aim, 0.7)
+	c.beam = false
+	assert_true(i.beam)
+
+
+func test_beam_aim_prefers_stick_then_mouse_then_nose() -> void:
+	var pos := Vector2(Tuning.field.carrier_orbit_radius, 0.0)
+	var cam := FlightCamera.rotation_for(pos)
+	var stick := Vector2(0.0, -1.0)
+	var a := ShipInput.aim_angle(stick, true, pos + Vector2(0, 100), pos, 0.3)
+	assert_almost_eq(Vector2.RIGHT.rotated(a).dot(Vector2.UP.rotated(cam)), 1.0, 0.0001)
+	a = ShipInput.aim_angle(Vector2.ZERO, true, pos + Vector2(0, 100), pos, 0.3)
+	assert_almost_eq(a, PI / 2, 0.0001)
+	a = ShipInput.aim_angle(Vector2.ZERO, false, pos + Vector2(0, 100), pos, 0.3)
+	assert_almost_eq(Vector2.RIGHT.rotated(a).dot(Vector2.UP.rotated(0.3)), 1.0, 0.0001)

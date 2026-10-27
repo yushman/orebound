@@ -283,3 +283,13 @@ func test_check_rejects_ring_crossing_moon_annulus():
 	assert_true(WellGenerator.check([m], far))
 	assert_false(WellGenerator.check([m], near))
 	assert_false(WellGenerator.check([m], {}))
+
+
+func test_tier_of_maps_radii_to_tiers_and_clamps():
+	var b: Array[float] = WellGenerator.tiers()["boundaries"]
+	assert_eq(WellGenerator.tier_of(b[0] - 100.0), 0)
+	assert_eq(WellGenerator.tier_of(b[0]), 0)
+	for i in 4:
+		assert_eq(WellGenerator.tier_of(0.5 * (b[i] + b[i + 1])), i)
+	assert_eq(WellGenerator.tier_of(b[1]), 1)
+	assert_eq(WellGenerator.tier_of(b[4] + 5000.0), 3)

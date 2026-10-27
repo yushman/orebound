@@ -178,7 +178,7 @@ func test_boost_costs_boost_fuel_mult_times_more_energy_per_delta_v() -> void:
 	assert_eq(b.fuel_engine, 0.0)
 
 
-func test_engine_drains_hold_energy_by_counter() -> void:
+func test_engine_drains_tank_energy_by_counter() -> void:
 	var inp := ShipInput.new()
 	inp.thrust = true
 	var s := _state()
@@ -189,7 +189,7 @@ func test_engine_drains_hold_energy_by_counter() -> void:
 	assert_almost_eq(before - Hold.energy(s), s.fuel_engine, 1e-6)
 
 
-func test_boat_runs_dry_and_fuel_cells_leave_hold() -> void:
+func test_boat_runs_dry_and_fuel_cells_leave_tank() -> void:
 	Tuning.ship.climb_coefficient = 0.2
 	var inp := ShipInput.new()
 	inp.thrust = true
@@ -201,7 +201,7 @@ func test_boat_runs_dry_and_fuel_cells_leave_hold() -> void:
 		s = ShipFlight.step(s, inp, 0.0, DT)
 		s.heat = 0.0
 	assert_lte(Hold.energy(s), Hold.EPS)
-	assert_eq(s.hold.size(), 0)
+	assert_eq(s.tank.size(), 0)
 	assert_almost_eq(s.fuel_engine, e0, 1e-4)
 
 
@@ -213,12 +213,12 @@ func test_last_sliver_scales_engine_accel() -> void:
 	s.hold_time = p.ramp_time
 	var full := ShipFlight.step(s, inp, 0.0, DT)
 	var need := full.fuel_engine
-	s.hold[0].fill = need * 0.5 / Tuning.resources[&"fuel"].energy
-	while s.hold.size() > 1:
-		s.hold.pop_back()
+	s.tank[0].fill = need * 0.5 / Tuning.resources[&"fuel"].energy
+	while s.tank.size() > 1:
+		s.tank.pop_back()
 	var out := ShipFlight.step(s, inp, 0.0, DT)
 	assert_almost_eq(out.fuel_engine, need * 0.5, 1e-7)
-	assert_eq(out.hold.size(), 0)
+	assert_eq(out.tank.size(), 0)
 
 
 func _empty_state() -> ShipState:
@@ -227,7 +227,7 @@ func _empty_state() -> ShipState:
 	return s
 
 
-func test_empty_hold_thrust_and_boost_leave_velocity_and_heat_cools() -> void:
+func test_empty_tank_thrust_and_boost_leave_velocity_and_heat_cools() -> void:
 	var coast := ShipFlight.step(_empty_state(), ShipInput.new(), 0.0, DT)
 	for mode in ["thrust", "boost"]:
 		var inp := ShipInput.new()
@@ -243,7 +243,7 @@ func test_empty_hold_thrust_and_boost_leave_velocity_and_heat_cools() -> void:
 		assert_eq(out.fuel_boost, 0.0)
 
 
-func test_empty_hold_soft_brake_and_sync_give_zero_accel() -> void:
+func test_empty_tank_soft_brake_and_sync_give_zero_accel() -> void:
 	var coast := ShipFlight.step(_empty_state(), ShipInput.new(), 0.0, DT)
 	for inp in [_soft_brake_input(), _drift_sync_input()]:
 		var s := _empty_state()
@@ -1009,3 +1009,117 @@ func test_heavy_sync_below_scaled_limit_still_matches_reference_velocity() -> vo
 	var rc := Vector2(Tuning.field.carrier_orbit_radius, 0.0)
 	var out := ShipFlight.step(_heavy_state(rc, Vector2(0.001, 0.0)), _drift_sync_input(), 0.0, DT)
 	assert_almost_eq(out.vel, Vector2.ZERO, Vector2(1e-5, 1e-5))
+
+
+func _dense_planet() -> void:
+	Tuning.planet = Tuning.planet.duplicate()
+	Tuning.planet.asteroids_per_band = 1000.0
+
+
+func _beam_setup() -> Dictionary:
+	_dense_planet()
+	var a: Dictionary = AsteroidField.near(Vector2(AsteroidField.band_centre(0), 0.0), 0.0, 3000.0)[0]
+	var key := Vector3i(a["band"], a["chunk"], a["idx"])
+	var dir := Vector2.from_angle(a["theta"] + 0.3)
+	var pos: Vector2 = AsteroidField.at(a, 0.0)["pos"] + dir * (a["radius"] + 50.0)
+	var aim: float = (AsteroidField.at(a, 0.0)["pos"] - pos).angle()
+	return {"a": a, "key": key, "pos": pos, "aim": aim}
+
+
+func test_live_and_snapshot_asteroid_queries_return_the_same_layered_key_sorted_entries() -> void:
+	_dense_planet()
+	var pos := Vector2(AsteroidField.band_centre(0), 0.0)
+	var snap := AsteroidField.near(pos, 0.0, 3000.0)
+	var first: Dictionary = AsteroidField.near(pos, 0.0, 1500.0)[0]
+	var key := Vector3i(first["band"], first["chunk"], first["idx"])
+	var mined := {key: first["amount"] * 0.25}
+	var live := ShipFlight._asteroids(pos, 5.0, 1500.0, null, mined)
+	var snapped := ShipFlight._asteroids(pos, 5.0, 1500.0, snap, mined)
+	assert_gt(live.size(), 2)
+	assert_eq(live.size(), snapped.size())
+	for i in live.size():
+		for f in ["key", "pos", "vel", "radius", "points", "rot", "type", "amount"]:
+			assert_eq(live[i][f], snapped[i][f], f)
+		if i > 0:
+			assert_true(ShipFlight._key_less(live[i - 1], live[i]))
+	for a in live:
+		for f in ["key", "pos", "vel", "radius", "points", "rot", "type", "amount"]:
+			assert_true(a.has(f), f)
+		if a["key"] == key:
+			assert_almost_eq(float(a["amount"]), first["amount"] * 0.25, 1e-6)
+	mined[key] = 0.0
+	for a in ShipFlight._asteroids(pos, 5.0, 1500.0, null, mined):
+		assert_ne(a["key"], key)
+
+
+func test_mined_out_asteroid_is_ignored_by_contact_and_sync() -> void:
+	var a := _dense_asteroid()
+	var pos: Vector2 = a["pos"] + Vector2(a["radius"] * 0.5, 0.0)
+	var entry := {}
+	for q in ShipFlight._asteroids(pos, 0.0, a["radius"], null):
+		if q["pos"].distance_to(a["pos"]) < 0.001:
+			entry = q
+	var s := _state(pos, a["vel"] + Vector2(-10, 0))
+	s.mined[entry["key"]] = 0.0
+	assert_eq(ShipFlight.step(s, ShipInput.new(), 0.0, DT).hull, s.hull)
+	assert_true(ShipFlight.sync_reference(pos, 0.0, null, s.mined).asteroid.is_empty() or ShipFlight.sync_reference(pos, 0.0, null, s.mined).asteroid["pos"] != a["pos"])
+
+
+func test_holding_the_beam_on_an_asteroid_moves_its_type_into_the_hold_at_beam_rate() -> void:
+	var c := _beam_setup()
+	var s := _state(c["pos"])
+	var inp := ShipInput.new()
+	inp.beam = true
+	inp.aim = c["aim"]
+	var m0 := Hold.mass(s)
+	var e0 := Hold.energy(s)
+	var out := ShipFlight.step(s, inp, 0.0, DT)
+	var want: float = Tuning.ship.beam_rate * DT
+	assert_gt(Hold.mass(out), m0)
+	assert_eq(Hold.energy(out), e0)
+	assert_almost_eq(out.mined[c["key"]], c["a"]["amount"] - want, 1e-6)
+	var got := 0.0
+	for cell in out.hold:
+		if cell.type == c["a"]["type"]:
+			got += cell.fill
+	assert_gt(got, 0.0)
+	assert_true(s.mined.is_empty())
+
+
+func test_beam_without_hold_flag_or_on_a_miss_mines_nothing() -> void:
+	var c := _beam_setup()
+	var s := _state(c["pos"])
+	var inp := ShipInput.new()
+	inp.aim = c["aim"]
+	assert_true(ShipFlight.step(s, inp, 0.0, DT).mined.is_empty())
+	inp.beam = true
+	var saved_ship = Tuning.ship
+	Tuning.ship = saved_ship.duplicate()
+	Tuning.ship.beam_range = 1.0
+	var out := ShipFlight.step(s, inp, 0.0, DT)
+	Tuning.ship = saved_ship
+	assert_true(out.mined.is_empty())
+
+
+func test_full_hold_adds_nothing_and_leaves_the_asteroid() -> void:
+	var c := _beam_setup()
+	var s := _state(c["pos"])
+	Hold.add(s, &"ore_middle", 1000.0)
+	var inp := ShipInput.new()
+	inp.beam = true
+	inp.aim = c["aim"]
+	var out := ShipFlight.step(s, inp, 0.0, DT)
+	assert_true(out.mined.is_empty())
+	assert_eq(Hold.mass(out), Hold.mass(s))
+
+
+func test_asteroid_vanishes_when_drilled_empty() -> void:
+	var c := _beam_setup()
+	var s := _state(c["pos"])
+	s.mined[c["key"]] = Tuning.ship.beam_rate * DT * 0.5
+	var inp := ShipInput.new()
+	inp.beam = true
+	inp.aim = c["aim"]
+	var out := ShipFlight.step(s, inp, 0.0, DT)
+	for q in ShipFlight._asteroids(c["pos"], 0.0, 600.0, null, out.mined):
+		assert_ne(q["key"], c["key"])

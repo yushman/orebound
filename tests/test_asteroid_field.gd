@@ -305,3 +305,70 @@ func test_band_of_ceiling_clamped_to_last_band():
 	Tuning.planet.band_width = span / 4.0
 	assert_eq(AsteroidField.band_count(), 4)
 	assert_eq(AsteroidField.band_of(WellGenerator.tiers()["ceiling"]), AsteroidField.band_count() - 1)
+
+
+func _all_entries() -> Array:
+	var out: Array = []
+	for k in AsteroidField.band_count():
+		for i in AsteroidField.chunk_count(k):
+			out.append_array(AsteroidField.chunk(k, i))
+	return out
+
+
+func test_chunk_asteroids_carry_type_by_tier_and_are_deterministic():
+	_dense()
+	var all := _all_entries()
+	assert_gt(all.size(), 50)
+	var top := {}
+	for a in all:
+		var tier := WellGenerator.tier_of(a["r"])
+		var t: StringName = a["type"]
+		match tier:
+			0: assert_eq(t, &"ore_unique")
+			1: assert_eq(t, &"ore_rare")
+			2: assert_eq(t, &"ore_middle")
+			_:
+				assert_true(t == &"ice" or t == &"ore_base", str(t))
+				top[t] = true
+	assert_eq(top.size(), 2)
+	assert_eq(_all_entries(), all)
+	Tuning.planet.top_ice_share = 1.0
+	for a in _all_entries():
+		if WellGenerator.tier_of(a["r"]) == 3:
+			assert_eq(a["type"], &"ice")
+
+
+func test_comp_draw_does_not_shift_geometry():
+	_dense()
+	var a := AsteroidField.chunk(5, 3)
+	Tuning.planet.top_ice_share = 0.0
+	var b := AsteroidField.chunk(5, 3)
+	for j in a.size():
+		assert_eq(a[j]["points"], b[j]["points"])
+		assert_eq(a[j]["r"], b[j]["r"])
+
+
+func test_near_entries_carry_type():
+	_dense()
+	var ast: Dictionary = AsteroidField.chunk(5, 3)[0]
+	var st := AsteroidField.state(5, ast, 0.0)
+	var found := AsteroidField.near(st["pos"], 0.0, 1.0)
+	assert_eq(found[0]["type"], ast["type"])
+
+
+func test_asteroid_amount_equals_hull_area_times_amount_per_area():
+	_dense()
+	var c := AsteroidField.chunk(5, 3)
+	assert_gt(c.size(), 0)
+	for a in c:
+		var pts: PackedVector2Array = a["points"]
+		var area := 0.0
+		for j in pts.size():
+			area += pts[j].cross(pts[(j + 1) % pts.size()])
+		assert_almost_eq(a["amount"], absf(area) * 0.5 * Tuning.planet.amount_per_area, 1e-6)
+		assert_gt(a["amount"], 0.0)
+	Tuning.planet.amount_per_area *= 2.0
+	assert_almost_eq(AsteroidField.chunk(5, 3)[0]["amount"], c[0]["amount"] * 2.0, 1e-6)
+	var st := AsteroidField.state(5, c[0], 0.0)
+	var found := AsteroidField.near(st["pos"], 0.0, 1.0)
+	assert_almost_eq(found[0]["amount"], c[0]["amount"] * 2.0, 1e-6)

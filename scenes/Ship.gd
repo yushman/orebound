@@ -42,6 +42,10 @@ func _read_input() -> ShipInput:
 	if stick != Vector2.ZERO:
 		inp.has_heading = true
 		inp.target_heading = ShipInput.screen_heading(stick, state.pos)
+	var beam_stick := Input.get_vector("ship_aim_left", "ship_aim_right", "ship_aim_up", "ship_aim_down")
+	var mouse_held := Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+	inp.beam = Input.is_action_pressed("ship_beam")
+	inp.aim = ShipInput.aim_angle(beam_stick, mouse_held, get_global_mouse_position(), state.pos, state.rot)
 	inp.thrust = Input.is_action_pressed("ship_thrust")
 	inp.boost = Input.is_action_pressed("ship_boost")
 	inp.soft_brake = Input.is_action_pressed("ship_brake")

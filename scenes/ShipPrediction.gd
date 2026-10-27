@@ -11,6 +11,8 @@ static func run(state: ShipState, input: ShipInput, tick: int, steps: int) -> Pa
 	var q := maxf(Tuning.planet.ast_radius_min, Tuning.planet.ast_radius_max)
 	if input.drift_sync:
 		q = maxf(q, Tuning.ship.sync_radius)
+	if input.beam:
+		q += Tuning.ship.beam_range
 	var full: Array = []
 	var cover := -1.0
 	var c0 := Vector2.ZERO

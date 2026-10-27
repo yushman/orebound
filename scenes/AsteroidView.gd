@@ -1,17 +1,19 @@
 class_name AsteroidView
 extends Node2D
 
-const TIER_COLORS := [Palette.ORE_BRIGHT, Palette.ORE, Palette.MOON, Palette.ICE]
+const TYPE_COLORS := {
+	&"ice": Palette.ICE,
+	&"ore_base": Palette.ORE_BASE,
+	&"ore_middle": Palette.ORE,
+	&"ore_rare": Palette.ORE_RARE,
+	&"ore_unique": Palette.ORE_BRIGHT,
+}
 
 var _keys := []
 
 
-static func color_for(r: float) -> Color:
-	var b: Array = WellGenerator.tiers()["boundaries"]
-	var i := 0
-	while i < 3 and r >= b[i + 1]:
-		i += 1
-	return TIER_COLORS[i]
+static func color_of(type: StringName) -> Color:
+	return TYPE_COLORS.get(type, Palette.MOON)
 
 
 func _ready() -> void:
@@ -21,11 +23,16 @@ func _ready() -> void:
 func _process(_delta: float) -> void:
 	var ship := get_node_or_null("../Ship")
 	if ship != null:
-		refresh(ship.state.pos, GravityField.time())
+		refresh(ship.state.pos, GravityField.time(), ship.state.mined)
 
 
-func refresh(pos: Vector2, t: float) -> void:
-	var list := AsteroidField.near(pos, t, Tuning.planet.chunk_gen_radius)
+func refresh(pos: Vector2, t: float, mined := {}) -> void:
+	var list := []
+	for a in AsteroidField.near(pos, t, Tuning.planet.chunk_gen_radius):
+		a["key"] = Vector3i(a["band"], a["chunk"], a["idx"])
+		a = Beam.layer(a, mined)
+		if not a.is_empty():
+			list.append(a)
 	var keys := []
 	for a in list:
 		keys.append([a["band"], a["chunk"], a["idx"], a["radius"], a["points"]])
@@ -39,7 +46,7 @@ func refresh(pos: Vector2, t: float) -> void:
 				polys.append(p)
 			polys[i].visible = true
 			polys[i].polygon = list[i]["points"]
-			polys[i].color = color_for(list[i]["pos"].length())
+			polys[i].color = color_of(list[i]["type"])
 		for i in range(list.size(), polys.size()):
 			polys[i].visible = false
 	var polys := get_children()

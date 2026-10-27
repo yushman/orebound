@@ -15,6 +15,7 @@
 [ext_resource type="Script" path="res://scenes/RingView.gd" id="12_ring"]
 [ext_resource type="Script" path="res://scenes/AsteroidView.gd" id="13_ast"]
 [ext_resource type="PackedScene" path="res://ui/HUD.tscn" id="14_hud"]
+[ext_resource type="Script" path="res://scenes/BeamView.gd" id="15_beam"]
 
 [node name="Run" type="Node2D"]
 script = ExtResource("11_run")
@@ -44,6 +45,9 @@ index = 2
 
 [node name="Moon3" parent="." instance=ExtResource("2_body")]
 index = 3
+
+[node name="BeamView" type="Line2D" parent="."]
+script = ExtResource("15_beam")
 
 [node name="Ship" parent="." instance=ExtResource("1_ship")]
 

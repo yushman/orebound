@@ -72,3 +72,8 @@ func test_default_band_chunk_and_asteroid_knobs():
 	assert_gt(float(p.get("ast_radius_max")), float(p.get("ast_radius_min")))
 	assert_between(float(p.get("asteroid_bounce")), 0.001, 1.0)
 	assert_gt(float(p.get("asteroid_impact_damage")), 0.0)
+
+
+func test_default_composition_knobs():
+	assert_eq(Tuning.planet.top_ice_share, 0.6)
+	assert_almost_eq(Tuning.planet.amount_per_area, 1.1e-4, 1e-9)

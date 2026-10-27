@@ -81,7 +81,6 @@ func test_save_load_round_trip() -> void:
 	s.hold_capacity = 7
 	s.ref_mass = 12.0
 	s.loadout_fuel_cells = 3
-	s.separate_tank = true
 	s.tank_capacity = 6
 	Tuning.field = f
 	Tuning.ship = s
@@ -182,7 +181,7 @@ func test_preset_common_params() -> void:
 
 
 func test_preset_files_define_hold_params() -> void:
-	var names := ["hull_mass", "hold_capacity", "ref_mass", "loadout_fuel_cells", "separate_tank", "tank_capacity", "climb_coefficient"]
+	var names := ["hull_mass", "hold_capacity", "ref_mass", "loadout_fuel_cells", "tank_capacity", "climb_coefficient"]
 	for n in PRESET_P:
 		var text := FileAccess.get_file_as_string("res://presets/p%d.tres" % n)
 		var i := text.find("ShipParams.gd\" id=\"") + 19

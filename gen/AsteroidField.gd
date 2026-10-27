@@ -58,7 +58,7 @@ static func band_expected(k: int) -> float:
 	return pl.asteroids_per_band * pow(pl.drop_ratio, maxf(0.0, pl.drop_start - (rc - centre) / pl.band_width))
 
 
-static func chunk(k: int, i: int, bands := -1) -> Array:
+static func chunk(k: int, i: int, bands := -1, bounds: Array = []) -> Array:
 	var out: Array = []
 	if bands < 0:
 		bands = band_count()
@@ -87,10 +87,38 @@ static func chunk(k: int, i: int, bands := -1) -> Array:
 			if ok:
 				placed.append({"off": off, "radius": rad, "points": _hull(rng, rad)})
 				break
-	for q in placed:
+	if bounds.is_empty() and not placed.is_empty():
+		bounds = WellGenerator.tiers()["boundaries"]
+	for j in placed.size():
+		var q: Dictionary = placed[j]
 		var pos: Vector2 = centre + q["off"]
-		out.append({"r": pos.length(), "theta": pos.angle(), "radius": q["radius"], "points": q["points"]})
+		out.append({"r": pos.length(), "theta": pos.angle(), "radius": q["radius"], "points": q["points"], "type": _type_of(pos.length(), k, i, j, bounds), "amount": _area(q["points"]) * pl.amount_per_area})
 	return out
+
+
+static func _type_of(r: float, k: int, i: int, j: int, bounds: Array) -> StringName:
+	var tier := 0
+	while tier < 3 and r >= bounds[tier + 1]:
+		tier += 1
+	match tier:
+		0:
+			return &"ore_unique"
+		1:
+			return &"ore_rare"
+		2:
+			return &"ore_middle"
+	var u := (hash([Tuning.picture["seed"], Tuning.picture["flight"], k, i, j, "comp"]) & 0xFFFFFF) / 16777216.0
+	return &"ice" if u < Tuning.planet.top_ice_share else &"ore_base"
+
+
+static func _area(pts: PackedVector2Array) -> float:
+	var n := pts.size()
+	var a := 0.0
+	var prev := pts[n - 1]
+	for p in pts:
+		a += prev.cross(p)
+		prev = p
+	return absf(a) * 0.5
 
 
 static func _hull(rng: RandomNumberGenerator, rad: float) -> PackedVector2Array:
@@ -134,6 +162,7 @@ static func near(pos: Vector2, t: float, radius: float) -> Array:
 	var d := pos.length()
 	var k_lo := maxi(0, floori((d - radius - fr - edge) / bw))
 	var bands := band_count()
+	var bounds: Array = WellGenerator.tiers()["boundaries"]
 	var k_hi := mini(bands - 1, floori((d + radius + fr - edge) / bw))
 	var phi := pos.angle()
 	for k in range(k_lo, k_hi + 1):
@@ -156,9 +185,9 @@ static func near(pos: Vector2, t: float, radius: float) -> Array:
 				last = n - 1
 		for ci in range(first, last + 1):
 			var i := posmod(ci, n)
-			var c := chunk(k, i, bands)
+			var c := chunk(k, i, bands, bounds)
 			for j in c.size():
 				var st := state(k, c[j], t)
 				if st["pos"].distance_to(pos) <= radius:
-					out.append({"pos": st["pos"], "vel": st["vel"], "radius": c[j]["radius"], "points": c[j]["points"], "band": k, "chunk": i, "idx": j, "r": c[j]["r"], "theta": c[j]["theta"], "omega": om})
+					out.append({"pos": st["pos"], "vel": st["vel"], "radius": c[j]["radius"], "points": c[j]["points"], "type": c[j]["type"], "amount": c[j]["amount"], "band": k, "chunk": i, "idx": j, "r": c[j]["r"], "theta": c[j]["theta"], "omega": om})
 	return out

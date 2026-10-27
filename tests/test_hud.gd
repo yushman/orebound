@@ -126,51 +126,109 @@ func test_tier_colors_are_halo_tints_with_kept_alpha() -> void:
 	assert_eq(seen.size(), 4)
 
 
-func test_cargo_count_rounds_and_clamps() -> void:
-	assert_eq(HUD_SCRIPT.cargo_count(0.0), 0)
-	assert_eq(HUD_SCRIPT.cargo_count(1.0), HUD_SCRIPT.CARGO_MAX)
-	assert_eq(HUD_SCRIPT.cargo_count(0.5), roundi(0.5 * HUD_SCRIPT.CARGO_MAX))
-	assert_eq(HUD_SCRIPT.cargo_count(-1.0), 0)
-	assert_eq(HUD_SCRIPT.cargo_count(2.0), HUD_SCRIPT.CARGO_MAX)
-	assert_eq(HUD_SCRIPT.cargo_count(0.26), roundi(0.26 * HUD_SCRIPT.CARGO_MAX))
+func _cell(type: StringName, fill: float) -> HoldCell:
+	var c := HoldCell.new()
+	c.type = type
+	c.fill = fill
+	return c
 
 
-func test_cargo_cells_are_a_centred_row_of_cargo_max() -> void:
-	assert_eq(HUD_SCRIPT.CARGO_MAX, 6)
-	var cells: Array[Rect2] = HUD_SCRIPT.cargo_cells()
-	assert_eq(cells.size(), HUD_SCRIPT.CARGO_MAX)
-	for i in cells.size():
-		assert_eq(cells[i].size, Vector2(HUD_SCRIPT.CELL_SIZE, HUD_SCRIPT.CELL_SIZE))
-		assert_eq(cells[i].position.y, cells[0].position.y)
-		if i > 0:
-			assert_gt(cells[i].position.x, cells[i - 1].end.x)
-	var left: float = cells[0].position.x
-	var right: float = cells[cells.size() - 1].end.x
-	assert_almost_eq((left + right) * 0.5, 640.0, 1e-3)
-	assert_gt(cells[0].position.y, HUD_SCRIPT.BOTTOM_Y)
-	assert_lt(cells[0].end.y, 800.0)
+func test_cell_color_is_fuel_or_asteroid_color() -> void:
+	assert_eq(HUD_SCRIPT.cell_color(&"fuel"), Palette.FUEL)
+	for t in [&"ice", &"ore_base", &"ore_middle", &"ore_rare", &"ore_unique"]:
+		assert_eq(HUD_SCRIPT.cell_color(t), AsteroidView.color_of(t))
 
 
-func test_cargo_filled_count_follows_fill() -> void:
-	for fill in [0.0, 0.2, 0.5, 1.0]:
-		var filled := 0
-		for i in HUD_SCRIPT.CARGO_MAX:
-			if HUD_SCRIPT.cell_filled(i, fill):
-				filled += 1
-		assert_eq(filled, HUD_SCRIPT.cargo_count(fill))
-	assert_true(HUD_SCRIPT.cell_filled(0, 1.0))
-	assert_false(HUD_SCRIPT.cell_filled(HUD_SCRIPT.CARGO_MAX - 1, 0.0))
+func test_cell_patterns_are_pairwise_distinct() -> void:
+	var seen := {}
+	for t in [&"fuel", &"ice", &"ore_base", &"ore_middle", &"ore_rare", &"ore_unique"]:
+		seen[HUD_SCRIPT.cell_pattern(t)] = true
+	assert_eq(seen.size(), 6)
 
 
-func test_cargo_colors_come_from_palette() -> void:
-	assert_eq(HUD_SCRIPT.CARGO_FILL_COLOR, Palette.ORE)
-	assert_eq(HUD_SCRIPT.CARGO_EMPTY_COLOR, Palette.HALO)
+func test_tank_slots_full_first_partial_last_input_unchanged() -> void:
+	var cells: Array[HoldCell] = [_cell(&"fuel", 0.4), _cell(&"fuel", 1.0), _cell(&"ice", 1.0)]
+	var out: Array[HoldCell] = HUD_SCRIPT.tank_slots(cells)
+	assert_eq(out.size(), 3)
+	assert_eq(out[0], cells[1])
+	assert_eq(out[1], cells[2])
+	assert_eq(out[2], cells[0])
+	assert_eq(cells[0].fill, 0.4)
+	assert_eq(cells[2].type, &"ice")
 
 
-func test_debug_text_shows_energy_mass_and_hold_slots() -> void:
-	assert_eq(HUD_SCRIPT.debug_text(ShipState.new()), "энергия 6.00 · масса 10.0 · трюм 2/10")
+func test_bar_cells_are_centred_on_the_width() -> void:
+	var cells: Array[Rect2] = HUD_SCRIPT.bar_cells(4, 1000.0, 700.0)
+	assert_eq(cells.size(), 4)
+	assert_almost_eq((cells[0].position.x + cells[3].end.x) * 0.5, 500.0, 1e-3)
+	assert_eq(cells[2].position.y, 700.0)
+	assert_eq(cells[1].size, Vector2(HUD_SCRIPT.CELL_SIZE, HUD_SCRIPT.CELL_SIZE))
+	assert_almost_eq(cells[1].position.x - cells[0].end.x, HUD_SCRIPT.CELL_GAP, 1e-3)
+	assert_eq(HUD_SCRIPT.bar_cells(0, 1000.0, 0.0).size(), 0)
 
 
-func test_debug_text_with_separate_tank_adds_tank_slots() -> void:
-	Tuning.ship.separate_tank = true
-	assert_eq(HUD_SCRIPT.debug_text(ShipState.new()), "энергия 6.00 · масса 10.0 · трюм 0/10 · бак 2/4")
+func test_fill_rect_covers_fill_from_the_left() -> void:
+	var r := Rect2(10, 20, 20, 20)
+	assert_eq(HUD_SCRIPT.fill_rect(r, 0.25), Rect2(10, 20, 5, 20))
+	assert_eq(HUD_SCRIPT.fill_rect(r, 1.0), r)
+	assert_eq(HUD_SCRIPT.fill_rect(r, 2.0), r)
+	assert_eq(HUD_SCRIPT.fill_rect(r, -1.0).size.x, 0.0)
+
+
+func test_bars_sit_at_bottom_centre_tank_above_hold_hull_below() -> void:
+	assert_lt(HUD_SCRIPT.TANK_Y, HUD_SCRIPT.HOLD_Y)
+	assert_lt(HUD_SCRIPT.HOLD_Y, HUD_SCRIPT.HULL_Y)
+	assert_gt(HUD_SCRIPT.TANK_Y, HUD_SCRIPT.BOTTOM_Y)
+	assert_lt(HUD_SCRIPT.HULL_Y + HUD_SCRIPT.HULL_H, 800.0)
+
+
+func test_hull_segments_ceil_and_clamp() -> void:
+	assert_eq(HUD_SCRIPT.hull_segments(100.0, 100.0), 5)
+	assert_eq(HUD_SCRIPT.hull_segments(0.0, 100.0), 0)
+	assert_eq(HUD_SCRIPT.hull_segments(1.0, 100.0), 1)
+	assert_eq(HUD_SCRIPT.hull_segments(50.0, 100.0), 3)
+	assert_eq(HUD_SCRIPT.hull_segments(40.0, 100.0), 2)
+	assert_eq(HUD_SCRIPT.hull_segments(150.0, 100.0), 5)
+	assert_eq(HUD_SCRIPT.hull_segments(-5.0, 100.0), 0)
+
+
+func test_reserve_state_and_colors() -> void:
+	assert_eq(HUD_SCRIPT.reserve_state(9.0, 10.0, 12.0), HUD_SCRIPT.State.BELOW)
+	assert_eq(HUD_SCRIPT.reserve_state(11.0, 10.0, 12.0), HUD_SCRIPT.State.NEAR)
+	assert_eq(HUD_SCRIPT.reserve_state(12.0, 10.0, 12.0), HUD_SCRIPT.State.NEAR)
+	assert_eq(HUD_SCRIPT.reserve_state(12.5, 10.0, 12.0), HUD_SCRIPT.State.CALM)
+	assert_eq(HUD_SCRIPT.reserve_state(0.0, 0.0, 6.0), HUD_SCRIPT.State.NEAR)
+	assert_eq(HUD_SCRIPT.reserve_state(7.0, 0.0, 6.0), HUD_SCRIPT.State.CALM)
+	assert_eq(HUD_SCRIPT.reserve_color(HUD_SCRIPT.State.BELOW), Palette.DANGER)
+	assert_eq(HUD_SCRIPT.reserve_color(HUD_SCRIPT.State.NEAR), Palette.SAFE)
+	assert_eq(HUD_SCRIPT.reserve_color(HUD_SCRIPT.State.CALM), Palette.HALO)
+
+
+func test_reserve_x_one_cell_grows_with_need_and_clamps() -> void:
+	var e: float = Tuning.resources[&"fuel"].energy
+	var cells: Array[HoldCell] = []
+	for i in 2:
+		var c := HoldCell.new()
+		c.type = &"fuel"
+		c.fill = 1.0
+		cells.append(c)
+	var rects := HUD_SCRIPT.bar_cells(4, 1280.0, HUD_SCRIPT.TANK_Y)
+	assert_almost_eq(HUD_SCRIPT.reserve_x(cells, 4, e, rects), rects[0].end.x, 0.001)
+	var half: float = rects[1].position.x + rects[1].size.x * 0.5
+	assert_almost_eq(HUD_SCRIPT.reserve_x(cells, 4, e * 1.5, rects), half, 0.001)
+	assert_almost_eq(HUD_SCRIPT.reserve_x(cells, 4, e * 3.0, rects), rects[2].end.x, 0.001)
+	assert_almost_eq(HUD_SCRIPT.reserve_x(cells, 4, e * 100.0, rects), rects[3].end.x, 0.001)
+
+
+func test_debug_text_shows_energy_mass_hold_tank_slots_and_need() -> void:
+	assert_eq(HUD_SCRIPT.debug_text(ShipState.new(), 1.5), "энергия 6.00 · масса 10.0 · трюм 0/10 · бак 2/4 · нужно 1.50")
+
+
+func test_debug_visible_only_with_visible_panel() -> void:
+	assert_false(HUD_SCRIPT.debug_visible(null))
+	var c := Control.new()
+	add_child_autofree(c)
+	c.visible = false
+	assert_false(HUD_SCRIPT.debug_visible(c))
+	c.visible = true
+	assert_true(HUD_SCRIPT.debug_visible(c))

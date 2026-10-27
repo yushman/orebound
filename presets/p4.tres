@@ -22,9 +22,8 @@ hull_mass = 4.0
 hold_capacity = 10
 ref_mass = 10.0
 loadout_fuel_cells = 2
-separate_tank = false
 tank_capacity = 4
-climb_coefficient = 0.2
+climb_coefficient = 0.05
 
 [resource]
 script = ExtResource("3_iq7bx")
