@@ -93,11 +93,11 @@ func _draw_bars(font: Font, frame_color: Color, reserve: float) -> void:
 		draw_rect(frame, frame_color, false, OUTLINE_W)
 		var x := reserve_x(tank_slots(s.tank), int(p.tank_capacity), reserve, tank)
 		_draw_diagonals(Rect2(tank[0].position.x, TANK_Y + CELL_SIZE + 2.0, x - tank[0].position.x, RESERVE_H), Palette.DANGER)
-	_draw_cells(font, "трюм", s.hold, int(p.hold_capacity), HOLD_Y, "масса %.1f" % Hold.mass(s))
+	_draw_cells(font, "трюм", s.hold, int(p.hold_capacity), HOLD_Y, "масса %.1f" % Hold.mass(s), hold_frame_index(s))
 	_draw_hull(font, s)
 
 
-func _draw_cells(font: Font, label: String, cells: Array[HoldCell], capacity: int, y: float, tail: String) -> void:
+func _draw_cells(font: Font, label: String, cells: Array[HoldCell], capacity: int, y: float, tail: String, framed := -1) -> void:
 	var rects := bar_cells(capacity, size.x, y)
 	if rects.is_empty():
 		return
@@ -115,6 +115,8 @@ func _draw_cells(font: Font, label: String, cells: Array[HoldCell], capacity: in
 			_draw_pattern(fr, cell_pattern(c.type), cell_color(c.type))
 			full = c.fill >= 1.0
 		draw_rect(rects[i], Palette.HULL if full else Palette.HULL_SHADE, false, OUTLINE_W)
+	if framed >= 0 and framed < rects.size():
+		draw_rect(rects[framed].grow(FRAME_PAD * 0.5), Palette.SAFE, false, OUTLINE_W)
 
 
 func _draw_pattern(r: Rect2, pattern: StringName, color: Color) -> void:
@@ -188,6 +190,10 @@ static func cell_pattern(type: StringName) -> StringName:
 		&"ore_unique":
 			return &"cross"
 	return &"solid"
+
+
+static func hold_frame_index(s: ShipState) -> int:
+	return Hold.effective_pick(s)
 
 
 static func tank_slots(cells: Array[HoldCell]) -> Array[HoldCell]:

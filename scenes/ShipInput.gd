@@ -10,6 +10,8 @@ var soft_brake: bool
 var drift_sync: bool
 var beam: bool
 var collect: bool
+var jettison: bool
+var jettison_select: bool
 var aim: float
 
 
@@ -40,5 +42,7 @@ func copy() -> ShipInput:
 	c.drift_sync = drift_sync
 	c.beam = beam
 	c.collect = collect
+	c.jettison = jettison
+	c.jettison_select = jettison_select
 	c.aim = aim
 	return c

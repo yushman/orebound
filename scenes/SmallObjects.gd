@@ -16,7 +16,9 @@ static func update(s: ShipState, t: float, dt: float) -> void:
 			if b.age >= life:
 				continue
 			_shrink(b, old_age, life, pl.piece_min_radius)
-		if b.pos.distance_to(s.pos) <= pl.piece_despawn_radius and not _blocked(b.pos, t):
+		elif b.container:
+			b.age += dt
+		if (b.container or b.pos.distance_to(s.pos) <= pl.piece_despawn_radius) and not _blocked(b.pos, t):
 			kept.append(b)
 	s.bodies = kept
 

@@ -155,3 +155,40 @@ func test_room_is_zero_for_a_full_hold_and_counts_the_free_part_of_a_partial_cel
 	full.hold[0].fill = 0.5
 	assert_almost_eq(Hold.room(full, &"ice"), 0.5, 1e-6)
 	assert_eq(Hold.room(full, &"ore_middle"), 0.0)
+
+
+func test_effective_pick_is_the_heaviest_hold_cell_and_advances_with_wrap() -> void:
+	var s := _empty()
+	assert_eq(Hold.effective_pick(s), -1)
+	assert_eq(Hold.next_pick(s), -1)
+	s.tank.append(_cell(&"fuel", 1.0))
+	assert_eq(Hold.heaviest(s), -1)
+	var light := _cell(&"ice", 0.1)
+	var heavy := _cell(&"ice", 1.0)
+	s.hold.append(light)
+	s.hold.append(heavy)
+	s.hold.append(_cell(&"ice", 1.0))
+	assert_eq(Hold.heaviest(s), 1)
+	assert_eq(Hold.effective_pick(s), 1)
+	s.jettison_pick = 0
+	assert_eq(Hold.effective_pick(s), 0)
+	s.jettison_pick = 7
+	assert_eq(Hold.effective_pick(s), 1)
+	assert_eq(Hold.next_pick(s), 2)
+	s.jettison_pick = 2
+	assert_eq(Hold.next_pick(s), 0)
+	s.jettison_pick = -1
+	assert_eq(Hold.next_pick(s), 2)
+
+
+func test_removing_a_hold_cell_returns_it_and_lowers_ship_mass() -> void:
+	var s := _empty()
+	s.hold.append(_cell(&"ice", 1.0))
+	s.hold.append(_cell(&"ore_rare", 0.5))
+	s.tank.append(_cell(&"fuel", 1.0))
+	var before := Hold.mass(s)
+	var c := Hold.remove_at(s, 1)
+	assert_eq(c.type, &"ore_rare")
+	assert_eq(s.hold.size(), 1)
+	assert_eq(s.tank.size(), 1)
+	assert_almost_eq(Hold.mass(s), before - 0.5 * Tuning.resources[&"ore_rare"].mass, 1e-6)

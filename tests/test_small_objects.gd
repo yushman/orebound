@@ -156,3 +156,24 @@ func test_piece_born_below_min_radius_keeps_its_size() -> void:
 	assert_eq(s.bodies[0].amount, 6.0)
 	SmallObjects.update(s, 1.0, 5.0)
 	assert_eq(s.bodies.size(), 0)
+
+
+func test_container_ages_without_shrinking_or_expiring() -> void:
+	Tuning.planet.piece_lifetime = 1.0
+	var s := _ship_at(Vector2(121500.0, 0.0))
+	var b := _near_body(false)
+	b.container = true
+	b.radius = 3.0
+	b.amount = 0.7
+	b.pos = Vector2(121500.0, Tuning.planet.piece_despawn_radius + 5000.0)
+	s.bodies.append(b)
+	for i in 8:
+		SmallObjects.update(s, 1.0, 0.25)
+	assert_eq(s.bodies.size(), 1)
+	assert_eq(s.bodies[0].radius, 3.0)
+	assert_eq(s.bodies[0].amount, 0.7)
+	assert_eq(s.bodies[0].age, 2.0)
+	assert_eq(s.bodies[0].points.size(), 0)
+	s.bodies[0].pos = Vector2(0.0, 100.0)
+	SmallObjects.update(s, 1.0, 0.25)
+	assert_eq(s.bodies.size(), 0)

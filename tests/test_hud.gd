@@ -232,3 +232,13 @@ func test_debug_visible_only_with_visible_panel() -> void:
 	assert_false(HUD_SCRIPT.debug_visible(c))
 	c.visible = true
 	assert_true(HUD_SCRIPT.debug_visible(c))
+
+
+func test_hold_frame_index_is_effective_pick_minus_one_for_empty_hold() -> void:
+	var s := ShipState.new()
+	assert_eq(HUD_SCRIPT.hold_frame_index(s), -1)
+	s.hold.append(_cell(&"ice", 1.0))
+	s.hold.append(_cell(&"ore_rare", 1.0))
+	assert_eq(HUD_SCRIPT.hold_frame_index(s), Hold.effective_pick(s))
+	s.jettison_pick = 0
+	assert_eq(HUD_SCRIPT.hold_frame_index(s), 0)

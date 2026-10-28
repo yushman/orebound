@@ -37,6 +37,7 @@
 | 41 | `before_each` / `after_each` не сохраняют и не восстанавливают `Tuning.picture`, хотя тесты вызывают `Tuning.regenerate` (требование `tests/CLAUDE.md`) | `tests/test_tuning_panel.gd` | сохранять и восстанавливать `Tuning.picture` |
 | 42 | Перемежающиеся падения: `test_sync_fallback_band_drift_below_carrier_from_both_directions` (см. #39) и тест времени предсказания с астероидами (раз вышло 3,15 мс при бюджете 3,0 мс) | `tests/test_ship_flight.gd`, `tests/test_ship_prediction.gd` | для первого — как в #39; для второго — ослабить бюджет или мерять медиану нескольких прогонов |
 | 52 | Негативные тесты удалённых ручек собирают имена склейкой `"return_" + "speed_" + k`, чтобы обойти grep | `tests/test_ship_params.gd:76`, `tests/test_tuning_panel.gd:534` | писать имена целиком (`return_speed_mode`, `return_speed_tau`) |
+| 64 | При запуске одного `tests/test_ship_flight.gd` падают 2 теста луча с «Cannot compare Vector3i to int» (в полном прогоне проходят): протекающее состояние, как в #39 | `tests/test_ship_flight.gd` | найти протекающее состояние и задать его в `before_each` |
 
 ## Топливо (M2)
 
@@ -71,3 +72,9 @@
 | 60 | `beam_candidates` отбрасывает астероиды с `radius` <= `collect_radius`; если ползунком сделать `collect_radius` >= `ast_radius_min`, их нельзя ни разбить, ни собрать | `scenes/ShipFlight.gd:203` | фильтровать по `collect_radius` только `s.bodies` |
 | 61 | Цвет сектора сборщика берётся из `Palette.FUEL`, а он привязан к топливу в баке | `scenes/CollectorView.gd:9` | завести `Palette.COLLECTOR` |
 | 62 | `Hold.room` дублирует поиск ячейки, ёмкости и последней неполной ячейки из `Hold.add` | `scenes/Hold.gd:46` | общий приватный помощник |
+
+## Сброс (M7)
+
+| # | Что | Где | Как чинить |
+|---|---|---|---|
+| 65 | Диапазоны `TuningPanel` позволяют `jettison_tap_time` > `jettison_hold_time`: тогда FIRE наступает раньше окна выбора, короткое нажатие невозможно | `scenes/LongPress.gd`, `ui/TuningPanel.gd` | ограничить `hold_time >= tap_time` в `Ship._read_input` или сузить диапазоны ползунков |

@@ -50,12 +50,19 @@ func _on_respawned() -> void:
 
 
 func _start(tick: int) -> void:
-	var held: ShipInput = ship.input.copy()
-	held.turn = 0.0
+	var held := held_input(ship.input)
 	_fresh = false
 	_task_gen = _gen
 	_task_tick = tick
 	_task = WorkerThreadPool.add_task(_run.bind(ship.state.copy(), held, tick, Tuning.ship.predict_short_steps))
+
+
+static func held_input(input: ShipInput) -> ShipInput:
+	var held := input.copy()
+	held.turn = 0.0
+	held.jettison = false
+	held.jettison_select = false
+	return held
 
 
 func _run(state: ShipState, held: ShipInput, tick: int, steps: int) -> void:

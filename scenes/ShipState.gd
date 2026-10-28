@@ -19,6 +19,7 @@ var broken: Dictionary = {}
 var beam_target = null
 var beam_charge := 0.0
 var bodies: Array[FreeBody] = []
+var jettison_pick := -1
 
 
 func _init(with_loadout := true) -> void:
@@ -47,6 +48,7 @@ func copy() -> ShipState:
 	c.broken = broken.duplicate()
 	c.beam_target = beam_target
 	c.beam_charge = beam_charge
+	c.jettison_pick = jettison_pick
 	for b in bodies:
 		c.bodies.append(b.copy())
 	return c

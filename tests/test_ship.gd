@@ -242,3 +242,106 @@ func test_read_input_maps_collect() -> void:
 	Input.action_press("ship_collect")
 	assert_true(ship._read_input().collect)
 	Input.action_release("ship_collect")
+
+
+func _hold_jettison(ship: Node, ticks: int) -> Array:
+	var seen := []
+	Input.action_press("ship_jettison")
+	for i in ticks:
+		seen.append(ship._read_input())
+	Input.action_release("ship_jettison")
+	return seen
+
+
+func test_holding_jettison_for_hold_time_sets_jettison_for_one_tick() -> void:
+	var saved := [Telemetry.jettisons, Telemetry.jettison_selects, Telemetry.jettison_cancelled]
+	var ship = _make()
+	Hold.add(ship.state, &"ice", 1.0)
+	var seen := _hold_jettison(ship, 121)
+	var fired := []
+	for i in seen.size():
+		if seen[i].jettison:
+			fired.append(i)
+		assert_false(seen[i].jettison_select)
+	assert_eq(fired, [119])
+	assert_false(ship._read_input().jettison)
+	Telemetry.jettisons = saved[0]
+	Telemetry.jettison_selects = saved[1]
+	Telemetry.jettison_cancelled = saved[2]
+
+
+func test_short_press_sets_jettison_select_for_one_tick() -> void:
+	var saved: int = Telemetry.jettison_selects
+	Telemetry.jettison_selects = 0
+	var ship = _make()
+	Hold.add(ship.state, &"ice", 1.0)
+	_hold_jettison(ship, 5)
+	var inp: ShipInput = ship._read_input()
+	assert_true(inp.jettison_select)
+	assert_false(inp.jettison)
+	assert_false(ship._read_input().jettison_select)
+	assert_eq(Telemetry.jettison_selects, 1)
+	Telemetry.jettison_selects = saved
+
+
+func test_fire_counts_jettison() -> void:
+	var saved: int = Telemetry.jettisons
+	Telemetry.jettisons = 0
+	var ship = _make()
+	Hold.add(ship.state, &"ice", 1.0)
+	_hold_jettison(ship, 125)
+	assert_eq(Telemetry.jettisons, 1)
+	Telemetry.jettisons = saved
+
+
+func test_release_between_tap_time_and_cancel_window_end_counts_jettison_cancelled() -> void:
+	var saved_c: int = Telemetry.jettison_cancelled
+	var saved_s: int = Telemetry.jettison_selects
+	Telemetry.jettison_cancelled = 0
+	Telemetry.jettison_selects = 0
+	var ship = _make()
+	_hold_jettison(ship, 60)
+	var inp: ShipInput = ship._read_input()
+	assert_false(inp.jettison)
+	assert_false(inp.jettison_select)
+	assert_eq(Telemetry.jettison_cancelled, 1)
+	assert_eq(Telemetry.jettison_selects, 0)
+	Telemetry.jettison_cancelled = saved_c
+	Telemetry.jettison_selects = saved_s
+
+
+func test_respawn_while_jettison_held_does_not_fire_in_new_flight() -> void:
+	var saved := [Telemetry.jettisons, Telemetry.jettison_selects, Telemetry.jettison_cancelled]
+	var ship = _make()
+	Input.action_press("ship_jettison")
+	for i in 90:
+		ship._read_input()
+	ship.respawn()
+	Hold.add(ship.state, &"ice", 1.0)
+	var fired := false
+	for i in 100:
+		fired = fired or ship._read_input().jettison
+	Input.action_release("ship_jettison")
+	assert_false(fired)
+	Telemetry.jettisons = saved[0]
+	Telemetry.jettison_selects = saved[1]
+	Telemetry.jettison_cancelled = saved[2]
+
+
+func test_holding_jettison_with_empty_hold_leaves_telemetry_jettisons_at_zero() -> void:
+	var saved: int = Telemetry.jettisons
+	Telemetry.jettisons = 0
+	var ship = _make()
+	_hold_jettison(ship, 125)
+	assert_eq(Telemetry.jettisons, 0)
+	Telemetry.jettisons = saved
+
+
+func test_short_press_with_empty_hold_leaves_jettison_selects_at_zero() -> void:
+	var saved: int = Telemetry.jettison_selects
+	Telemetry.jettison_selects = 0
+	var ship = _make()
+	_hold_jettison(ship, 5)
+	ship._read_input()
+	assert_eq(Telemetry.jettison_selects, 0)
+	Telemetry.jettison_selects = saved

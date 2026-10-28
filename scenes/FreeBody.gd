@@ -10,6 +10,7 @@ var type: StringName
 var amount: float
 var id
 var piece := false
+var container := false
 var age := 0.0
 var pull_speed := 0.0
 
@@ -30,6 +31,7 @@ func copy() -> FreeBody:
 	c.amount = amount
 	c.id = id
 	c.piece = piece
+	c.container = container
 	c.age = age
 	c.pull_speed = pull_speed
 	return c

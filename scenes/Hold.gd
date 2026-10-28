@@ -87,3 +87,32 @@ static func drain(s: ShipState, amount: float) -> float:
 		if c.fill <= EPS:
 			s.tank.erase(c)
 	return amount - left
+
+
+static func heaviest(s: ShipState) -> int:
+	var best := -1
+	var best_mass := -1.0
+	for i in s.hold.size():
+		var m: float = s.hold[i].fill * Tuning.resources[s.hold[i].type].mass
+		if m > best_mass:
+			best_mass = m
+			best = i
+	return best
+
+
+static func effective_pick(s: ShipState) -> int:
+	if s.jettison_pick < 0 or s.jettison_pick >= s.hold.size():
+		return heaviest(s)
+	return s.jettison_pick
+
+
+static func next_pick(s: ShipState) -> int:
+	if s.hold.is_empty():
+		return s.jettison_pick
+	return (effective_pick(s) + 1) % s.hold.size()
+
+
+static func remove_at(s: ShipState, i: int) -> HoldCell:
+	var c := s.hold[i]
+	s.hold.remove_at(i)
+	return c

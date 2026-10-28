@@ -1431,3 +1431,126 @@ func test_contact_takes_the_precomputed_hull_loss() -> void:
 	s.hull = 50.0
 	ShipFlight._contact(s, Vector2.RIGHT, -5.0, 0.5, 3.0)
 	assert_almost_eq(s.hull, 47.0, 0.001)
+
+
+func _jet_state() -> ShipState:
+	Tuning.planet.asteroids_per_band = 0.0
+	var s := _state(Vector2(Tuning.field.carrier_orbit_radius, 0))
+	Hold.add(s, &"ice", 1.0)
+	Hold.add(s, &"ore_middle", 0.5)
+	return s
+
+
+func test_jettison_select_in_step_advances_jettison_pick_over_the_hold() -> void:
+	var s := _jet_state()
+	var first := Hold.effective_pick(s)
+	var inp := ShipInput.new()
+	inp.jettison_select = true
+	var out := ShipFlight.step(s, inp, 0.0, DT)
+	assert_eq(out.jettison_pick, (first + 1) % s.hold.size())
+	assert_eq(s.jettison_pick, -1)
+	var empty := _state(Vector2(Tuning.field.carrier_orbit_radius, 0))
+	assert_eq(ShipFlight.step(empty, inp, 0.0, DT).jettison_pick, -1)
+
+
+func test_jettison_drops_the_effective_cell_as_a_container_behind_the_nose_and_lowers_mass() -> void:
+	var s := _jet_state()
+	var idx := Hold.effective_pick(s)
+	var cell := s.hold[idx]
+	var type := cell.type
+	var fill := cell.fill
+	var tank := s.tank.size()
+	var m0 := Hold.mass(s)
+	s.jettison_pick = 1
+	var inp := ShipInput.new()
+	inp.jettison = true
+	var out := ShipFlight.step(s, inp, 0.0, DT)
+	assert_eq(out.hold.size(), s.hold.size() - 1)
+	assert_eq(out.tank.size(), tank)
+	assert_eq(out.jettison_pick, -1)
+	assert_lt(Hold.mass(out), m0)
+	assert_eq(out.bodies.size(), 1)
+	var b := out.bodies[0]
+	assert_true(b.container)
+	assert_false(b.piece)
+	assert_eq(b.points.size(), 4)
+	assert_almost_eq(b.radius, 0.5 * Tuning.planet.collect_radius, 1e-6)
+	assert_eq(b.amount, s.hold[1].fill)
+	assert_eq(b.type, s.hold[1].type)
+	assert_gt(b.vel.y, 0.8 * Tuning.ship.jettison_push)
+	assert_eq(ShipFlight.step(s, inp, 0.0, DT).bodies[0].id, b.id)
+	var empty := _state(Vector2(Tuning.field.carrier_orbit_radius, 0))
+	assert_eq(ShipFlight.step(empty, inp, 0.0, DT).bodies.size(), 0)
+	assert_ne(type, &"")
+	assert_gt(fill, 0.0)
+
+
+func test_touching_a_container_without_collect_neither_picks_it_up_nor_damages_the_hull() -> void:
+	var s := _jet_state()
+	var c := _square_body(s.pos, 10.0, 77)
+	c.container = true
+	s.bodies = [c]
+	var m0 := Hold.mass(s)
+	var out := ShipFlight.step(s, ShipInput.new(), 0.0, DT)
+	assert_eq(out.bodies.size(), 1)
+	assert_eq(out.hull, s.hull)
+	assert_almost_eq(Hold.mass(out), m0, 1e-6)
+	var inp := ShipInput.new()
+	inp.collect = true
+	var young := ShipFlight.step(s, inp, 0.0, DT)
+	assert_eq(young.bodies.size(), 1)
+	assert_almost_eq(Hold.mass(young), m0, 1e-6)
+	c.age = Tuning.ship.jettison_pickup_delay
+	var got := ShipFlight.step(s, inp, 0.0, DT)
+	assert_eq(got.bodies.size(), 0)
+	assert_gt(Hold.mass(got), m0)
+	var drop := _jet_state()
+	var j := ShipInput.new()
+	j.jettison = true
+	var d1 := ShipFlight.step(drop, j, 0.0, DT)
+	var d2 := ShipFlight.step(d1, ShipInput.new(), 0.0, DT)
+	assert_eq(d2.bodies.size(), 1)
+	assert_eq(d2.hold.size(), d1.hold.size())
+
+
+func test_jettison_with_collect_held_keeps_the_container_out_of_the_hold_until_the_pickup_delay() -> void:
+	var s := _jet_state()
+	var m0 := Hold.mass(s)
+	var n0 := s.hold.size()
+	var inp := ShipInput.new()
+	inp.jettison = true
+	inp.collect = true
+	inp.aim = PI * 0.5
+	s = ShipFlight.step(s, inp, 0.0, DT)
+	inp.jettison = false
+	var ticks := int(Tuning.ship.jettison_pickup_delay / DT) - 10
+	for i in ticks:
+		s = ShipFlight.step(s, inp, float(i) * DT, DT)
+	assert_eq(s.hold.size(), n0 - 1)
+	assert_eq(s.bodies.size(), 1)
+	for i in 120:
+		s = ShipFlight.step(s, inp, float(ticks + i) * DT, DT)
+	assert_eq(s.bodies.size(), 0)
+	assert_almost_eq(Hold.mass(s), m0, 1e-4)
+
+
+func test_container_is_collected_without_hull_damage_after_collect_radius_drops_below_its_radius() -> void:
+	var s := _jet_state()
+	var n0 := s.hold.size()
+	var inp := ShipInput.new()
+	inp.jettison = true
+	s = ShipFlight.step(s, inp, 0.0, DT)
+	var cr0: float = Tuning.planet.collect_radius
+	Tuning.planet.collect_radius = cr0 * 0.4
+	assert_true(s.bodies[0].radius > Tuning.planet.collect_radius)
+	assert_eq(ShipFlight.beam_candidates(s, 0.0).size(), 0)
+	var hull := s.hull
+	s.bodies[0].age = Tuning.ship.jettison_pickup_delay
+	s.bodies[0].pos = s.pos
+	var c := ShipInput.new()
+	c.collect = true
+	var out := ShipFlight.step(s, c, 0.0, DT)
+	assert_eq(out.bodies.size(), 0)
+	assert_eq(out.hull, hull)
+	assert_eq(out.hold.size(), n0)
+	Tuning.planet.collect_radius = cr0

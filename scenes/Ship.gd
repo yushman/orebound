@@ -2,6 +2,7 @@ extends CharacterBody2D
 
 var state := ShipState.new()
 var input := ShipInput.new()
+var _jettison_press := LongPress.new()
 
 signal respawned
 
@@ -13,6 +14,7 @@ func _ready() -> void:
 
 func respawn() -> void:
 	state = ShipState.new()
+	_jettison_press = LongPress.new()
 	# The carrier is a fixed point of the rotating frame, so rest there is stable.
 	var pos := Vector2(Tuning.field.carrier_orbit_radius, 0.0)
 	state.pos = pos
@@ -51,4 +53,18 @@ func _read_input() -> ShipInput:
 	inp.boost = Input.is_action_pressed("ship_boost")
 	inp.soft_brake = Input.is_action_pressed("ship_brake")
 	inp.drift_sync = Input.is_action_pressed("ship_drift_sync")
+	_jettison_press.tap_time = Tuning.ship.jettison_tap_time
+	_jettison_press.hold_time = Tuning.ship.jettison_hold_time
+	_jettison_press.interval = Tuning.ship.jettison_interval
+	match _jettison_press.update(Input.is_action_pressed("ship_jettison"), GravityField.DT):
+		LongPress.Event.TAP:
+			inp.jettison_select = true
+			if not state.hold.is_empty():
+				Telemetry.jettison_selects += 1
+		LongPress.Event.FIRE:
+			inp.jettison = true
+			if not state.hold.is_empty():
+				Telemetry.jettisons += 1
+		LongPress.Event.CANCEL:
+			Telemetry.jettison_cancelled += 1
 	return inp

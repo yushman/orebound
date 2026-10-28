@@ -51,7 +51,8 @@ func test_slider_set_covers_all_parameters() -> void:
 			"heat_growth_boost", "heat_threshold", "heat_cooldown", "min_thrust_fraction",
 			"sync_accel", "sync_fuel_mult", "predict_every", "predict_short_steps", "hull_max",
 				"hull_mass", "hold_capacity", "ref_mass", "loadout_fuel_cells", "tank_capacity",
-				"beam_range", "beam_damage", "collect_angle", "collect_accel", "return_margin", "hit_radius"]:
+				"beam_range", "beam_damage", "collect_angle", "collect_accel", "return_margin", "hit_radius",
+				"jettison_tap_time", "jettison_hold_time", "jettison_interval", "jettison_push", "jettison_pickup_delay"]:
 		expect.append("ship." + p)
 	for p in ["atmosphere_drag", "atmosphere_damage", "density_shape", "moon_mass_k", "moon_mass_exp",
 			"moon_influence_k", "moon_margin", "moon_bounce", "moon_impact_damage",
@@ -543,3 +544,11 @@ func test_small_object_sliders_write_without_regenerate() -> void:
 	_panel.sliders["ship.hit_radius"].value = 20.0
 	assert_eq(Tuning.ship.hit_radius, 20.0)
 	assert_eq(Telemetry.seed, before)
+
+
+func test_jettison_slider_writes_ship_params() -> void:
+	Tuning.ship = Tuning.ship.duplicate(true)
+	_panel.sliders["ship.jettison_push"].value = 8.0
+	assert_eq(Tuning.ship.jettison_push, 8.0)
+	_panel.sliders["ship.jettison_pickup_delay"].value = 2.5
+	assert_eq(Tuning.ship.jettison_pickup_delay, 2.5)

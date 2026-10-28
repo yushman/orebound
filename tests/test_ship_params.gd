@@ -84,3 +84,11 @@ func test_tuning_ship_collector_and_beam_damage_defaults() -> void:
 	assert_gt(Tuning.ship.get("beam_damage"), 0.0)
 	assert_eq(Tuning.ship.get("collect_angle"), 60.0)
 	assert_eq(Tuning.ship.get("collect_accel"), 200.0)
+
+
+func test_jettison_params_defaults() -> void:
+	assert_eq(Tuning.ship.get("jettison_tap_time"), 0.7)
+	assert_eq(Tuning.ship.get("jettison_hold_time"), 2.0)
+	assert_eq(Tuning.ship.get("jettison_interval"), 0.7)
+	assert_eq(Tuning.ship.get("jettison_push"), 5.0)
+	assert_eq(Tuning.ship.get("jettison_pickup_delay"), 1.5)

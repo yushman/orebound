@@ -183,3 +183,28 @@ func test_input_copy_carries_collect() -> void:
 	assert_true(c.collect)
 	c.collect = false
 	assert_true(i.collect)
+
+
+func test_copy_keeps_jettison_select_pick_and_container() -> void:
+	var i := ShipInput.new()
+	i.jettison = true
+	i.jettison_select = true
+	var ic := i.copy()
+	assert_true(ic.jettison)
+	assert_true(ic.jettison_select)
+	ic.jettison = false
+	assert_true(i.jettison)
+	var s := ShipState.new()
+	assert_eq(s.jettison_pick, -1)
+	s.jettison_pick = 1
+	var sc := s.copy()
+	assert_eq(sc.jettison_pick, 1)
+	sc.jettison_pick = 0
+	assert_eq(s.jettison_pick, 1)
+	var b := FreeBody.new()
+	assert_false(b.container)
+	b.container = true
+	var bc := b.copy()
+	assert_true(bc.container)
+	bc.container = false
+	assert_true(b.container)

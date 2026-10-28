@@ -113,3 +113,9 @@ func test_collect_action_bound_to_rmb_and_lb():
 			continue
 		assert_false(_has_mouse_button(a, MOUSE_BUTTON_RIGHT), a)
 		assert_false(_has_joy_button(a, JOY_BUTTON_LEFT_SHOULDER), a)
+
+
+func test_jettison_action_bound_to_x_and_b() -> void:
+	assert_true(InputMap.has_action("ship_jettison"))
+	assert_true(_has_key("ship_jettison", KEY_X))
+	assert_true(_has_joy_button("ship_jettison", JOY_BUTTON_B))

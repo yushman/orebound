@@ -110,12 +110,13 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 	s.vel *= exp(-Tuning.planet.atmosphere_drag * atmosphere_density(s.pos) * dt)
 	s.vel += (GravityField.accel(s.pos, t) + GravityField.frame_accel(s.pos, s.vel) + nose * thr + a_b) * dt
 	s.pos += s.vel * dt
+	_jettison(s, input)
 	_beam(s, input, t, dt, snapshot)
 	_moon_contact(s, t)
 	_asteroid_contact(s, t, snapshot)
 	SmallObjects.update(s, t, dt)
 	_collect(s, input, dt)
-	_small_contact(s)
+	_small_contact(s, input)
 	s.hull = maxf(s.hull - Tuning.planet.atmosphere_damage * atmosphere_density(s.pos) * dt, 0.0)
 	s.crashed = s.pos.length() <= Tuning.field.planet_surface_radius or s.hull <= 0.0
 	return s
@@ -203,7 +204,7 @@ static func beam_candidates(s: ShipState, t: float, snapshot = null) -> Array:
 		if a["radius"] > cr:
 			cands.append(a)
 	for b in s.bodies:
-		if b.radius > cr:
+		if not b.container and b.radius > cr:
 			cands.append({"key": b.id, "pos": b.pos, "points": b.points, "rot": 0.0, "body": b})
 	return cands
 
@@ -248,6 +249,27 @@ static func _beam(s: ShipState, input: ShipInput, t: float, dt: float, snapshot)
 	s.beam_charge = 0.0
 
 
+static func _jettison(s: ShipState, input: ShipInput) -> void:
+	if input.jettison_select:
+		s.jettison_pick = Hold.next_pick(s)
+	if not input.jettison or s.hold.is_empty():
+		return
+	var cell := Hold.remove_at(s, Hold.effective_pick(s))
+	s.jettison_pick = -1
+	var r: float = 0.5 * Tuning.planet.collect_radius
+	var b := FreeBody.new()
+	b.container = true
+	b.piece = false
+	b.points = PackedVector2Array([Vector2(-r, -r), Vector2(r, -r), Vector2(r, r), Vector2(-r, r)])
+	b.radius = r
+	b.type = cell.type
+	b.amount = cell.fill
+	b.pos = s.pos
+	b.vel = s.vel - Vector2.UP.rotated(s.rot) * Tuning.ship.jettison_push
+	b.id = hash(["container", s.pos, s.vel, s.hold.size()])
+	s.bodies.append(b)
+
+
 static func _asteroid_contact(s: ShipState, t: float, snapshot = null) -> void:
 	var pl: PlanetParams = Tuning.planet
 	for a in _asteroids(s.pos, t, maxf(pl.ast_radius_min, pl.ast_radius_max), snapshot, s.broken):
@@ -266,7 +288,7 @@ static func _collect(s: ShipState, input: ShipInput, dt: float) -> void:
 	var half := deg_to_rad(p.collect_angle) * 0.5
 	for b in s.bodies:
 		var d := s.pos - b.pos
-		if input.collect and b.radius <= Tuning.planet.collect_radius and d.length() <= reach \
+		if input.collect and (b.container or b.radius <= Tuning.planet.collect_radius) and _pickup_ready(b) and d.length() <= reach \
 				and absf(wrapf((-d).angle() - input.aim, -PI, PI)) <= half and Hold.room(s, b.type) > 0.0:
 			b.pull_speed += p.collect_accel * dt
 			b.pos += d.normalized() * minf(b.pull_speed * dt, d.length())
@@ -274,14 +296,21 @@ static func _collect(s: ShipState, input: ShipInput, dt: float) -> void:
 			b.pull_speed = 0.0
 
 
-static func _small_contact(s: ShipState) -> void:
+static func _pickup_ready(b: FreeBody) -> bool:
+	return not b.container or b.age >= Tuning.ship.jettison_pickup_delay
+
+
+static func _small_contact(s: ShipState, input: ShipInput) -> void:
 	var pl: PlanetParams = Tuning.planet
 	var kept: Array[FreeBody] = []
 	for b in s.bodies:
 		if s.pos.distance_to(b.pos) >= Tuning.ship.hit_radius + b.radius:
 			kept.append(b)
 			continue
-		if b.radius <= pl.collect_radius:
+		if b.container and not (input.collect and _pickup_ready(b)):
+			kept.append(b)
+			continue
+		if b.container or b.radius <= pl.collect_radius:
 			b.amount -= Hold.add(s, b.type, b.amount)
 			if b.amount > Hold.EPS:
 				kept.append(b)
