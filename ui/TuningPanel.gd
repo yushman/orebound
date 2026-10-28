@@ -51,6 +51,9 @@ const ROWS := [
 	["ship", "jettison_interval", 0.1, 3.0, 0.05],
 	["ship", "jettison_push", 0.0, 50.0, 0.5],
 	["ship", "jettison_pickup_delay", 0.0, 5.0, 0.1],
+	["ship", "refiner", 0.0, 1.0, 1.0],
+	["ship", "transfer_hold_time", 0.1, 5.0, 0.05],
+	["ship", "transfer_interval", 0.1, 3.0, 0.05],
 	["planet", "atmosphere_drag", 0.0, 2.0, 0.005],
 	["planet", "atmosphere_damage", 0.0, 100.0, 0.1],
 	["planet", "density_shape", 0.5, 5.0, 0.05],
@@ -282,7 +285,8 @@ func _on_changed(v: float, target: Variant, prop: String, val: Label, idx := -1)
 	if idx >= 0:
 		holder.get(prop)[idx] = v
 	else:
-		holder.set(prop, int(v) if holder.get(prop) is int else v)
+		var cur: Variant = holder.get(prop)
+		holder.set(prop, int(v) if cur is int else v)
 	val.text = _fmt(v)
 	_respawn_for_hold(target, prop)
 	if target is String and target == "planet" and prop in REGEN_PROPS:
@@ -306,7 +310,7 @@ func _sync() -> void:
 			row_boxes[id].visible = false
 			continue
 		row_boxes[id].visible = true
-		var v: float = _holder(row[0]).get(row[1])[idx] if idx >= 0 else _holder(row[0]).get(row[1])
+		var v: float = float(_holder(row[0]).get(row[1])[idx] if idx >= 0 else _holder(row[0]).get(row[1]))
 		var s: HSlider = sliders[id]
 		s.allow_lesser = true
 		s.allow_greater = true

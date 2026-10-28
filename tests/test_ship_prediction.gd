@@ -583,3 +583,24 @@ func _set_field(f: FieldParams) -> void:
 	Tuning.lock.lock()
 	Tuning.field = f
 	Tuning.lock.unlock()
+
+
+func test_predicted_points_equal_repeated_step_with_tank_ice_and_fuel() -> void:
+	var s := ShipState.new()
+	s.pos = Vector2(Tuning.field.carrier_orbit_radius, 0)
+	s.tank.clear()
+	var ice := HoldCell.new()
+	ice.type = &"ice"
+	ice.fill = 0.3
+	s.tank.append(ice)
+	var fuel := HoldCell.new()
+	fuel.type = &"fuel"
+	fuel.fill = 0.5
+	s.tank.append(fuel)
+	var inp := ShipInput.new()
+	inp.thrust = true
+	var pts := ShipPrediction.run(s, inp, 50, N)
+	var cur := s
+	for i in N:
+		cur = ShipFlight.step(cur, inp, GravityField.time_at(50 + i + 1), GravityField.DT, [])
+		assert_eq(pts[i], cur.pos, "point %d" % i)

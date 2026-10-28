@@ -18,3 +18,13 @@ func test_held_prediction_input_zeroes_turn_jettison_and_jettison_select() -> vo
 	assert_eq(h.aim, 0.5)
 	assert_true(i.jettison)
 	assert_eq(i.turn, 1.0)
+
+
+func test_held_input_zeroes_transfer() -> void:
+	var i := ShipInput.new()
+	i.transfer = true
+	i.thrust = true
+	var h: ShipInput = PredictionScript.held_input(i)
+	assert_false(h.transfer)
+	assert_true(h.thrust)
+	assert_true(i.transfer)

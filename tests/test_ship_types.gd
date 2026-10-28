@@ -208,3 +208,13 @@ func test_copy_keeps_jettison_select_pick_and_container() -> void:
 	assert_true(bc.container)
 	bc.container = false
 	assert_true(b.container)
+
+
+func test_copy_keeps_transfer() -> void:
+	var i := ShipInput.new()
+	assert_false(i.transfer)
+	i.transfer = true
+	var ic := i.copy()
+	assert_true(ic.transfer)
+	ic.transfer = false
+	assert_true(i.transfer)

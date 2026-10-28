@@ -6,6 +6,7 @@ var crashes: int = 0
 var jettisons: int = 0
 var jettison_selects: int = 0
 var jettison_cancelled: int = 0
+var transfers: int = 0
 var seed: int = 1
 var flight: int = 1
 var flight_log := "--flight-log" in OS.get_cmdline_user_args()
@@ -21,7 +22,7 @@ func _physics_process(delta: float) -> void:
 		_ship = get_tree().current_scene.get_node_or_null("Ship") if get_tree().current_scene != null else null
 		if _ship == null:
 			return
-		_ship.respawned.connect(func() -> void: print("FLOG respawn t=%.2f crashes=%d jettisons=%d jettison_selects=%d jettison_cancelled=%d" % [GravityField.time(), crashes, jettisons, jettison_selects, jettison_cancelled]))
+		_ship.respawned.connect(func() -> void: print("FLOG respawn t=%.2f crashes=%d jettisons=%d jettison_selects=%d jettison_cancelled=%d transfers=%d" % [GravityField.time(), crashes, jettisons, jettison_selects, jettison_cancelled, transfers]))
 	var s: ShipState = _ship.state
 	_since += delta
 	var cells := s.hold.size() * 100 + s.tank.size()

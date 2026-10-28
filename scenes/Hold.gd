@@ -61,26 +61,31 @@ static func room(s: ShipState, type: StringName) -> float:
 static func energy(s: ShipState) -> float:
 	var e := 0.0
 	for c in s.tank:
-		if c.type == &"fuel":
-			e += c.fill * Tuning.resources[c.type].energy
+		e += c.fill * Tuning.resources[c.type].energy
 	return e
 
 
-static func drain(s: ShipState, amount: float) -> float:
-	var per: float = Tuning.resources[&"fuel"].energy
-	if per <= 0.0:
-		return 0.0
+static func burn_order(cells: Array[HoldCell]) -> Array[HoldCell]:
 	var order: Array[HoldCell] = []
-	for c in s.tank:
-		if c.type == &"fuel" and c.fill < 1.0:
-			order.append(c)
-	for c in s.tank:
-		if c.type == &"fuel" and c.fill >= 1.0:
-			order.append(c)
+	for type in [&"ice", &"fuel"]:
+		for c in cells:
+			if c.type == type and c.fill < 1.0:
+				order.append(c)
+		for c in cells:
+			if c.type == type and c.fill >= 1.0:
+				order.append(c)
+	return order
+
+
+static func drain(s: ShipState, amount: float) -> float:
+	var order := burn_order(s.tank)
 	var left := amount
 	for c in order:
 		if left <= 0.0:
 			break
+		var per: float = Tuning.resources[c.type].energy
+		if per <= 0.0:
+			continue
 		var d := minf(left, c.fill * per)
 		c.fill -= d / per
 		left -= d
@@ -116,3 +121,45 @@ static func remove_at(s: ShipState, i: int) -> HoldCell:
 	var c := s.hold[i]
 	s.hold.remove_at(i)
 	return c
+
+
+static func _transfer_source(s: ShipState) -> int:
+	var first := -1
+	for i in s.hold.size():
+		if s.hold[i].type != &"ice":
+			continue
+		if s.hold[i].fill < 1.0 - EPS:
+			return i
+		if first < 0:
+			first = i
+	return first
+
+
+static func can_transfer(s: ShipState) -> bool:
+	var i := _transfer_source(s)
+	if i < 0:
+		return false
+	var f: float = s.hold[i].fill
+	if Tuning.ship.refiner:
+		return room(s, &"fuel") >= _refined(f)
+	return used_volume(s.tank) + Tuning.resources[&"ice"].volume <= Tuning.ship.tank_capacity
+
+
+static func transfer(s: ShipState) -> bool:
+	if not can_transfer(s):
+		return false
+	var i := _transfer_source(s)
+	var c := remove_at(s, i)
+	if i < s.jettison_pick:
+		s.jettison_pick -= 1
+	elif i == s.jettison_pick:
+		s.jettison_pick = -1
+	if Tuning.ship.refiner:
+		add(s, &"fuel", _refined(c.fill))
+	else:
+		s.tank.append(c)
+	return true
+
+
+static func _refined(fill: float) -> float:
+	return fill * Tuning.resources[&"ice"].energy / Tuning.resources[&"fuel"].energy

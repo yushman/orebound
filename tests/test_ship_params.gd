@@ -92,3 +92,9 @@ func test_jettison_params_defaults() -> void:
 	assert_eq(Tuning.ship.get("jettison_interval"), 0.7)
 	assert_eq(Tuning.ship.get("jettison_push"), 5.0)
 	assert_eq(Tuning.ship.get("jettison_pickup_delay"), 1.5)
+
+
+func test_transfer_params_defaults() -> void:
+	assert_eq(Tuning.ship.get("refiner"), false)
+	assert_eq(Tuning.ship.get("transfer_hold_time"), 1.0)
+	assert_eq(Tuning.ship.get("transfer_interval"), 0.7)

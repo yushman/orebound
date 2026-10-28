@@ -1554,3 +1554,39 @@ func test_container_is_collected_without_hull_damage_after_collect_radius_drops_
 	assert_eq(out.hull, hull)
 	assert_eq(out.hold.size(), n0)
 	Tuning.planet.collect_radius = cr0
+
+
+func _ice_cell(fill: float) -> HoldCell:
+	var c := HoldCell.new()
+	c.type = &"ice"
+	c.fill = fill
+	return c
+
+
+func test_step_with_transfer_input_pours_hold_ice_into_the_tank() -> void:
+	var saved_refiner: bool = Tuning.ship.refiner
+	Tuning.ship.refiner = false
+	var s := _jet_state()
+	var before := s.hold.size()
+	var f: float = s.hold[0].fill
+	var inp := ShipInput.new()
+	inp.transfer = true
+	var out := ShipFlight.step(s, inp, 0.0, DT)
+	assert_eq(out.hold.size(), before - 1)
+	assert_eq(out.tank.size(), s.tank.size() + 1)
+	assert_eq(out.tank[out.tank.size() - 1].type, &"ice")
+	assert_eq(out.tank[out.tank.size() - 1].fill, f)
+	assert_eq(ShipFlight.step(s, ShipInput.new(), 0.0, DT).hold.size(), before)
+	Tuning.ship.refiner = saved_refiner
+
+
+func test_thrust_works_from_a_tank_holding_only_raw_ice() -> void:
+	Tuning.planet.asteroids_per_band = 0.0
+	var s := _state(Vector2(Tuning.field.carrier_orbit_radius, 0))
+	s.tank.clear()
+	s.tank.append(_ice_cell(1.0))
+	var inp := ShipInput.new()
+	inp.thrust = true
+	var out := ShipFlight.step(s, inp, 0.0, DT)
+	assert_lt(out.tank[0].fill, 1.0)
+	assert_gt(out.fuel_engine, 0.0)

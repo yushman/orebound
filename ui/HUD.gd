@@ -197,13 +197,10 @@ static func hold_frame_index(s: ShipState) -> int:
 
 
 static func tank_slots(cells: Array[HoldCell]) -> Array[HoldCell]:
+	var burn := Hold.burn_order(cells)
 	var out: Array[HoldCell] = []
-	for c in cells:
-		if c.fill >= 1.0:
-			out.append(c)
-	for c in cells:
-		if c.fill < 1.0:
-			out.append(c)
+	for i in range(burn.size() - 1, -1, -1):
+		out.append(burn[i])
 	return out
 
 

@@ -52,7 +52,8 @@ func test_slider_set_covers_all_parameters() -> void:
 			"sync_accel", "sync_fuel_mult", "predict_every", "predict_short_steps", "hull_max",
 				"hull_mass", "hold_capacity", "ref_mass", "loadout_fuel_cells", "tank_capacity",
 				"beam_range", "beam_damage", "collect_angle", "collect_accel", "return_margin", "hit_radius",
-				"jettison_tap_time", "jettison_hold_time", "jettison_interval", "jettison_push", "jettison_pickup_delay"]:
+				"jettison_tap_time", "jettison_hold_time", "jettison_interval", "jettison_push", "jettison_pickup_delay",
+				"refiner", "transfer_hold_time", "transfer_interval"]:
 		expect.append("ship." + p)
 	for p in ["atmosphere_drag", "atmosphere_damage", "density_shape", "moon_mass_k", "moon_mass_exp",
 			"moon_influence_k", "moon_margin", "moon_bounce", "moon_impact_damage",
@@ -552,3 +553,20 @@ func test_jettison_slider_writes_ship_params() -> void:
 	assert_eq(Tuning.ship.jettison_push, 8.0)
 	_panel.sliders["ship.jettison_pickup_delay"].value = 2.5
 	assert_eq(Tuning.ship.jettison_pickup_delay, 2.5)
+
+
+func test_transfer_sliders_write_ship_params() -> void:
+	Tuning.ship = Tuning.ship.duplicate(true)
+	for k in ["ship.refiner", "ship.transfer_hold_time", "ship.transfer_interval"]:
+		assert_true(_panel.sliders.has(k), k)
+		if not _panel.sliders.has(k):
+			return
+	_panel.sliders["ship.refiner"].value = 1.0
+	assert_true(Tuning.ship.refiner)
+	assert_eq(typeof(Tuning.ship.refiner), TYPE_BOOL)
+	_panel.sliders["ship.refiner"].value = 0.0
+	assert_false(Tuning.ship.refiner)
+	_panel.sliders["ship.transfer_hold_time"].value = 2.0
+	assert_eq(Tuning.ship.transfer_hold_time, 2.0)
+	_panel.sliders["ship.transfer_interval"].value = 1.5
+	assert_eq(Tuning.ship.transfer_interval, 1.5)

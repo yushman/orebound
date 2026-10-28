@@ -91,13 +91,20 @@ func test_add_rounding_residue_does_not_open_a_near_zero_cell() -> void:
 	assert_almost_eq(s.hold[0].fill, 1.0, 1e-6)
 
 
-func test_energy_counts_only_tank_fuel() -> void:
+func test_energy_counts_only_tank_cells() -> void:
 	var s := _empty()
 	s.hold.append(_cell(&"fuel", 1.0))
 	s.hold.append(_cell(&"ice", 1.0))
 	s.hold.append(_cell(&"ore_rare", 1.0))
 	s.tank.append(_cell(&"fuel", 0.5))
 	assert_almost_eq(Hold.energy(s), 1.5, 1e-6)
+
+
+func test_energy_counts_ice_cells_in_the_tank() -> void:
+	var s := _empty()
+	s.tank.append(_cell(&"ice", 0.5))
+	s.tank.append(_cell(&"fuel", 1.0))
+	assert_almost_eq(Hold.energy(s), 3.5, 1e-6)
 
 
 func test_ice_added_to_hold_adds_mass_but_no_energy() -> void:
@@ -192,3 +199,130 @@ func test_removing_a_hold_cell_returns_it_and_lowers_ship_mass() -> void:
 	assert_eq(s.hold.size(), 1)
 	assert_eq(s.tank.size(), 1)
 	assert_almost_eq(Hold.mass(s), before - 0.5 * Tuning.resources[&"ore_rare"].mass, 1e-6)
+
+
+func test_drain_burns_tank_ice_before_fuel_partial_first() -> void:
+	var s := _empty()
+	s.tank.append(_cell(&"fuel", 0.5))
+	s.tank.append(_cell(&"ice", 1.0))
+	s.tank.append(_cell(&"fuel", 1.0))
+	s.tank.append(_cell(&"ice", 0.5))
+	s.hold.append(_cell(&"ice", 1.0))
+	assert_almost_eq(Hold.drain(s, 0.5), 0.5, 1e-6)
+	assert_eq(s.tank.size(), 3)
+	assert_almost_eq(Hold.drain(s, 1.0), 1.0, 1e-6)
+	assert_eq(s.tank.size(), 2)
+	assert_eq(s.tank[0].type, &"fuel")
+	assert_almost_eq(Hold.drain(s, 1.5), 1.5, 1e-6)
+	assert_eq(s.tank.size(), 1)
+	assert_almost_eq(s.tank[0].fill, 1.0, 1e-6)
+	assert_almost_eq(Hold.drain(s, 3.0), 3.0, 1e-6)
+	assert_true(s.tank.is_empty())
+	assert_eq(s.hold.size(), 1)
+	assert_almost_eq(s.hold[0].fill, 1.0, 1e-6)
+
+
+func test_raw_transfer_moves_the_partial_ice_cell_into_the_tank() -> void:
+	Tuning.ship.refiner = false
+	var s := _empty()
+	s.hold.append(_cell(&"ice", 1.0))
+	s.hold.append(_cell(&"ice", 0.4))
+	s.tank.append(_cell(&"fuel", 1.0))
+	s.jettison_pick = 1
+	var m := Hold.mass(s)
+	assert_true(Hold.can_transfer(s))
+	assert_true(Hold.transfer(s))
+	assert_eq(s.hold.size(), 1)
+	assert_eq(s.hold[0].fill, 1.0)
+	assert_eq(s.tank.size(), 2)
+	assert_eq(s.tank[1].type, &"ice")
+	assert_almost_eq(s.tank[1].fill, 0.4, 1e-6)
+	assert_almost_eq(Hold.mass(s), m, 1e-6)
+	assert_eq(s.jettison_pick, -1)
+
+
+func test_transfer_keeps_jettison_pick_on_the_same_cell() -> void:
+	Tuning.ship.refiner = false
+	var s := _empty()
+	s.hold.append(_cell(&"ice", 0.4))
+	s.hold.append(_cell(&"ore_rare", 1.0))
+	s.hold.append(_cell(&"ore_base", 1.0))
+	s.jettison_pick = 2
+	assert_true(Hold.transfer(s))
+	assert_eq(s.jettison_pick, 1)
+	assert_eq(s.hold[s.jettison_pick].type, &"ore_base")
+
+
+func test_raw_transfer_takes_first_ice_when_none_partial() -> void:
+	Tuning.ship.refiner = false
+	var s := _empty()
+	s.hold.append(_cell(&"ore_base", 1.0))
+	s.hold.append(_cell(&"ice", 1.0))
+	assert_true(Hold.transfer(s))
+	assert_eq(s.hold.size(), 1)
+	assert_eq(s.tank.size(), 1)
+
+
+func test_raw_transfer_fails_with_full_tank_or_no_ice() -> void:
+	Tuning.ship.refiner = false
+	var s := _empty()
+	s.hold.append(_cell(&"ore_base", 1.0))
+	assert_false(Hold.can_transfer(s))
+	assert_false(Hold.transfer(s))
+	s.hold.append(_cell(&"ice", 1.0))
+	for i in Tuning.ship.tank_capacity:
+		s.tank.append(_cell(&"fuel", 1.0))
+	assert_false(Hold.can_transfer(s))
+	assert_false(Hold.transfer(s))
+	assert_eq(s.hold.size(), 2)
+	assert_eq(s.tank.size(), Tuning.ship.tank_capacity)
+
+
+func test_refined_transfer_turns_one_ice_cell_into_a_third_of_a_fuel_cell() -> void:
+	Tuning.ship.refiner = true
+	var s := _empty()
+	s.hold.append(_cell(&"ice", 1.0))
+	s.tank.append(_cell(&"fuel", 0.5))
+	var e := Hold.energy(s) + 1.0
+	var m := Hold.mass(s) - 1.0 + 3.0 / 3.0
+	assert_true(Hold.transfer(s))
+	assert_true(s.hold.is_empty())
+	assert_eq(s.tank.size(), 1)
+	assert_almost_eq(s.tank[0].fill, 0.5 + 1.0 / 3.0, 1e-6)
+	assert_almost_eq(Hold.energy(s), e, 1e-6)
+	assert_almost_eq(Hold.mass(s), m, 1e-6)
+
+
+func test_refined_transfer_scales_with_fill() -> void:
+	Tuning.ship.refiner = true
+	var s := _empty()
+	s.hold.append(_cell(&"ice", 0.6))
+	assert_true(Hold.transfer(s))
+	assert_almost_eq(s.tank[0].fill, 0.2, 1e-6)
+
+
+func test_refined_transfer_without_room_changes_nothing() -> void:
+	Tuning.ship.refiner = true
+	var s := _empty()
+	s.hold.append(_cell(&"ice", 1.0))
+	for i in Tuning.ship.tank_capacity:
+		s.tank.append(_cell(&"fuel", 1.0))
+	assert_false(Hold.can_transfer(s))
+	assert_false(Hold.transfer(s))
+	assert_eq(s.hold.size(), 1)
+	assert_eq(s.tank[0].fill, 1.0)
+
+
+func test_refined_transfer_is_exact_when_room_is_a_hair_short() -> void:
+	Tuning.ship.refiner = true
+	var s := _empty()
+	s.hold.append(_cell(&"ice", 0.5))
+	s.tank.append(_cell(&"fuel", 1.0))
+	s.tank.append(_cell(&"fuel", 1.0))
+	s.tank.append(_cell(&"fuel", 1.0))
+	var partial: float = 1.0 - 0.5 / 3.0 + 5e-7
+	s.tank.append(_cell(&"fuel", partial))
+	assert_false(Hold.can_transfer(s))
+	assert_false(Hold.transfer(s))
+	assert_eq(s.hold.size(), 1)
+	assert_eq(s.tank[3].fill, partial)

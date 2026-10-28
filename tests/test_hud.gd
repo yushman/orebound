@@ -146,15 +146,23 @@ func test_cell_patterns_are_pairwise_distinct() -> void:
 	assert_eq(seen.size(), 6)
 
 
-func test_tank_slots_full_first_partial_last_input_unchanged() -> void:
+func test_tank_slots_follow_the_drain_order_input_unchanged() -> void:
 	var cells: Array[HoldCell] = [_cell(&"fuel", 0.4), _cell(&"fuel", 1.0), _cell(&"ice", 1.0)]
 	var out: Array[HoldCell] = HUD_SCRIPT.tank_slots(cells)
 	assert_eq(out.size(), 3)
 	assert_eq(out[0], cells[1])
-	assert_eq(out[1], cells[2])
-	assert_eq(out[2], cells[0])
+	assert_eq(out[1], cells[0])
+	assert_eq(out[2], cells[2])
 	assert_eq(cells[0].fill, 0.4)
 	assert_eq(cells[2].type, &"ice")
+
+
+func test_tank_slots_burn_last_cell_is_leftmost_on_a_raw_transfer_tank() -> void:
+	var cells: Array[HoldCell] = [_cell(&"fuel", 0.5), _cell(&"ice", 1.0)]
+	var out: Array[HoldCell] = HUD_SCRIPT.tank_slots(cells)
+	assert_eq(out[0], cells[0])
+	assert_eq(out[1], cells[1])
+	assert_eq(out[1].type, &"ice")
 
 
 func test_bar_cells_are_centred_on_the_width() -> void:

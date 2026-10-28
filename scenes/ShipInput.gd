@@ -12,6 +12,7 @@ var beam: bool
 var collect: bool
 var jettison: bool
 var jettison_select: bool
+var transfer: bool
 var aim: float
 
 
@@ -44,5 +45,6 @@ func copy() -> ShipInput:
 	c.collect = collect
 	c.jettison = jettison
 	c.jettison_select = jettison_select
+	c.transfer = transfer
 	c.aim = aim
 	return c

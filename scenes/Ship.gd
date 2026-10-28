@@ -3,6 +3,7 @@ extends CharacterBody2D
 var state := ShipState.new()
 var input := ShipInput.new()
 var _jettison_press := LongPress.new()
+var _transfer_press := LongPress.new()
 
 signal respawned
 
@@ -15,6 +16,7 @@ func _ready() -> void:
 func respawn() -> void:
 	state = ShipState.new()
 	_jettison_press = LongPress.new()
+	_transfer_press = LongPress.new()
 	# The carrier is a fixed point of the rotating frame, so rest there is stable.
 	var pos := Vector2(Tuning.field.carrier_orbit_radius, 0.0)
 	state.pos = pos
@@ -27,8 +29,11 @@ func respawn() -> void:
 
 
 func _physics_process(_delta: float) -> void:
+	var report := {}
 	input = _read_input()
-	state = ShipFlight.step(state, input, GravityField.time(), GravityField.DT)
+	state = ShipFlight.step(state, input, GravityField.time(), GravityField.DT, null, report)
+	if report["transferred"]:
+		Telemetry.transfers += 1
 	if state.crashed:
 		Telemetry.crashes += 1
 		respawn()
@@ -67,4 +72,9 @@ func _read_input() -> ShipInput:
 				Telemetry.jettisons += 1
 		LongPress.Event.CANCEL:
 			Telemetry.jettison_cancelled += 1
+	_transfer_press.tap_time = Tuning.ship.jettison_tap_time
+	_transfer_press.hold_time = Tuning.ship.transfer_hold_time
+	_transfer_press.interval = Tuning.ship.transfer_interval
+	if _transfer_press.update(Input.is_action_pressed("ship_transfer"), GravityField.DT) == LongPress.Event.FIRE:
+		inp.transfer = true
 	return inp

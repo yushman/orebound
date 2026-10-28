@@ -119,3 +119,14 @@ func test_jettison_action_bound_to_x_and_b() -> void:
 	assert_true(InputMap.has_action("ship_jettison"))
 	assert_true(_has_key("ship_jettison", KEY_X))
 	assert_true(_has_joy_button("ship_jettison", JOY_BUTTON_B))
+
+
+func test_transfer_action_bound_to_r_and_x() -> void:
+	assert_true(InputMap.has_action("ship_transfer"))
+	assert_true(_has_key("ship_transfer", KEY_R))
+	assert_true(_has_joy_button("ship_transfer", JOY_BUTTON_X))
+	for a in InputMap.get_actions():
+		if a == "ship_transfer" or a.begins_with("ui_"):
+			continue
+		assert_false(_has_key(a, KEY_R), a)
+		assert_false(_has_joy_button(a, JOY_BUTTON_X), a)

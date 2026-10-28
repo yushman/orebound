@@ -345,3 +345,83 @@ func test_short_press_with_empty_hold_leaves_jettison_selects_at_zero() -> void:
 	ship._read_input()
 	assert_eq(Telemetry.jettison_selects, 0)
 	Telemetry.jettison_selects = saved
+
+
+func _hold_transfer(ship: Node, ticks: int) -> Array:
+	var seen := []
+	Input.action_press("ship_transfer")
+	for i in ticks:
+		seen.append(ship._read_input())
+	Input.action_release("ship_transfer")
+	return seen
+
+
+func test_holding_transfer_fires_after_hold_time_and_repeats_each_interval() -> void:
+	var saved: int = Telemetry.transfers
+	var ship = _make()
+	var seen := _hold_transfer(ship, 105)
+	var fired := []
+	for i in seen.size():
+		if seen[i].transfer:
+			fired.append(i)
+		assert_false(seen[i].jettison)
+		assert_false(seen[i].jettison_select)
+	assert_eq(fired, [59, 101])
+	Telemetry.transfers = saved
+
+
+func test_jettison_and_transfer_firing_on_one_tick_counts_no_transfer() -> void:
+	var saved_j: int = Telemetry.jettisons
+	var saved_t: int = Telemetry.transfers
+	Telemetry.transfers = 0
+	Tuning.planet.asteroids_per_band = 0
+	var ship = _make()
+	Hold.add(ship.state, &"ice", 1.0)
+	Hold.add(ship.state, &"fuel", 1.0)
+	Hold.add(ship.state, &"fuel", 0.5)
+	Input.action_press("ship_transfer")
+	for i in 24:
+		ship._physics_process(GravityField.DT)
+	Input.action_press("ship_jettison")
+	for i in 106:
+		ship._physics_process(GravityField.DT)
+	# a burn frees the tank slot between the tick 102 and tick 144 transfer fires
+	ship.state.tank.remove_at(3)
+	for i in 14:
+		ship._physics_process(GravityField.DT)
+	Input.action_release("ship_jettison")
+	Input.action_release("ship_transfer")
+	# both presses fire on tick 144 and the jettison takes the last ice cell
+	assert_true(ship.input.jettison)
+	assert_true(ship.input.transfer)
+	assert_true(ship.state.hold.is_empty())
+	assert_eq(ship.state.tank.size(), 3)
+	assert_eq(Telemetry.transfers, 0)
+	Telemetry.transfers = saved_t
+	Telemetry.jettisons = saved_j
+
+
+func test_transfer_freed_by_the_same_tick_drain_is_counted() -> void:
+	var saved: int = Telemetry.transfers
+	Telemetry.transfers = 0
+	Tuning.planet.asteroids_per_band = 0
+	var ship = _make()
+	Hold.add(ship.state, &"ice", 1.0)
+	Hold.add(ship.state, &"fuel", 1.0)
+	Hold.add(ship.state, &"fuel", 0.9)
+	Input.action_press("ship_thrust")
+	Input.action_press("ship_transfer")
+	for i in 58:
+		ship._physics_process(GravityField.DT)
+	var before: float = ship.state.fuel_engine
+	ship._physics_process(GravityField.DT)
+	# the next tick's burn must erase the partial cell: set it just under one tick of burn
+	ship.state.tank[3].fill = (ship.state.fuel_engine - before) / 6.0
+	ship._physics_process(GravityField.DT)
+	Input.action_release("ship_thrust")
+	Input.action_release("ship_transfer")
+	assert_true(ship.input.transfer)
+	assert_true(ship.state.hold.is_empty())
+	assert_eq(ship.state.tank.size(), 4)
+	assert_eq(Telemetry.transfers, 1)
+	Telemetry.transfers = saved

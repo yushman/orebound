@@ -38,7 +38,7 @@ static func atmosphere_density(pos: Vector2) -> float:
 	return pow(clampf(depth, 0.0, 1.0), Tuning.planet.density_shape)
 
 
-static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapshot = null) -> ShipState:
+static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapshot = null, report = null) -> ShipState:
 	var p: ShipParams = Tuning.ship
 	var s := state.copy()
 	var ang_acc := input.turn * p.turn_accel
@@ -111,6 +111,9 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 	s.vel += (GravityField.accel(s.pos, t) + GravityField.frame_accel(s.pos, s.vel) + nose * thr + a_b) * dt
 	s.pos += s.vel * dt
 	_jettison(s, input)
+	var transferred := _transfer(s, input)
+	if report != null:
+		report["transferred"] = transferred
 	_beam(s, input, t, dt, snapshot)
 	_moon_contact(s, t)
 	_asteroid_contact(s, t, snapshot)
@@ -247,6 +250,10 @@ static func _beam(s: ShipState, input: ShipInput, t: float, dt: float, snapshot)
 	s.bodies.append_array(Split.pieces(parent, Tuning.planet.split_count, Tuning.planet.piece_scatter, Tuning.planet.piece_spread, Tuning.planet.split_area_divisor))
 	s.beam_target = null
 	s.beam_charge = 0.0
+
+
+static func _transfer(s: ShipState, input: ShipInput) -> bool:
+	return input.transfer and Hold.transfer(s)
 
 
 static func _jettison(s: ShipState, input: ShipInput) -> void:

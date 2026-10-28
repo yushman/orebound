@@ -39,3 +39,6 @@ extends Resource
 @export var jettison_interval: float = 0.7
 @export var jettison_push: float = 5.0
 @export var jettison_pickup_delay: float = 1.5
+@export var refiner: bool = false
+@export var transfer_hold_time: float = 1.0
+@export var transfer_interval: float = 0.7

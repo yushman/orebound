@@ -62,6 +62,7 @@ static func held_input(input: ShipInput) -> ShipInput:
 	held.turn = 0.0
 	held.jettison = false
 	held.jettison_select = false
+	held.transfer = false
 	return held
 
 
