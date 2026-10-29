@@ -334,6 +334,7 @@ func test_crosshair_ticks_screen_axis_aligned():
 func test_crosshair_geometry_and_no_speed_gate():
 	# Ticks 4..9 SCREEN px out (world = px * s), screen-axis-aligned, four of
 	# them whenever the ship is faded — velocity is not an input (v = 0 ok).
+	# The nose needle runs 3..7 px along the world nose (directional info).
 	var FlightVectorScript = load("res://scenes/FlightVector.gd")
 	var pos := Vector2(1200.0, 500.0)
 	var s := 2.0
@@ -353,36 +354,81 @@ func test_crosshair_geometry_and_no_speed_gate():
 		assert_true(on_axis, "tick is screen-axis-aligned")
 	assert_eq(FlightVectorScript.crosshair_ticks(pos, 15.0, 12.0, 6.0, s).size(), 0,
 			"visible ship: no ticks (alpha 0)")
+	# Nose needle: 8..14 px along the world nose Vector2.UP.rotated(rot) —
+	# directional info, not counter-rotated, so rot 0 is screen-up when the
+	# camera rotation is 0. 8 px slightly overlaps the 9 px tick ring, the
+	# rest sticks out past the crosshair; palette red, own 3 px stroke.
+	var needle: PackedVector2Array = FlightVectorScript.nose_needle(pos, 0.0, s)
+	assert_almost_eq(pos.distance_to(needle[0]), 8.0 * s, 1e-4, "needle starts at 8 px")
+	assert_almost_eq(pos.distance_to(needle[1]), 14.0 * s, 1e-4, "needle ends at 14 px")
+	assert_almost_eq((needle[1] - needle[0]).normalized().dot(Vector2.UP), 1.0, 1e-6,
+			"rot 0 needle is screen-up at camera rotation 0")
+	var nrot := 0.7
+	var turned: PackedVector2Array = FlightVectorScript.nose_needle(pos, nrot, s)
+	var ndir: Vector2 = (turned[1] - turned[0]).normalized()
+	assert_almost_eq(ndir.x, sin(nrot), 1e-4, "needle turns with the world nose")
+	assert_almost_eq(ndir.y, -cos(nrot), 1e-4)
+	assert_almost_eq(pos.distance_to(turned[0]), 8.0 * s, 1e-4)
+	assert_almost_eq(pos.distance_to(turned[1]), 14.0 * s, 1e-4)
+	assert_eq(FlightVectorScript.NEEDLE_COLOR, Palette.DANGER, "needle is the palette red")
+	assert_eq(FlightVectorScript.NEEDLE_STROKE_PX, 3.0, "needle stroke is 3 px")
+	assert_gt(FlightVectorScript.NEEDLE_STROKE_PX, FlightVectorScript.STROKE_PX,
+			"needle stroke thicker than the ticks")
 	assert_eq(FlightVectorScript.CROSSHAIR_COLOR, Palette.SAFE)
 
 
 func test_chevron_sits_at_fixed_screen_distance_along_velocity():
-	# Chevron tip: a fixed 16 SCREEN px along v-hat, |v| moves nothing; the
-	# 12 px back edge clears the 9 px crosshair. Label = rounded |v|.
+	# Chevron tip: a fixed 30 SCREEN px along v-hat, |v| moves nothing; the
+	# 25 px back edge clears the 9 px crosshair. Label: 24 px beyond the tip
+	# along v-hat, centred on the anchor.
 	var FlightVectorScript = load("res://scenes/FlightVector.gd")
 	var pos := Vector2(10.0, -2.0)
 	var s := 4.0
 	assert_eq(FlightVectorScript.chevron_pos(pos, Vector2(0.0, 80.0), s),
-			pos + Vector2(0.0, 16.0 * s), "tip at 16 px * s along v-hat")
+			pos + Vector2(0.0, 30.0 * s), "tip at 30 px * s along v-hat")
 	assert_eq(FlightVectorScript.chevron_pos(pos, Vector2(0.0, 8.0), s),
-			pos + Vector2(0.0, 16.0 * s), "|v| does not move the chevron")
+			pos + Vector2(0.0, 30.0 * s), "|v| does not move the chevron")
 	var tip: Vector2 = FlightVectorScript.chevron_pos(pos, Vector2(3.0, 4.0), 1.0)
-	assert_almost_eq(tip.x, pos.x + 0.6 * 16.0, 1e-5)
-	assert_almost_eq(tip.y, pos.y + 0.8 * 16.0, 1e-5)
-	# Both lines meet at the tip; the back edge is 12 px out, 8 px across.
+	assert_almost_eq(tip.x, pos.x + 0.6 * 30.0, 1e-5)
+	assert_almost_eq(tip.y, pos.y + 0.8 * 30.0, 1e-5)
+	# Both lines meet at the tip; the back edge is 20 px out, 12 px across.
 	var lines: Array = FlightVectorScript.chevron_lines(pos, Vector2(0.0, 80.0), 1.0)
 	assert_eq(lines.size(), 2, "two chevron lines, no shaft")
 	for seg in lines:
-		assert_almost_eq(seg[1].distance_to(pos), 16.0, 1e-6, "lines meet at the tip")
+		assert_almost_eq(seg[1].distance_to(pos), 30.0, 1e-6, "lines meet at the tip")
 		var rel: Vector2 = seg[0] - pos
-		assert_almost_eq(rel.dot(Vector2(0.0, 1.0)), 12.0, 1e-6,
-				"back edge 12 px out — clears the 9 px crosshair")
-		assert_almost_eq(absf(rel.dot(Vector2(1.0, 0.0))), 4.0, 1e-6,
-				"back vertex +-4 px off")
-	assert_almost_eq(lines[0][0].distance_to(lines[1][0]), 8.0, 1e-6,
-			"chevron 8 px across the back")
+		assert_almost_eq(rel.dot(Vector2(0.0, 1.0)), 25.0, 1e-6,
+				"back edge 25 px out — clears the 9 px crosshair")
+		assert_almost_eq(absf(rel.dot(Vector2(1.0, 0.0))), 6.0, 1e-6,
+				"back vertex +-6 px off")
+	assert_almost_eq(lines[0][0].distance_to(lines[1][0]), 12.0, 1e-6,
+			"chevron 12 px across the back")
 	assert_gt(FlightVectorScript.CHEVRON_BACK_PX, FlightVectorScript.TICK_OUT_PX,
 			"back edge clears the crosshair outer radius")
+	# Label anchor: 24 px beyond the tip along v-hat — strictly past the arms
+	# for any direction (30 + 24 = 54 px * s from the ship).
+	for d in [Vector2(1.0, 0.0), Vector2(0.0, 1.0), Vector2(-1.0, 1.0), Vector2(-3.0, -4.0)]:
+		var anchor: Vector2 = FlightVectorScript.label_pos(pos, d, 1.0)
+		assert_almost_eq(anchor.distance_to(pos), 54.0, 1e-4,
+				"label 54 px * s from the ship, any direction")
+		assert_almost_eq((anchor - pos).normalized().dot(d.normalized()), 1.0, 1e-6,
+				"anchor is along v-hat — beyond the tip, no overlap")
+	# The offset is v-hat * 24 * s and does not depend on |v|.
+	var label_off: Vector2 = FlightVectorScript.label_pos(pos, Vector2(3.0, 4.0), 2.0) \
+			- FlightVectorScript.chevron_pos(pos, Vector2(3.0, 4.0), 2.0)
+	# float32 at a ~100-unit offset: ~1e-5 error.
+	assert_almost_eq(label_off.x, 0.6 * 24.0 * 2.0, 1e-4, "label offset is v-hat * 24")
+	assert_almost_eq(label_off.y, 0.8 * 24.0 * 2.0, 1e-4)
+	assert_almost_eq(FlightVectorScript.label_pos(pos, Vector2(3.0, 4.0) * 20.0, 2.0)
+			.distance_to(FlightVectorScript.label_pos(pos, Vector2(3.0, 4.0), 2.0)), 0.0, 1e-6,
+			"|v| does not move the label")
+	# The text is centred on the anchor vertically too: the baseline sits
+	# (ascent - descent) / 2 below it (both sides use the same font metrics).
+	var f := ThemeDB.fallback_font
+	assert_almost_eq(FlightVectorScript.label_baseline_off(f, FlightVectorScript.LABEL_FONT_PX),
+			(f.get_ascent(FlightVectorScript.LABEL_FONT_PX)
+					- f.get_descent(FlightVectorScript.LABEL_FONT_PX)) / 2.0, 1e-9,
+			"baseline offset centres the glyphs on the anchor")
 	# `in` does not see statics, so the removal goes through the method list.
 	var methods := []
 	for m in FlightVectorScript.get_script_method_list():

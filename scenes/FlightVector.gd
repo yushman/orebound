@@ -8,16 +8,23 @@ extends Node2D
 const STROKE_PX := 2.0
 const MIN_SPEED := 1.0
 const COLOR := Color(Palette.HALO, 0.85)
-# Chevron: tip 16 px along v-hat, back edge 12 px, 8 px across; label beside it.
-const CHEVRON_DIST_PX := 16.0
-const CHEVRON_BACK_PX := 12.0
-const CHEVRON_PX := 8.0
-const LABEL_OFFSET_PX := 10.0
-const LABEL_FONT_PX := 12
+# Chevron: tip 30 px along v-hat, back edge 25 px, 12 px across; label past it.
+const CHEVRON_DIST_PX := 30.0
+const CHEVRON_BACK_PX := 25.0
+const CHEVRON_PX := 12.0
+const LABEL_OFFSET_PX := 24.0
+const LABEL_FONT_PX := 20
 # Crosshair ticks: 4 px gap, 9 px outer radius (screen px).
 const TICK_IN_PX := 4.0
 const TICK_OUT_PX := 9.0
 const CROSSHAIR_COLOR := Palette.SAFE
+# Nose needle: 8..14 px along the ship nose (screen px) in the palette red,
+# its own 3 px stroke (thicker than the ticks; 8 slightly overlaps the 9 px
+# tick ring so it reads attached).
+const NEEDLE_IN_PX := 8.0
+const NEEDLE_OUT_PX := 14.0
+const NEEDLE_STROKE_PX := 3.0
+const NEEDLE_COLOR := Palette.DANGER
 
 @onready var ship: Node2D = get_node("../Ship")
 
@@ -31,14 +38,14 @@ static func vector_dir(vel: Vector2) -> Vector2:
 	return vel.normalized()
 
 
-## Chevron tip: a fixed 16 px SCREEN distance along v-hat — |v| moves nothing.
+## Chevron tip: a fixed 30 px SCREEN distance along v-hat — |v| moves nothing.
 static func chevron_pos(pos: Vector2, vel: Vector2, s: float) -> Vector2:
 	return pos + vector_dir(vel) * screen_px(CHEVRON_DIST_PX, s)
 
 
 ## The two chevron lines [from, to] in world units: they meet at the tip
-## pointing along v-hat, the back edge 12 px out (clears the 9 px crosshair)
-## and 8 px across.
+## pointing along v-hat, the back edge 25 px out (clears the 9 px crosshair)
+## and 12 px across.
 static func chevron_lines(pos: Vector2, vel: Vector2, s: float) -> Array[PackedVector2Array]:
 	var dir := vector_dir(vel)
 	var tip := chevron_pos(pos, vel, s)
@@ -53,6 +60,20 @@ static func chevron_lines(pos: Vector2, vel: Vector2, s: float) -> Array[PackedV
 ## Label text: the rounded speed.
 static func chevron_label(vel: Vector2) -> int:
 	return roundi(vel.length())
+
+
+## Label anchor: LABEL_OFFSET_PX beyond the chevron tip along v-hat — strictly
+## past the arms for any direction.
+static func label_pos(pos: Vector2, vel: Vector2, s: float) -> Vector2:
+	return chevron_pos(pos, vel, s) + vector_dir(vel) * screen_px(LABEL_OFFSET_PX, s)
+
+
+## Baseline y-offset from the label anchor that centres the glyphs on it:
+## baseline = anchor.y + (ascent - descent) / 2 (Godot's draw_string pos.y is
+## the baseline; font-level metrics at LABEL_FONT_PX, Godot 4.7 has no
+## per-string ascent/descent accessors).
+static func label_baseline_off(font: Font, font_px: int) -> float:
+	return (font.get_ascent(font_px) - font.get_descent(font_px)) / 2.0
 
 
 ## Hidden below the speed threshold.
@@ -97,6 +118,17 @@ static func screen_px(px: float, s: float) -> float:
 	return px if s <= 0.0 else px * s
 
 
+## Nose needle [from, to] on the crosshair: 8..14 px along the world nose
+## Vector2.UP.rotated(rot). Directional info — world orientation, never
+## counter-rotated, so it turns with the world on screen.
+static func nose_needle(pos: Vector2, rot: float, s: float) -> PackedVector2Array:
+	var dir := Vector2.UP.rotated(rot)
+	return PackedVector2Array([
+		pos + dir * screen_px(NEEDLE_IN_PX, s),
+		pos + dir * screen_px(NEEDLE_OUT_PX, s),
+	])
+
+
 func _draw() -> void:
 	var zoom := _camera_zoom()
 	var s := 1.0 / zoom
@@ -111,7 +143,8 @@ func _draw() -> void:
 
 
 ## The crosshair marks the ship while its look is faded: SAFE ticks around the
-## centre, no speed gate; nothing is drawn at alpha 0.
+## centre plus the nose needle along the world nose, no speed gate; nothing is
+## drawn at alpha 0.
 func _draw_crosshair(zoom: float, s: float, stroke: float) -> void:
 	var fade_px := ShipView.VISUAL_SPAN * zoom
 	var alpha := crosshair_alpha(fade_px,
@@ -122,10 +155,13 @@ func _draw_crosshair(zoom: float, s: float, stroke: float) -> void:
 	for tick in crosshair_ticks(ship.state.pos, fade_px,
 			Tuning.view.ship_fade_threshold_px, Tuning.view.ship_fade_width_px, s):
 		draw_line(tick[0], tick[1], col, stroke)
+	var needle := nose_needle(ship.state.pos, ship.state.rot, s)
+	draw_line(needle[0], needle[1], Color(NEEDLE_COLOR, alpha),
+			screen_px(NEEDLE_STROKE_PX, s))
 
 
-## The speed label next to the chevron: the draw transform moves the origin to
-## the camera and undoes its zoom and rotation, so the text keeps its 12 px
+## The speed label beyond the chevron tip: the draw transform moves the origin
+## to the camera and undoes its zoom and rotation, so the text keeps its 20 px
 ## screen size and stays upright at any zoom.
 func _draw_label(vel: Vector2, zoom: float, s: float) -> void:
 	var vp := get_viewport()
@@ -133,11 +169,16 @@ func _draw_label(vel: Vector2, zoom: float, s: float) -> void:
 	var cam_pos := cam.position if cam != null else Vector2.ZERO
 	var rot := FlightCamera.rotation_for(ship.state.pos)
 	draw_set_transform(cam_pos, rot, Vector2.ONE * s)
-	var dir_s := vector_dir(vel).rotated(-rot)
-	var tip_px := (chevron_pos(ship.state.pos, vel, s) - cam_pos).rotated(-rot) * zoom
-	var side := Vector2(dir_s.y, -dir_s.x) * LABEL_OFFSET_PX
-	draw_string(ThemeDB.fallback_font, tip_px + side, str(chevron_label(vel)),
-			HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_FONT_PX, COLOR)
+	var text := str(chevron_label(vel))
+	var text_w := ThemeDB.fallback_font.get_string_size(text,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_FONT_PX).x
+	var anchor_px := (label_pos(ship.state.pos, vel, s) - cam_pos).rotated(-rot) * zoom
+	# Horizontally and vertically centred on the anchor: the x shift by half
+	# the measured width (draw_string centres only for a width > 0) and the
+	# baseline offset from the font metrics.
+	var off := Vector2(-text_w * 0.5, label_baseline_off(ThemeDB.fallback_font, LABEL_FONT_PX))
+	draw_string(ThemeDB.fallback_font, anchor_px + off, text,
+			HORIZONTAL_ALIGNMENT_CENTER, text_w, LABEL_FONT_PX, COLOR)
 
 
 func _camera_zoom() -> float:
