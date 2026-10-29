@@ -9,6 +9,8 @@ func test_view_defaults():
 	assert_eq(v.ring_period, 2.0)
 	assert_eq(v.ring_px, 1.5)
 	assert_eq(v.ring_alpha, 0.5)
+	assert_eq(v.ship_fade_threshold_px, 12.0)
+	assert_eq(v.ship_fade_width_px, 6.0)
 	assert_false("cargo_fill" in v)
 	for old in ["levels", "line_px", "dim", "bright", "near_px"]:
 		assert_false(old in v, old)

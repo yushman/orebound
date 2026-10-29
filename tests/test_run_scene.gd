@@ -104,25 +104,25 @@ func test_zoom_out_grows_visible_world_rect():
 			"semantic s=2 must show ~2x more world width")
 
 
-func test_ship_icon_scales_with_zoom():
+func test_ship_visual_keeps_world_size_at_any_zoom():
 	var run = _run()
 	var ship = run.get_node("Ship")
 	var cam = run.get_node("FlightCamera")
-	var poly: Node2D = ship.get_node("Visual")
-	assert_eq(poly.scale, Vector2.ONE)
+	var visual: Node2D = ship.get_node("Visual")
+	assert_false("_ship_icon" in cam, "the camera no longer scales the ship look")
+	assert_eq(visual.scale, Vector2.ONE)
 	cam._target_zoom = 8.0
 	cam._process(1.0)
 	cam._process(1.0)
-	assert_almost_eq(poly.scale.x, 1.0 / cam.zoom.x, 1e-6,
-			"icon scale equals the camera's current semantic zoom")
-	assert_almost_eq(poly.scale.x, 8.0, 0.01)
-	assert_almost_eq(poly.scale.y, poly.scale.x, 1e-9)
-	# zoom back in — the icon follows the eased s at all times
+	assert_almost_eq(1.0 / cam.zoom.x, 8.0, 0.01,
+			"cam.zoom follows the eased semantic zoom")
+	assert_eq(visual.scale, Vector2.ONE,
+			"the ship look keeps its honest world size")
 	cam._target_zoom = 1.5
 	cam._process(1.0)
 	cam._process(1.0)
-	assert_almost_eq(poly.scale.x, 1.0 / cam.zoom.x, 1e-6)
-	assert_almost_eq(poly.scale.x, 1.5, 0.01)
+	assert_almost_eq(1.0 / cam.zoom.x, 1.5, 0.01)
+	assert_eq(visual.scale, Vector2.ONE)
 	# view-only: the body and its collision shape are never scaled
 	assert_eq(ship.scale, Vector2.ONE)
 	assert_eq(ship.get_node("CollisionShape2D").scale, Vector2.ONE)
@@ -301,24 +301,103 @@ func test_flight_vector_hidden_below_threshold():
 	assert_false(FlightVectorScript.vector_visible(Vector2.ZERO))
 
 
-func test_flight_vector_length_equals_speed():
-	# Вал стрелки — |v| в МИРОВЫХ единицах, честный масштаб 1:1
-	# (дрейф 80 ед/с -> стрелка длиной 80 ед.).
+func test_crosshair_alpha_complements_ship_fade():
+	# The crosshair is the other half of the cross-fade: 1 - ship_alpha,
+	# full at 9 px (ship hidden), half at the 12 px threshold, off at 15 px.
 	var FlightVectorScript = load("res://scenes/FlightVector.gd")
-	assert_eq(FlightVectorScript.vector_len(Vector2(0.0, 80.0)), 80.0,
-			"shaft length = |v| in world units")
-	assert_eq(FlightVectorScript.vector_len(Vector2(-3.0, 0.0)), 3.0)
-	assert_eq(FlightVectorScript.vector_len(Vector2(3.0, 4.0)), 5.0)
-	assert_eq(FlightVectorScript.vector_len(Vector2.ZERO), 0.0)
-	# Геометрия: конец вала = pos + v̂·|v| (== pos + vel).
-	assert_eq(FlightVectorScript.shaft_end(Vector2(10.0, -2.0), Vector2(0.0, 80.0)),
-			Vector2(10.0, 78.0))
-	var tip: Vector2 = FlightVectorScript.shaft_end(Vector2.ZERO, Vector2(3.0, 4.0))
-	assert_almost_eq(tip.x, 3.0, 1e-5)
-	assert_almost_eq(tip.y, 4.0, 1e-5)
-	# Головка и штрих остаются экранного размера: мир = px · s.
-	assert_eq(FlightVectorScript.screen_px(8.0, 4.0), 32.0)
-	assert_eq(FlightVectorScript.screen_px(2.0, 4.0), 8.0)
+	var thr := 12.0
+	var w := 6.0
+	for px in [9.0, 12.0, 15.0]:
+		assert_almost_eq(FlightVectorScript.crosshair_alpha(px, thr, w)
+				+ ShipView.ship_alpha(px, thr, w), 1.0, 1e-6,
+				"alphas sum to 1 at %s px" % px)
+	assert_eq(FlightVectorScript.crosshair_alpha(9.0, thr, w), 1.0)
+	assert_almost_eq(FlightVectorScript.crosshair_alpha(12.0, thr, w), 0.5, 1e-6)
+	assert_eq(FlightVectorScript.crosshair_alpha(15.0, thr, w), 0.0)
+
+
+func test_crosshair_ticks_screen_axis_aligned():
+	# Tick directions live in the camera frame: rotated back by
+	# FlightCamera.rotation_for(pos) they give the screen axes.
+	var FlightVectorScript = load("res://scenes/FlightVector.gd")
+	var axes := [Vector2.RIGHT, Vector2.UP, Vector2.LEFT, Vector2.DOWN]
+	for pos in [Vector2(100.0, 0.0), Vector2(0.0, -70.0), Vector2(-300.0, 40.0), Vector2(5000.0, -8000.0)]:
+		var rot: float = FlightCamera.rotation_for(pos)
+		var dirs: PackedVector2Array = FlightVectorScript.tick_dirs(pos)
+		assert_eq(dirs.size(), 4, "four tick directions")
+		for dir in dirs:
+			var back: Vector2 = dir.rotated(-rot)
+			var hits := axes.filter(func(a): return a.distance_squared_to(back) < 1e-9)
+			assert_eq(hits.size(), 1, "tick dir rotated back is a screen axis")
+
+
+func test_crosshair_geometry_and_no_speed_gate():
+	# Ticks 4..9 SCREEN px out (world = px * s), screen-axis-aligned, four of
+	# them whenever the ship is faded — velocity is not an input (v = 0 ok).
+	var FlightVectorScript = load("res://scenes/FlightVector.gd")
+	var pos := Vector2(1200.0, 500.0)
+	var s := 2.0
+	var rot: float = FlightCamera.rotation_for(pos)
+	var ticks: Array = FlightVectorScript.crosshair_ticks(pos, 9.0, 12.0, 6.0, s)
+	assert_eq(ticks.size(), 4, "faded ship: four ticks (no speed gate)")
+	for tick in ticks:
+		# float32 at a 1200-unit offset: ~1e-5 world error, invisible on screen.
+		assert_almost_eq(pos.distance_to(tick[0]), 4.0 * s, 1e-4,
+				"tick starts at the 4 px gap")
+		assert_almost_eq(pos.distance_to(tick[1]), 9.0 * s, 1e-4,
+				"tick ends at the 9 px radius")
+		var back: Vector2 = (tick[1] - tick[0]).normalized().rotated(-rot)
+		var on_axis := false
+		for axis in [Vector2.RIGHT, Vector2.UP, Vector2.LEFT, Vector2.DOWN]:
+			on_axis = on_axis or axis.distance_squared_to(back) < 1e-9
+		assert_true(on_axis, "tick is screen-axis-aligned")
+	assert_eq(FlightVectorScript.crosshair_ticks(pos, 15.0, 12.0, 6.0, s).size(), 0,
+			"visible ship: no ticks (alpha 0)")
+	assert_eq(FlightVectorScript.CROSSHAIR_COLOR, Palette.SAFE)
+
+
+func test_chevron_sits_at_fixed_screen_distance_along_velocity():
+	# Chevron tip: a fixed 16 SCREEN px along v-hat, |v| moves nothing; the
+	# 12 px back edge clears the 9 px crosshair. Label = rounded |v|.
+	var FlightVectorScript = load("res://scenes/FlightVector.gd")
+	var pos := Vector2(10.0, -2.0)
+	var s := 4.0
+	assert_eq(FlightVectorScript.chevron_pos(pos, Vector2(0.0, 80.0), s),
+			pos + Vector2(0.0, 16.0 * s), "tip at 16 px * s along v-hat")
+	assert_eq(FlightVectorScript.chevron_pos(pos, Vector2(0.0, 8.0), s),
+			pos + Vector2(0.0, 16.0 * s), "|v| does not move the chevron")
+	var tip: Vector2 = FlightVectorScript.chevron_pos(pos, Vector2(3.0, 4.0), 1.0)
+	assert_almost_eq(tip.x, pos.x + 0.6 * 16.0, 1e-5)
+	assert_almost_eq(tip.y, pos.y + 0.8 * 16.0, 1e-5)
+	# Both lines meet at the tip; the back edge is 12 px out, 8 px across.
+	var lines: Array = FlightVectorScript.chevron_lines(pos, Vector2(0.0, 80.0), 1.0)
+	assert_eq(lines.size(), 2, "two chevron lines, no shaft")
+	for seg in lines:
+		assert_almost_eq(seg[1].distance_to(pos), 16.0, 1e-6, "lines meet at the tip")
+		var rel: Vector2 = seg[0] - pos
+		assert_almost_eq(rel.dot(Vector2(0.0, 1.0)), 12.0, 1e-6,
+				"back edge 12 px out — clears the 9 px crosshair")
+		assert_almost_eq(absf(rel.dot(Vector2(1.0, 0.0))), 4.0, 1e-6,
+				"back vertex +-4 px off")
+	assert_almost_eq(lines[0][0].distance_to(lines[1][0]), 8.0, 1e-6,
+			"chevron 8 px across the back")
+	assert_gt(FlightVectorScript.CHEVRON_BACK_PX, FlightVectorScript.TICK_OUT_PX,
+			"back edge clears the crosshair outer radius")
+	# `in` does not see statics, so the removal goes through the method list.
+	var methods := []
+	for m in FlightVectorScript.get_script_method_list():
+		methods.append(m.name)
+	assert_false("vector_len" in methods, "shaft math is gone")
+	assert_false("shaft_end" in methods, "shaft end is gone")
+	assert_eq(FlightVectorScript.COLOR, Color(Palette.HALO, 0.85))
+	assert_eq(FlightVectorScript.chevron_label(Vector2(3.0, 4.0)), 5)
+	assert_eq(FlightVectorScript.chevron_label(Vector2(0.0, 80.6)), 81)
+	assert_eq(FlightVectorScript.chevron_label(Vector2.ZERO), 0)
+	assert_eq(FlightVectorScript.screen_px(8.0, 4.0), 32.0,
+			"screen sizes still go through screen_px")
+	assert_true(FlightVectorScript.vector_visible(Vector2(1.0, 0.0)))
+	assert_false(FlightVectorScript.vector_visible(Vector2(0.99, 0.0)),
+			"hidden below 1 u/s")
 
 
 func test_run_scene_contains_flight_vector():

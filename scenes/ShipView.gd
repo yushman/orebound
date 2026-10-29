@@ -10,6 +10,8 @@ const GLOW_RADIUS := 5.0
 const GLOW_SEGMENTS := 16
 const GLOW_SCALE_MIN := 0.6
 const GLOW_SCALE_MAX := 1.8
+## Full look span (hull nose to tail plus wings), the fade metric * camera zoom.
+const VISUAL_SPAN := 32.0
 
 var flame := Polygon2D.new()
 var glow := Polygon2D.new()
@@ -35,6 +37,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	modulate.a = ship_alpha(VISUAL_SPAN * _camera_zoom(), Tuning.view.ship_fade_threshold_px, Tuning.view.ship_fade_width_px)
 	var engine_off: bool = _ship.input.soft_brake or _ship.input.drift_sync or Hold.energy(_ship.state) <= Hold.EPS
 	var length := flame_length(_ship.input.thrust and not engine_off, _ship.input.boost and not engine_off, _ship.state.hold_time, _ship.state.heat, Tuning.ship)
 	flame.visible = length > 0.0
@@ -67,4 +70,20 @@ static func glow_alpha(heat: float, p: ShipParams) -> float:
 	if h <= p.heat_threshold:
 		return GLOW_FAINT * h / p.heat_threshold
 	return lerpf(GLOW_FAINT, 1.0, (h - p.heat_threshold) / (1.0 - p.heat_threshold))
+
+
+## Ship look opacity: 0 below the fade band, 1 above, 0.5 at the threshold.
+static func ship_alpha(screen_px: float, threshold: float, width: float) -> float:
+	var low := threshold - width * 0.5
+	if screen_px <= low:
+		return 0.0
+	if screen_px >= threshold + width * 0.5:
+		return 1.0
+	return (screen_px - low) / width
+
+
+func _camera_zoom() -> float:
+	var vp := get_viewport()
+	var cam := vp.get_camera_2d() if vp != null else null
+	return cam.zoom.x if cam != null else 1.0
 

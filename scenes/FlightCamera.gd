@@ -14,9 +14,6 @@ const ZOOM_STEP := 1.3
 const ZOOM_SMOOTH := 10.0
 
 @onready var ship: Node2D = get_node("../Ship")
-# Visual icon child of the ship; scaled to keep a constant screen size.
-# View-only: the flight state and the collision shape are never touched.
-@onready var _ship_icon: Node2D = ship.get_node_or_null("Visual")
 
 var _target_zoom := 1.0
 var _zoom_current := 1.0
@@ -59,7 +56,5 @@ func _process(delta: float) -> void:
 		_target_zoom = discretize_zoom(clamp_zoom(_target_zoom * ZOOM_STEP))
 	_zoom_current = lerpf(_zoom_current, _target_zoom, 1.0 - exp(-ZOOM_SMOOTH * delta))
 	zoom = zoom_vector(_zoom_current)
-	if _ship_icon != null:
-		_ship_icon.scale = Vector2(_zoom_current, _zoom_current)
 	position = ship.position
 	rotation = rotation_for(ship.position)

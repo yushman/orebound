@@ -174,3 +174,30 @@ func test_flame_hidden_when_hold_has_no_energy() -> void:
 	view._process(0.0)
 	assert_eq(_flame_len(view), 0.0)
 	assert_false((view.get_node("Flame") as Polygon2D).visible)
+
+
+func test_ship_alpha_is_zero_below_one_above_and_half_at_threshold() -> void:
+	assert_eq(ShipView.ship_alpha(8.0, 12.0, 6.0), 0.0)
+	assert_eq(ShipView.ship_alpha(9.0, 12.0, 6.0), 0.0)
+	assert_almost_eq(ShipView.ship_alpha(12.0, 12.0, 6.0), 0.5, 0.0001)
+	assert_eq(ShipView.ship_alpha(15.0, 12.0, 6.0), 1.0)
+	assert_eq(ShipView.ship_alpha(32.0, 12.0, 6.0), 1.0)
+
+
+func test_ship_alpha_cross_fades_linearly_over_the_fade_band() -> void:
+	assert_almost_eq(ShipView.ship_alpha(10.5, 12.0, 6.0), 0.25, 0.0001)
+	assert_almost_eq(ShipView.ship_alpha(13.5, 12.0, 6.0), 0.75, 0.0001)
+
+
+func test_process_fades_visual_by_screen_size() -> void:
+	var ship := _ship()
+	var view := ship.get_node("Visual") as ShipView
+	var thr: float = Tuning.view.ship_fade_threshold_px
+	view._process(0.0)
+	assert_almost_eq(view.modulate.a, 1.0, 0.0001)
+	Tuning.view.ship_fade_threshold_px = 100.0
+	view._process(0.0)
+	assert_eq(view.modulate.a, 0.0)
+	Tuning.view.ship_fade_threshold_px = thr
+	view._process(0.0)
+	assert_almost_eq(view.modulate.a, 1.0, 0.0001)
