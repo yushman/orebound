@@ -5,11 +5,12 @@ extends Camera2D
 
 const ZOOM_MIN := 1.0
 const ZOOM_MAX := 40.0
-const ZOOM_CONTINUOUS_MAX := 22.0
-# Stops above the continuous zone; on a tie the larger stop wins (31 -> 34).
-const ZOOM_STOPS := [28.0, 34.0, 40.0]
+const ZOOM_CONTINUOUS_MAX := 8.0
+# Stops above the continuous zone; on a tie the larger stop wins (36 -> 40).
+const ZOOM_STOPS := [10.0, 15.0, 22.0, 32.0, 40.0]
 # Step factor sized so clamp+discretize reach every stop in both directions
-# (22 -> 28 -> 34 -> 40 up, 40 -> 28 -> continuous down).
+# (8 -> 10 -> 15 -> 22 -> 32 -> 40 up, 40 -> 32 -> 22 -> 15 -> 10 -> continuous
+# down).
 const ZOOM_STEP := 1.3
 const ZOOM_SMOOTH := 10.0
 
