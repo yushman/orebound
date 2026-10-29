@@ -252,7 +252,7 @@ func _settle(line, advance := 0) -> void:
 	line._physics_process(GravityField.DT)
 
 
-func test_prediction_line_always_shown() -> void:
+func test_prediction_line_hidden_without_engine_input_shown_while_thrust_held() -> void:
 	var nodes := _run_scene()
 	var ship = nodes[0]
 	var line: Line2D = nodes[1]
@@ -260,8 +260,19 @@ func test_prediction_line_always_shown() -> void:
 	ship._physics_process(GravityField.DT)
 	line._physics_process(GravityField.DT)
 	_settle(line)
+	assert_false(line.visible)
+	assert_eq(line.points.size(), 0)
+	Input.action_press("ship_thrust")
+	ship._physics_process(GravityField.DT)
+	line._physics_process(GravityField.DT)
+	assert_true(line.visible)
+	_settle(line)
 	assert_eq(line.points.size(), Tuning.ship.predict_short_steps)
 	assert_eq(line.points, _expected(ship))
+	Input.action_release("ship_thrust")
+	ship._physics_process(GravityField.DT)
+	line._physics_process(GravityField.DT)
+	assert_false(line.visible)
 
 
 func test_prediction_line_is_picked_up_from_the_worker_task_and_trimmed() -> void:
@@ -350,6 +361,8 @@ func test_crash_respawn_refreshes_line_with_predict_every_gt_1() -> void:
 	Tuning.ship.predict_every = 5
 	GravityField.tick = 5
 	ship.state.pos = Vector2(5000.0, 300.0)
+	Input.action_press("ship_thrust")
+	ship.input.thrust = true
 	line._physics_process(GravityField.DT)
 	GravityField.tick = 6
 	ship.state.hull = 0.0
@@ -369,6 +382,7 @@ func test_result_of_a_task_started_before_respawn_is_dropped_and_a_fresh_task_st
 	Tuning.ship.predict_every = 5
 	GravityField.tick = 5
 	ship.state.pos = Vector2(5000.0, 300.0)
+	ship.input.thrust = true
 	line._physics_process(GravityField.DT)
 	var old := _expected(ship)
 	ship.respawn()
@@ -383,7 +397,9 @@ func test_result_of_a_task_started_before_respawn_is_dropped_and_a_fresh_task_st
 
 func test_removing_the_line_waits_for_its_running_task() -> void:
 	var nodes := _run_scene()
+	var ship = nodes[0]
 	var line: Line2D = nodes[1]
+	ship.input.thrust = true
 	line._physics_process(GravityField.DT)
 	var id: int = line._task
 	assert_true(id >= 0)
@@ -566,6 +582,7 @@ func test_regenerate_to_fewer_moons_while_a_task_runs_waits_for_it_and_next_line
 		bodies.append(f.bodies[1] if f.bodies.size() > 1 else f.bodies[0].duplicate())
 	f.bodies = bodies
 	Tuning.field = f
+	ship.input.thrust = true
 	line._physics_process(GravityField.DT)
 	var id: int = line._task
 	assert_true(id >= 0)

@@ -1,5 +1,6 @@
 extends Line2D
-## Short trajectory prediction line, always shown; the stroke keeps a constant
+## Short trajectory prediction line, shown only while an engine action is held
+## (thrust, boost, soft brake or drift sync); the stroke keeps a constant
 ## SCREEN width (world width = WIDTH_PX * semantic zoom s). View-only.
 
 const WIDTH_PX := 2.0
@@ -11,6 +12,7 @@ var _task_gen := 0
 var _task_tick := -1000000
 var _gen := 0
 var _fresh := false
+var _held := false
 var _result := PackedVector2Array()
 
 
@@ -34,6 +36,21 @@ func _process(_delta: float) -> void:
 
 func _physics_process(_delta: float) -> void:
 	var tick := GravityField.tick
+	var engine_held: bool = ship.input.thrust or ship.input.boost \
+			or ship.input.soft_brake or ship.input.drift_sync
+	if not engine_held:
+		visible = false
+		_held = false
+		if _task >= 0 and WorkerThreadPool.is_task_completed(_task):
+			WorkerThreadPool.wait_for_task_completion(_task)
+			_task = -1
+		return
+	if not _held:
+		_held = true
+		_gen += 1
+		points = PackedVector2Array()
+		_fresh = true
+		visible = true
 	if _task >= 0 and WorkerThreadPool.is_task_completed(_task):
 		WorkerThreadPool.wait_for_task_completion(_task)
 		_task = -1
