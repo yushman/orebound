@@ -56,3 +56,6 @@ func test_default_clear_color_matches_background():
 
 func test_fuel_color():
 	assert_eq(Palette.FUEL, Color("8FE0A0"))
+
+func test_star_is_the_muted_star_hue():
+	assert_eq(Palette.STAR, Color("9BA8C4"))

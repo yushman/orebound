@@ -16,6 +16,15 @@ func test_view_defaults():
 		assert_false(old in v, old)
 
 
+func test_star_knobs_default():
+	var v: ViewParams = Tuning.view
+	assert_eq(v.star_cell0, 418.0)
+	assert_eq(v.star_per_cell, 1)
+	assert_eq(typeof(v.star_per_cell), TYPE_INT)
+	assert_eq(v.star_fade, 1.0)
+	assert_eq(v.star_px, 1.5)
+
+
 func test_apply_keeps_view():
 	var view = Tuning.view
 	var saved_field = Tuning.field

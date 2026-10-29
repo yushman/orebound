@@ -18,9 +18,13 @@
 [ext_resource type="Script" path="res://scenes/BeamView.gd" id="15_beam"]
 [ext_resource type="Script" path="res://scenes/SmallObjectView.gd" id="16_small"]
 [ext_resource type="Script" path="res://scenes/CollectorView.gd" id="17_collector"]
+[ext_resource type="Script" path="res://scenes/StarfieldView.gd" id="18_star"]
 
 [node name="Run" type="Node2D"]
 script = ExtResource("11_run")
+
+[node name="StarfieldView" type="Node2D" parent="."]
+script = ExtResource("18_star")
 
 [node name="AtmosphereView" type="Node2D" parent="."]
 script = ExtResource("9_atmo")

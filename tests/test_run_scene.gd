@@ -456,12 +456,25 @@ func test_run_scene_contains_flight_vector():
 	assert_eq(fv.script.resource_path, "res://scenes/FlightVector.gd")
 
 
+func test_run_has_starfield_before_atmosphere():
+	var run = _run()
+	var sf = run.get_node_or_null("StarfieldView")
+	assert_not_null(sf, "Run scene contains a StarfieldView")
+	if sf == null:
+		return
+	assert_lt(sf.get_index(), run.get_node("AtmosphereView").get_index(),
+			"StarfieldView draws before AtmosphereView")
+	assert_eq(sf.script.resource_path, "res://scenes/StarfieldView.gd")
+	assert_eq(sf.material.shader.resource_path, "res://shaders/starfield.gdshader")
+	await get_tree().process_frame
+
+
 func test_run_has_atmosphere_and_halo_before_well_view():
 	var run = _run()
 	var names: Array = []
 	for c in run.get_children():
 		names.append(str(c.name))
-	assert_eq(names.slice(0, 3), ["AtmosphereView", "GravityHaloView", "WellView"])
+	assert_eq(names.slice(0, 3), ["StarfieldView", "AtmosphereView", "GravityHaloView"])
 	var atmo = run.get_node_or_null("AtmosphereView")
 	if atmo == null:
 		return
@@ -488,7 +501,7 @@ func test_run_has_ring_and_asteroid_views_between_well_view_and_ship():
 	var names: Array = []
 	for c in run.get_children():
 		names.append(str(c.name))
-	assert_eq(names.slice(0, 13), ["AtmosphereView", "GravityHaloView", "WellView", "RingView", "AsteroidView", "SmallObjectView", "Planet", "Moon1", "Moon2", "Moon3", "BeamView", "CollectorView", "Ship"])
+	assert_eq(names.slice(0, 14), ["StarfieldView", "AtmosphereView", "GravityHaloView", "WellView", "RingView", "AsteroidView", "SmallObjectView", "Planet", "Moon1", "Moon2", "Moon3", "BeamView", "CollectorView", "Ship"])
 	var ring = run.get_node_or_null("RingView")
 	if ring != null:
 		assert_eq(ring.script.resource_path, "res://scenes/RingView.gd")

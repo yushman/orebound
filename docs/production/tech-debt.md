@@ -86,3 +86,10 @@
 | 66 | `test_crosshair_ticks_screen_axis_aligned` проверяет лишь, что каждый повёрнутый обратно тик — какая-то ось: четыре копии одной оси тест пройдёт (нет проверки различимости/покрытия; та же дыра в тесте геометрии ~349) | `tests/test_run_scene.gd:319` | для каждой оси `[RIGHT, UP, LEFT, DOWN]` проверить `dirs.any(func(d): return d.rotated(-rot).distance_squared_to(a) < 1e-9)` |
 | 67 | `_draw_crosshair` вычисляет `crosshair_alpha` (и два чтения `Tuning.view`), затем `crosshair_ticks` пересчитывает то же самое на каждой перерисовке | `scenes/FlightVector.gd:115` (84 vs 117, 118 vs 122–123) | гейт по пустому списку тиков (`if crosshair_ticks(...).is_empty(): return`) или передать посчитанную alpha в `crosshair_ticks`; контракт empty-at-alpha-0 уже запинен тестом |
 | 68 | `_camera_zoom()` дублируется дословно в `ShipView.gd:85` и `FlightVector.gd:143`, а инвариант кроссфейда (`crosshair_alpha == 1 − ship_alpha` в рантайме) зависит от одинакового зума в обеих копиях | `scenes/ShipView.gd`, `scenes/FlightVector.gd` | общий статик (например `ShipView.camera_zoom(vp)` — FlightVector уже зависит от ShipView ради `ship_alpha` и `VISUAL_SPAN`), звать из обоих |
+
+## Звёздный фон (M11)
+
+| # | Что | Где | Как чинить |
+|---|---|---|---|
+| 69 | `star_fade = 0` вырождает smoothstep в `layer_weights` (деление на 0, NaN при lg == 2.5): веса NaN, шейдер роняет все слои — пустое небо; сегодня недостижимо (нет слайдера, пресеты не трогают `Tuning.view`), но легально для экспортированной ручки | `scenes/StarfieldView.gd:65` | guard `var f := maxf(Tuning.view.star_fade, 0.001)` в `layer_weights`; тест: при `star_fade = 0` веса `layer_weights(1.0) == Vector3(1,0,0)` и сумма 1 (save/restore `Tuning.view`) |
+| 70 | Цикл по камере в `test_star_at_world_point_stays_put_as_camera_moves` не может упасть: `star_pos` не принимает камеру, инвариант держится структурно (камеры нет в хеше) — пустые проверки | `tests/test_starfield_view.gd:25` | убрать цикл или заменить на сбиваемый пин, например `star_pos` не меняется при подмене `Tuning.view` на копию с другими `star_px` / `star_fade` (save/restore) |
