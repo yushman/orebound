@@ -1,5 +1,6 @@
 {
   "dirs": ["res://tests"],
   "prefix": "test_",
+  "pre_run_script": "res://tests/telemetry_pre_run.gd",
   "include_subdirs": true
 }

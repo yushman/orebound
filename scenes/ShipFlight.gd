@@ -125,6 +125,7 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 	var thr := 0.0
 	var a_b := Vector2.ZERO
 	var engine := false
+	var heat_limited := false
 	if input.soft_brake:
 		# soft brake (D36): half force against velocity, half backwards from the nose
 		s.hold_time = 0.0
@@ -156,6 +157,7 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 		thr = p.thrust_accel * k * lerpf(p.ramp_min_fraction, 1.0, clampf(s.hold_time / p.ramp_time, 0.0, 1.0))
 		# above the heat threshold thrust falls linearly to the minimum at heat = 1
 		if s.heat > p.heat_threshold:
+			heat_limited = true
 			thr *= lerpf(1.0, p.min_thrust_fraction, (s.heat - p.heat_threshold) / (1.0 - p.heat_threshold))
 		var mult := 1.0
 		if input.boost:
@@ -189,12 +191,19 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 	if report != null:
 		report["transferred"] = transferred
 	_beam(s, input, t, dt, snapshot)
+	var h0 := s.hull
 	_moon_contact(s, t)
+	var h1 := s.hull
 	_asteroid_contact(s, t, snapshot)
+	var h2 := s.hull
 	SmallObjects.update(s, t, dt)
 	_collect(s, input, dt)
 	_small_contact(s, input)
+	var h3 := s.hull
 	s.hull = maxf(s.hull - Tuning.planet.atmosphere_damage * atmosphere_density(s.pos) * dt, 0.0)
+	if report != null:
+		report["damage"] = {"moon": h0 - h1, "asteroid": h1 - h2, "piece": h2 - h3, "atmosphere": h3 - s.hull}
+		report["heat_limited"] = heat_limited
 	s.crashed = s.pos.length() <= Tuning.field.planet_surface_radius or s.hull <= 0.0
 	if not s.crashed:
 		_capture(s, t, dt)

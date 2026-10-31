@@ -258,7 +258,7 @@ func test_preset_applied_mid_flight_emits_no_flight_ended() -> void:
 	assert_signal_not_emitted(ship, "flight_ended")
 
 
-func test_preset_change_restores_hull_without_touching_the_crash_counter() -> void:
+func test_preset_change_restores_hull_and_crash_counter_is_per_flight() -> void:
 	var saved_crashes: int = Telemetry.crashes
 	var saved_field = Tuning.field
 	var saved_ship = Tuning.ship
@@ -267,7 +267,7 @@ func test_preset_change_restores_hull_without_touching_the_crash_counter() -> vo
 	ship.state.hull = 10.0
 	Tuning.apply(Tuning.load_preset("res://presets/p1.tres"))
 	assert_eq(ship.state.hull, Tuning.ship.hull_max)
-	assert_eq(Telemetry.crashes, 3)
+	assert_eq(Telemetry.crashes, 0)
 	Telemetry.crashes = saved_crashes
 	Tuning.field = saved_field
 	Tuning.ship = saved_ship
@@ -589,8 +589,8 @@ func test_accepted_call_ends_towed_after_delay_with_tank_drained_and_cargo_seize
 
 
 func test_tow_refused_below_boundary_sets_notice_and_no_call() -> void:
-	var calls: int = Telemetry.tow_calls
 	var ship = _make()
+	var calls: int = Telemetry.tow_calls
 	ship.state.pos = Vector2(float(WellGenerator.tiers()["tow"]) - 500.0, 0.0)
 	_press_tow(ship, 125)
 	assert_eq(ship.tow_left, -1.0)

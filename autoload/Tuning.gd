@@ -9,12 +9,14 @@ var view: ViewParams = ViewParams.new()
 var picture: Dictionary = {"seed": 1, "flight": 1, "moons": [], "ring": {}}
 var resources: Dictionary = _default_resources()
 var lock := Mutex.new()
+var preset_name := "default"
 
 
 func apply(preset: TuningPreset, emit := true) -> void:
 	lock.lock()
 	field = preset.field.duplicate(true)
 	ship = preset.ship.duplicate(true)
+	preset_name = preset.name
 	lock.unlock()
 	if emit:
 		preset_applied.emit()

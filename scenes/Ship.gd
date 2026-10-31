@@ -25,11 +25,20 @@ signal flight_ended(summary: Dictionary)
 
 
 func _ready() -> void:
+	Telemetry.ship = self
+	Telemetry.open = false
 	respawn()
 	Tuning.preset_applied.connect(respawn)
 
 
+func _exit_tree() -> void:
+	if Telemetry.ship == self:
+		Telemetry.ship = null
+
+
 func respawn() -> void:
+	if phase == Phase.FLYING and Telemetry.open and Telemetry.flight_time >= Telemetry.RESET_MIN_TIME:
+		Telemetry.end_flight(FlightSummary.build(state, "reset", Telemetry.flight_time))
 	state = ShipState.new()
 	phase = Phase.FLYING
 	flight_start_t = GravityField.time()
@@ -55,6 +64,7 @@ func respawn() -> void:
 	state.hull = Tuning.ship.hull_max
 	position = pos
 	rotation = state.rot
+	Telemetry.begin_flight()
 	respawned.emit()
 
 
@@ -77,6 +87,7 @@ func _physics_process(_delta: float) -> void:
 			print("FLOG docked t=%.2f docking_time=%.2f" % [GravityField.time(), state.approach_time])
 	if report.get("transferred", false):
 		Telemetry.transfers += 1
+	Telemetry.sample(state, input, report)
 	move_and_collide(state.pos - position)
 	rotation = state.rot
 	tow_notice_left = maxf(tow_notice_left - GravityField.DT, 0.0)
@@ -145,7 +156,9 @@ func violation_left() -> float:
 func _end(outcome: String, tow := {}) -> void:
 	phase = Phase.ENDED
 	input = ShipInput.new()
-	flight_ended.emit(FlightSummary.build(state, outcome, GravityField.time() - flight_start_t, tow))
+	var summary := FlightSummary.build(state, outcome, GravityField.time() - flight_start_t, tow)
+	Telemetry.end_flight(summary)
+	flight_ended.emit(summary)
 
 
 func _notice(text: String) -> void:
