@@ -90,6 +90,7 @@ func begin_flight() -> void:
 	sync_time = 0.0
 	brake_presses = 0
 	brake_time = 0.0
+	autoscale_overrides = 0
 	damage = {"atmosphere": 0.0, "moon": 0.0, "asteroid": 0.0, "piece": 0.0}
 	tier_time = {"above": 0.0, "t1": 0.0, "t2": 0.0, "t3": 0.0, "t4": 0.0, "atmosphere": 0.0}
 	_last_r = 0.0

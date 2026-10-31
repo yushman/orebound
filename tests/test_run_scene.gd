@@ -97,6 +97,7 @@ func test_zoom_out_grows_visible_world_rect():
 	var vp: Viewport = run.get_viewport()
 	var base_width: float = vp.get_visible_rect().size.x / cam.zoom.x
 	cam._target_zoom = 2.0
+	cam.manual_left = 100.0
 	cam._process(1.0)
 	cam._process(1.0)
 	var zoomed_width: float = vp.get_visible_rect().size.x / cam.zoom.x
@@ -112,6 +113,7 @@ func test_ship_visual_keeps_world_size_at_any_zoom():
 	assert_false("_ship_icon" in cam, "the camera no longer scales the ship look")
 	assert_eq(visual.scale, Vector2.ONE)
 	cam._target_zoom = 8.0
+	cam.manual_left = 100.0
 	cam._process(1.0)
 	cam._process(1.0)
 	assert_almost_eq(1.0 / cam.zoom.x, 8.0, 0.01,
@@ -119,6 +121,7 @@ func test_ship_visual_keeps_world_size_at_any_zoom():
 	assert_eq(visual.scale, Vector2.ONE,
 			"the ship look keeps its honest world size")
 	cam._target_zoom = 1.5
+	cam.manual_left = 100.0
 	cam._process(1.0)
 	cam._process(1.0)
 	assert_almost_eq(1.0 / cam.zoom.x, 1.5, 0.01)
@@ -131,7 +134,7 @@ func test_ship_visual_keeps_world_size_at_any_zoom():
 func test_camera_zoom_out_input_increases_semantic_zoom():
 	var run = _run()
 	var cam = run.get_node("FlightCamera")
-	cam._target_zoom = 4.0
+	cam._zoom_current = 4.0
 	Input.action_press("camera_zoom_out")
 	cam._process(0.0)
 	Input.action_release("camera_zoom_out")

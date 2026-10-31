@@ -70,3 +70,60 @@ func test_ship_scene_visual_is_node2d_without_bare_polygon() -> void:
 	add_child_autofree(ship)
 	assert_true(ship.get_node_or_null("Visual") is Node2D)
 	assert_null(ship.get_node_or_null("Polygon2D"))
+
+
+func test_auto_zoom_is_1_at_or_below_20() -> void:
+	assert_almost_eq(_cam.auto_zoom(0.0), 1.0, 1e-6)
+	assert_almost_eq(_cam.auto_zoom(20.0), 1.0, 1e-6)
+
+
+func test_auto_zoom_is_3_at_70() -> void:
+	assert_almost_eq(_cam.auto_zoom(70.0), 3.0, 1e-6)
+
+
+func test_auto_zoom_is_5_at_120() -> void:
+	assert_almost_eq(_cam.auto_zoom(120.0), 5.0, 1e-6)
+
+
+func test_ease_zoom_moves_without_overshoot_and_is_frame_rate_independent() -> void:
+	var z: float = _cam.ease_zoom(1.0, 5.0, 1.5, 1.0 / 60.0)
+	assert_gt(z, 1.0)
+	assert_lt(z, 5.0)
+	assert_almost_eq(_cam.ease_zoom(1.0, 5.0, 1.5, 1000.0), 5.0, 1e-6)
+	var a: float = _cam.ease_zoom(1.0, 5.0, 1.5, 1.0 / 30.0)
+	var b: float = _cam.ease_zoom(_cam.ease_zoom(1.0, 5.0, 1.5, 1.0 / 60.0), 5.0, 1.5, 1.0 / 60.0)
+	assert_almost_eq(a, b, 1e-3)
+
+
+func test_view_params_autoscale_defaults() -> void:
+	var v: ViewParams = ViewParams.new()
+	assert_eq(v.autoscale_speed_low, 20.0)
+	assert_eq(v.autoscale_speed_high, 170.0)
+	assert_eq(v.autoscale_max, 7.0)
+	assert_eq(v.autoscale_override_time, 8.0)
+	assert_eq(v.autoscale_smooth, 1.5)
+
+
+func test_auto_zoom_is_6_at_145_and_7_at_or_above_170() -> void:
+	assert_almost_eq(_cam.auto_zoom(145.0), 6.0, 1e-6)
+	assert_almost_eq(_cam.auto_zoom(170.0), 7.0, 1e-6)
+	assert_almost_eq(_cam.auto_zoom(1e6), 7.0, 1e-6)
+	assert_almost_eq(_cam.auto_zoom(45.0), 2.0, 1e-6)
+
+
+func test_view_params_speed_tau_default() -> void:
+	assert_eq(Tuning.view.autoscale_speed_tau, 5.0)
+
+
+func test_smooth_speed_converges_to_constant_speed() -> void:
+	var avg := 0.0
+	for i in 600:
+		avg = FlightCamera.smooth_speed(avg, 80.0, 0.1)
+	assert_almost_eq(avg, 80.0, 1e-3)
+
+
+func test_smooth_speed_is_frame_rate_independent() -> void:
+	var a := FlightCamera.smooth_speed(10.0, 90.0, 1.0 / 30.0)
+	var b := FlightCamera.smooth_speed(10.0, 90.0, 1.0 / 60.0)
+	b = FlightCamera.smooth_speed(b, 90.0, 1.0 / 60.0)
+	assert_almost_eq(a, b, 1e-3)

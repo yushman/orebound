@@ -451,15 +451,18 @@ static func _soft_brake_accel(vel: Vector2, nose: Vector2, p: ShipParams) -> Vec
 	return (-vel.normalized() - nose) * half
 
 
-static func _band_drift_accel(s: ShipState, t: float, dt: float, limit: float) -> Vector2:
-	var ref := reference_body(s.pos, t)
-	var r_rel := s.pos - GravityField.body_pos(ref, t)
+static func band_drift_vel(pos: Vector2, vel: Vector2, t: float) -> Vector2:
+	var ref := reference_body(pos, t)
+	var r_rel := pos - GravityField.body_pos(ref, t)
 	var body_v := GravityField.body_vel(ref, t)
 	var omega := GravityField.frame_omega()
-	var v_in := s.vel - body_v + omega * Vector2(-r_rel.y, r_rel.x)
+	var v_in := vel - body_v + omega * Vector2(-r_rel.y, r_rel.x)
 	var cross := r_rel.cross(v_in)
 	var spin := 1.0 if absf(cross) < 1e-6 * r_rel.length() * v_in.length() else signf(cross)
 	var tangent := Vector2(-r_rel.y, r_rel.x).normalized() * spin
-	var v_c := GravityField.circular_speed(ref, s.pos, t)
-	var v_target := body_v + tangent * v_c - omega * Vector2(-r_rel.y, r_rel.x)
-	return ((v_target - s.vel) / dt).limit_length(limit)
+	var v_c := GravityField.circular_speed(ref, pos, t)
+	return body_v + tangent * v_c - omega * Vector2(-r_rel.y, r_rel.x)
+
+
+static func _band_drift_accel(s: ShipState, t: float, dt: float, limit: float) -> Vector2:
+	return ((band_drift_vel(s.pos, s.vel, t) - s.vel) / dt).limit_length(limit)

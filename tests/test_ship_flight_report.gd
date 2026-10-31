@@ -39,3 +39,14 @@ func test_report_does_not_change_result() -> void:
 	assert_eq(a.hull, b.hull)
 	assert_eq(a.pos, b.pos)
 	assert_eq(a.vel, b.vel)
+
+
+func test_band_drift_accel_matches_band_drift_vel() -> void:
+	var s := ShipState.new()
+	s.pos = Vector2(Tuning.field.carrier_orbit_radius * 0.9, 0)
+	s.vel = Vector2(3.0, 40.0)
+	var dt := GravityField.DT
+	var limit := 5.0
+	var v := ShipFlight.band_drift_vel(s.pos, s.vel, 0.0)
+	var expect := ((v - s.vel) / dt).limit_length(limit)
+	assert_eq(ShipFlight._band_drift_accel(s, 0.0, dt, limit), expect)
