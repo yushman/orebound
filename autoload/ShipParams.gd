@@ -37,6 +37,7 @@ extends Resource
 @export var hit_radius: float = 15.0
 @export var jettison_tap_time: float = 0.7
 @export var jettison_hold_time: float = 2.0
+@export var tow_hold_time: float = 2.0
 @export var jettison_interval: float = 0.7
 @export var jettison_push: float = 5.0
 @export var jettison_pickup_delay: float = 1.5

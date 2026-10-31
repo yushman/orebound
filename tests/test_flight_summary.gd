@@ -41,3 +41,16 @@ func test_crashed_marks_cargo_lost_but_still_lists_it() -> void:
 func test_empty_hold_has_empty_cargo() -> void:
 	var d := FlightSummary.build(ShipState.new(), "returned", 0.0)
 	assert_true(d["cargo"].is_empty())
+
+
+func test_build_carries_seized_mass_by_type_and_share_for_towed() -> void:
+	var d := FlightSummary.build(_state(), "towed", 5.0, {"seized": {&"ice": 0.5}, "share": 0.25})
+	assert_eq(d["outcome"], "towed")
+	assert_eq(d["seized"], {&"ice": 0.5})
+	assert_eq(d["seized_share"], 0.25)
+
+
+func test_seized_defaults_are_empty() -> void:
+	var d := FlightSummary.build(_state(), "returned", 5.0)
+	assert_true(d["seized"].is_empty())
+	assert_eq(d["seized_share"], 0.0)

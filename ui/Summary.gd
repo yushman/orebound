@@ -11,11 +11,16 @@ var _body: Label
 
 
 static func title_color(outcome: String) -> Color:
-	return Palette.SAFE if outcome == "returned" else Palette.DANGER
+	return Palette.SAFE if outcome == "returned" or outcome == "towed" else Palette.DANGER
 
 
 static func title(outcome: String) -> String:
-	return "вернулся" if outcome == "returned" else "гибель"
+	match outcome:
+		"returned":
+			return "вернулся"
+		"towed":
+			return "буксир"
+	return "гибель"
 
 
 static func lines(summary: Dictionary) -> PackedStringArray:
@@ -26,6 +31,11 @@ static func lines(summary: Dictionary) -> PackedStringArray:
 		out.append("%s — %.1f" % [type, cargo[type]])
 	if summary["cargo_lost"]:
 		out.append("груз потерян")
+	if summary["outcome"] == "towed":
+		out.append("изъято %d%%" % roundi(summary.get("seized_share", 0.0) * 100.0))
+		var seized: Dictionary = summary.get("seized", {})
+		for type in seized:
+			out.append("изъято: %s — %.1f" % [type, seized[type]])
 	var fuel: Dictionary = summary["fuel"]
 	for row in FUEL_ROWS:
 		out.append("%s — %.2f" % [row[1], fuel[row[0]]])

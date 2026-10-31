@@ -79,6 +79,10 @@ func _draw() -> void:
 		return
 	if debug_visible(panel):
 		draw_string(font, DEBUG_POS, debug_text(ship.state, need), HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, Palette.HALO)
+	var line := tow_line(ship.tow_left, ship.tow_share_preview, ship.tow_holding, ship.tow_notice, ship.tow_notice_left)
+	if line != "":
+		var w := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
+		draw_string(font, Vector2((size.x - w) * 0.5, DEBUG_POS.y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, Palette.SAFE)
 	var y := marker_y(ship.state.pos.length())
 	draw_colored_polygon(PackedVector2Array([Vector2(x1 + 4.0, y), Vector2(x1 + 16.0, y - 7.0), Vector2(x1 + 16.0, y + 7.0)]), MARKER_COLOR)
 
@@ -279,6 +283,17 @@ static func segments() -> Array[Vector2]:
 		out[i] = Vector2(cum, cum + shares[i])
 		cum += shares[i]
 	return out
+
+
+static func tow_line(tow_left: float, share: float, holding: bool, notice: String, notice_left: float) -> String:
+	var price := "−%d%% груза" % roundi(share * 100.0)
+	if tow_left >= 0.0:
+		return "буксир через %d с · %s" % [ceili(tow_left), price]
+	if holding:
+		return "буксир: " + price
+	if notice_left > 0.0:
+		return notice
+	return ""
 
 
 static func tow_share() -> float:

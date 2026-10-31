@@ -10,6 +10,10 @@ extends Resource
 @export var pull_omega: float = 0.3
 @export var dock_radius: float = 20.0
 @export var dock_speed: float = 2.0
+@export var tow_delay: float = 5.0
+@export var tow_base: float = 10.0
+@export var tow_markup: float = 2.0
+@export var energy_price: float = 20.0 / 3.0
 @export var moon_count_min: int = 2
 @export var moon_count_max: int = 3
 @export var moon_large_radius_min: float = 1000.0

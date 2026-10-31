@@ -69,12 +69,12 @@ func _default_planet() -> PlanetParams:
 
 func _default_resources() -> Dictionary:
 	var table := {
-		&"ice": [1.0, 1.0, 1.0],
-		&"ore_base": [1.0, 1.0, 0.0],
-		&"ore_middle": [2.0, 1.0, 0.0],
-		&"ore_rare": [3.0, 1.0, 0.0],
-		&"ore_unique": [3.0, 1.0, 0.0],
-		&"fuel": [3.0, 1.0, 3.0],
+		&"ice": [1.0, 1.0, 1.0, 5.0],
+		&"ore_base": [1.0, 1.0, 0.0, 8.0],
+		&"ore_middle": [2.0, 1.0, 0.0, 25.0],
+		&"ore_rare": [3.0, 1.0, 0.0, 70.0],
+		&"ore_unique": [3.0, 1.0, 0.0, 400.0],
+		&"fuel": [3.0, 1.0, 3.0, 20.0],
 	}
 	var out := {}
 	for key in table:
@@ -82,5 +82,6 @@ func _default_resources() -> Dictionary:
 		c.mass = table[key][0]
 		c.volume = table[key][1]
 		c.energy = table[key][2]
+		c.price = table[key][3]
 		out[key] = c
 	return out

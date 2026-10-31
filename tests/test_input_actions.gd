@@ -137,3 +137,13 @@ func test_flight_next_action():
 	assert_true(_has_key("flight_next", KEY_ENTER))
 	assert_true(_has_key("flight_next", KEY_KP_ENTER))
 	assert_true(_has_joy_button("flight_next", JOY_BUTTON_A))
+
+
+func test_tow_action_bound_to_t_and_dpad_down() -> void:
+	assert_true(InputMap.has_action("ship_tow"))
+	assert_true(_has_key("ship_tow", KEY_T))
+	assert_true(_has_joy_button("ship_tow", JOY_BUTTON_DPAD_DOWN))
+	for a in InputMap.get_actions():
+		if a == "ship_tow" or a.begins_with("ui_"):
+			continue
+		assert_false(_has_key(a, KEY_T), a)

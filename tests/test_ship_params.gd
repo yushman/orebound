@@ -102,3 +102,12 @@ func test_transfer_params_defaults() -> void:
 	assert_eq(Tuning.ship.get("refiner"), false)
 	assert_eq(Tuning.ship.get("transfer_hold_time"), 1.0)
 	assert_eq(Tuning.ship.get("transfer_interval"), 0.7)
+
+
+func test_tow_knobs_defaults() -> void:
+	assert_eq(Tuning.ship.tow_hold_time, 2.0)
+	var p: PlanetParams = Tuning.planet
+	assert_eq(p.tow_delay, 5.0)
+	assert_eq(p.tow_base, 10.0)
+	assert_eq(p.tow_markup, 2.0)
+	assert_almost_eq(p.energy_price, 20.0 / 3.0, 1e-9)

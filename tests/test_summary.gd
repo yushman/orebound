@@ -114,3 +114,15 @@ func test_press_before_summary_is_visible_does_nothing() -> void:
 	Input.action_press("flight_next")
 	s._process(0.1)
 	assert_eq(Telemetry.flight, 3)
+
+
+func test_towed_title_color_and_lines() -> void:
+	assert_eq(load("res://ui/Summary.gd").title("towed"), "буксир")
+	assert_eq(load("res://ui/Summary.gd").title_color("towed"), Palette.SAFE)
+	var d := _sample("towed")
+	d["seized_share"] = 0.37
+	d["seized"] = {&"ore_middle": 2.5}
+	var rows: PackedStringArray = load("res://ui/Summary.gd").lines(d)
+	assert_true("изъято 37%" in rows)
+	assert_true("изъято: ore_middle — 2.5" in rows)
+	assert_false("изъято 0%" in load("res://ui/Summary.gd").lines(_sample()))

@@ -4,6 +4,14 @@ var state := ShipState.new()
 var input := ShipInput.new()
 var _jettison_press := LongPress.new()
 var _transfer_press := LongPress.new()
+var _tow_press := LongPress.new()
+var tow_left := -1.0
+var tow_notice := ""
+var tow_notice_left := 0.0
+var tow_share_preview := 0.0
+var tow_holding := false
+
+const TOW_NOTICE_TIME := 2.0
 
 enum Phase { FLYING, ENDED }
 
@@ -25,6 +33,12 @@ func respawn() -> void:
 	flight_start_t = GravityField.time()
 	_jettison_press = LongPress.new()
 	_transfer_press = LongPress.new()
+	_tow_press = LongPress.new()
+	tow_left = -1.0
+	tow_notice = ""
+	tow_notice_left = 0.0
+	tow_share_preview = 0.0
+	tow_holding = false
 	# Spawn on the carrier nose-down: the nose points at the planet and the
 	# velocity is the carrier's motion plus the descend speed toward it
 	# (co-moving with the patrolling матка AND descending).
@@ -61,13 +75,61 @@ func _physics_process(_delta: float) -> void:
 		Telemetry.transfers += 1
 	move_and_collide(state.pos - position)
 	rotation = state.rot
+	tow_notice_left = maxf(tow_notice_left - GravityField.DT, 0.0)
 	if state.crashed or state.docked:
 		if state.crashed:
 			Telemetry.crashes += 1
-		phase = Phase.ENDED
-		input = ShipInput.new()
-		var outcome := "crashed" if state.crashed else "returned"
-		flight_ended.emit(FlightSummary.build(state, outcome, GravityField.time() - flight_start_t))
+		tow_left = -1.0
+		tow_holding = false
+		_end("crashed" if state.crashed else "returned")
+		return
+	if tow_left >= 0.0:
+		var reason := Tow.refusal(state.pos)
+		if reason != "":
+			tow_left = -1.0
+			_notice(reason)
+		else:
+			tow_left -= GravityField.DT
+			if tow_left <= 0.0:
+				tow_left = -1.0
+				tow_share_preview = Tow.seized_share(state)
+				var paid := Tow.pay(state)
+				Telemetry.tow_fee = paid["fee"]
+				Telemetry.tow_seized_share = paid["share"]
+				tow_holding = false
+				_end("towed", paid)
+				return
+	tow_holding = Input.is_action_pressed("ship_tow")
+	if tow_holding or tow_left >= 0.0:
+		tow_share_preview = Tow.seized_share(state)
+
+
+func _end(outcome: String, tow := {}) -> void:
+	phase = Phase.ENDED
+	input = ShipInput.new()
+	flight_ended.emit(FlightSummary.build(state, outcome, GravityField.time() - flight_start_t, tow))
+
+
+func _notice(text: String) -> void:
+	tow_notice = text
+	tow_notice_left = TOW_NOTICE_TIME
+
+
+func _read_tow() -> void:
+	_tow_press.tap_time = Tuning.ship.jettison_tap_time
+	_tow_press.hold_time = Tuning.ship.tow_hold_time
+	match _tow_press.update(Input.is_action_pressed("ship_tow"), GravityField.DT):
+		LongPress.Event.FIRE:
+			if tow_left >= 0.0:
+				return
+			var reason := Tow.refusal(state.pos)
+			if reason != "":
+				_notice(reason)
+			else:
+				tow_left = Tuning.planet.tow_delay
+				Telemetry.tow_calls += 1
+		LongPress.Event.CANCEL:
+			Telemetry.tow_cancelled += 1
 
 
 func _read_input() -> ShipInput:
@@ -105,4 +167,5 @@ func _read_input() -> ShipInput:
 	_transfer_press.interval = Tuning.ship.transfer_interval
 	if _transfer_press.update(Input.is_action_pressed("ship_transfer"), GravityField.DT) == LongPress.Event.FIRE:
 		inp.transfer = true
+	_read_tow()
 	return inp

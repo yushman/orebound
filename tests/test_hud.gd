@@ -250,3 +250,11 @@ func test_hold_frame_index_is_effective_pick_minus_one_for_empty_hold() -> void:
 	assert_eq(HUD_SCRIPT.hold_frame_index(s), Hold.effective_pick(s))
 	s.jettison_pick = 0
 	assert_eq(HUD_SCRIPT.hold_frame_index(s), 0)
+
+
+func test_tow_line_price_countdown_and_notice() -> void:
+	assert_eq(HUD_SCRIPT.tow_line(-1.0, 0.42, true, "", 0.0), "буксир: −42% груза")
+	assert_eq(HUD_SCRIPT.tow_line(3.2, 0.42, false, "", 0.0), "буксир через 4 с · −42% груза")
+	assert_eq(HUD_SCRIPT.tow_line(3.2, 0.42, true, "x", 1.0), "буксир через 4 с · −42% груза")
+	assert_eq(HUD_SCRIPT.tow_line(-1.0, 0.0, false, "в атмосфере", 1.0), "в атмосфере")
+	assert_eq(HUD_SCRIPT.tow_line(-1.0, 0.0, false, "в атмосфере", 0.0), "")

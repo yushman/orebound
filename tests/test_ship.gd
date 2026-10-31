@@ -545,3 +545,100 @@ func test_docked_tick_writes_docking_time() -> void:
 	ship._physics_process(1.0 / 60.0)
 	assert_true(ship.state.docked)
 	assert_gt(Telemetry.docking_time, 12.5)
+
+
+func _tow_ship() -> Node:
+	var ship = _make()
+	ship.state.pos = Vector2(float(WellGenerator.tiers()["tow"]) + 500.0, 0.0)
+	ship.state.vel = Vector2.ZERO
+	return ship
+
+
+func _press_tow(ship: Node, ticks: int) -> void:
+	Input.action_press("ship_tow")
+	for i in ticks:
+		ship._physics_process(GravityField.DT)
+	Input.action_release("ship_tow")
+	ship._physics_process(GravityField.DT)
+
+
+func _run_ticks(ship: Node, n: int) -> void:
+	for i in n:
+		ship._physics_process(GravityField.DT)
+
+
+func test_accepted_call_ends_towed_after_delay_with_tank_drained_and_cargo_seized() -> void:
+	var calls: int = Telemetry.tow_calls
+	var ship = _tow_ship()
+	Hold.add(ship.state, &"ore_middle", 3.0)
+	var ends := []
+	ship.flight_ended.connect(func(d): ends.append(d))
+	_press_tow(ship, 125)
+	assert_eq(Telemetry.tow_calls, calls + 1)
+	assert_gt(ship.tow_left, 0.0)
+	assert_true(ends.is_empty())
+	_run_ticks(ship, int(Tuning.planet.tow_delay * 60.0) + 5)
+	assert_eq(ends.size(), 1)
+	assert_eq(ends[0]["outcome"], "towed")
+	assert_true(ship.state.tank.is_empty())
+	assert_gt(ends[0]["seized_share"], 0.0)
+	assert_eq(Telemetry.tow_seized_share, ends[0]["seized_share"])
+	assert_gt(Telemetry.tow_fee, 0.0)
+	_run_ticks(ship, 10)
+	assert_eq(ends.size(), 1)
+
+
+func test_tow_refused_below_boundary_sets_notice_and_no_call() -> void:
+	var calls: int = Telemetry.tow_calls
+	var ship = _make()
+	ship.state.pos = Vector2(float(WellGenerator.tiers()["tow"]) - 500.0, 0.0)
+	_press_tow(ship, 125)
+	assert_eq(ship.tow_left, -1.0)
+	assert_eq(ship.tow_notice, "ниже границы буксира")
+	assert_eq(Telemetry.tow_calls, calls)
+
+
+func test_short_press_does_nothing_and_cancel_window_counts() -> void:
+	var cancelled: int = Telemetry.tow_cancelled
+	var ship = _tow_ship()
+	_press_tow(ship, 10)
+	assert_eq(ship.tow_left, -1.0)
+	assert_eq(Telemetry.tow_cancelled, cancelled)
+	_press_tow(ship, 60)
+	assert_eq(ship.tow_left, -1.0)
+	assert_eq(Telemetry.tow_cancelled, cancelled + 1)
+
+
+func test_tow_breaks_when_descending_below_boundary() -> void:
+	var ship = _tow_ship()
+	ship.state.pos = Vector2(float(WellGenerator.tiers()["tow"]) + 1.0, 0.0)
+	_press_tow(ship, 125)
+	assert_gt(ship.tow_left, 0.0)
+	ship.state.pos = Vector2(float(WellGenerator.tiers()["tow"]) - 100.0, 0.0)
+	_run_ticks(ship, 2)
+	assert_eq(ship.tow_left, -1.0)
+	assert_eq(ship.tow_notice, "ниже границы буксира")
+
+
+func test_empty_tank_still_calls_and_dock_before_arrival_returns() -> void:
+	var ship = _tow_ship()
+	ship.state.tank.clear()
+	var ends := []
+	ship.flight_ended.connect(func(d): ends.append(d))
+	_press_tow(ship, 125)
+	assert_gt(ship.tow_left, 0.0)
+	ship.state.docked = true
+	_run_ticks(ship, 2)
+	assert_eq(ends.size(), 1)
+	assert_eq(ends[0]["outcome"], "returned")
+	assert_eq(ship.tow_left, -1.0)
+
+
+func test_holding_tow_updates_preview_and_flag() -> void:
+	var ship = _tow_ship()
+	Hold.add(ship.state, &"ore_middle", 3.0)
+	Input.action_press("ship_tow")
+	ship._physics_process(GravityField.DT)
+	Input.action_release("ship_tow")
+	assert_true(ship.tow_holding)
+	assert_almost_eq(ship.tow_share_preview, Tow.seized_share(ship.state), 0.05)
