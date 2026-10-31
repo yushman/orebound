@@ -13,3 +13,4 @@ extends Resource
 @export var star_fade: float = 1.0
 @export var star_px: float = 1.5
 @export var summary_delay: float = 1.5
+@export var warning_time: float = 2.5

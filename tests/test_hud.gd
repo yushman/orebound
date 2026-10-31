@@ -256,7 +256,7 @@ func test_tow_line_price_countdown_and_notice() -> void:
 	assert_eq(HUD_SCRIPT.tow_line(-1.0, 0.42, true, "", 0.0), "буксир: −42% груза")
 	assert_eq(HUD_SCRIPT.tow_line(3.2, 0.42, false, "", 0.0), "буксир через 4 с · −42% груза")
 	assert_eq(HUD_SCRIPT.tow_line(3.2, 0.42, true, "x", 1.0), "буксир через 4 с · −42% груза")
-	assert_eq(HUD_SCRIPT.tow_line(-1.0, 0.0, false, "в атмосфере", 1.0), "в атмосфере")
+	assert_eq(HUD_SCRIPT.tow_line(-1.0, 0.0, false, "в атмосфере", 1.0), "")
 	assert_eq(HUD_SCRIPT.tow_line(-1.0, 0.0, false, "в атмосфере", 0.0), "")
 
 
@@ -267,3 +267,42 @@ func test_tow_line_shows_the_ceiling_countdown() -> void:
 
 func test_tow_line_boundary_is_full_seizure() -> void:
 	assert_eq(HUD_SCRIPT.tow_line(-1.0, 0.1, false, "", 0.0, "boundary", 9.0), "ниже границы: буксир через 9 с · −100% груза")
+
+
+func test_arrow_pose_hides_when_the_carrier_is_inside_the_shrunk_rect() -> void:
+	var pose: Dictionary = HUD_SCRIPT.arrow_pose(Vector2(640, 400), Vector2(1280, 800), 40.0)
+	assert_false(pose.visible)
+	assert_false(HUD_SCRIPT.arrow_pose(Vector2(41, 41), Vector2(1280, 800), 40.0).visible)
+
+
+func test_arrow_pose_off_screen_sits_on_the_shrunk_edge_toward_the_carrier() -> void:
+	var size := Vector2(1280, 800)
+	var pose: Dictionary = HUD_SCRIPT.arrow_pose(Vector2(3000, 400), size, 40.0)
+	assert_true(pose.visible)
+	assert_almost_eq(pose.pos, Vector2(1240, 400), Vector2(1e-3, 1e-3))
+	assert_almost_eq(pose.angle, 0.0, 1e-6)
+	var diag: Dictionary = HUD_SCRIPT.arrow_pose(Vector2(-640, -400) + Vector2(640, 400) * 0.0 + Vector2(-600, -400), size, 40.0)
+	var c := size * 0.5
+	var dir: Vector2 = (diag.pos - c).normalized()
+	assert_almost_eq(dir, (Vector2(-1240, -800) - c).normalized(), Vector2(1e-4, 1e-4))
+	assert_almost_eq(diag.angle, (Vector2(-1240, -800) - c).angle(), 1e-5)
+	assert_true(Rect2(Vector2.ZERO, size).grow(-40.0).grow(1e-3).has_point(diag.pos))
+	var edge := minf(absf(diag.pos.x - c.x) / (c.x - 40.0), absf(diag.pos.y - c.y) / (c.y - 40.0))
+	assert_almost_eq(maxf(absf(diag.pos.x - c.x) / (c.x - 40.0), absf(diag.pos.y - c.y) / (c.y - 40.0)), 1.0, 1e-4, str(edge))
+
+
+func test_distance_text_rounds_and_groups_thousands() -> void:
+	assert_eq(HUD_SCRIPT.distance_text(12400.4), "12 400 ед.")
+	assert_eq(HUD_SCRIPT.distance_text(850.0), "850 ед.")
+	assert_eq(HUD_SCRIPT.distance_text(1234567.0), "1 234 567 ед.")
+
+
+func test_ship_reserve_matches_the_inline_formula() -> void:
+	var s := ShipState.new()
+	s.pos = Vector2(0, Tuning.field.atmosphere_edge + 100.0)
+	s.vel = Vector2(5, 0)
+	var need := Fuel.climb_energy(s.pos.length(), s.vel.length(), Hold.mass(s))
+	var reserve := maxf(Tuning.resources[&"fuel"].energy, need)
+	assert_eq(HUD_SCRIPT.ship_reserve(s), HUD_SCRIPT.reserve_state(Hold.energy(s), need, reserve))
+	s.tank.clear()
+	assert_eq(HUD_SCRIPT.ship_reserve(s), HUD_SCRIPT.State.BELOW)

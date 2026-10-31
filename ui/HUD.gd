@@ -21,6 +21,8 @@ const STRIP_H := 60.0
 const BAR_W := 28.0
 const MARGIN := 60.0
 const FONT_SIZE := 16
+const ARROW_SIZE := 18.0
+const ARROW_MARGIN := 40.0
 const DEBUG_POS := Vector2(16.0, 24.0)
 const TIER_ALPHA := 0.6
 const TIER_DARKEN := 0.2
@@ -48,18 +50,13 @@ func _draw() -> void:
 	var x0 := size.x - MARGIN - BAR_W
 	var x1 := x0 + BAR_W
 	var font := ThemeDB.fallback_font
-	var state := State.CALM
-	var color := reserve_color(state)
+	var color := reserve_color(State.CALM)
 	var need := 0.0
-	var reserve: float = Tuning.resources[&"fuel"].energy
 	if ship != null:
 		var s: ShipState = ship.state
-		var mass := Hold.mass(s)
-		var energy := Hold.energy(s)
-		need = Fuel.climb_energy(s.pos.length(), s.vel.length(), mass)
-		reserve = maxf(reserve, need)
-		state = reserve_state(energy, need, reserve)
-		color = reserve_color(state)
+		need = Fuel.climb_energy(s.pos.length(), s.vel.length(), Hold.mass(s))
+		color = reserve_color(ship_reserve(s))
+	var reserve := maxf(Tuning.resources[&"fuel"].energy, need)
 	_draw_bars(font, color, reserve)
 	var segs := segments()
 	for i in segs.size():
@@ -85,6 +82,24 @@ func _draw() -> void:
 		draw_string(font, Vector2((size.x - w) * 0.5, DEBUG_POS.y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, Palette.SAFE)
 	var y := marker_y(ship.state.pos.length())
 	draw_colored_polygon(PackedVector2Array([Vector2(x1 + 4.0, y), Vector2(x1 + 16.0, y - 7.0), Vector2(x1 + 16.0, y + 7.0)]), MARKER_COLOR)
+	_draw_arrow(font, color)
+
+
+func _draw_arrow(font: Font, color: Color) -> void:
+	var t := GravityField.time()
+	var carrier := ShipFlight.carrier_pos(t)
+	var pose := arrow_pose(get_viewport().get_canvas_transform() * carrier, size, ARROW_MARGIN)
+	if not pose.visible:
+		return
+	var dir := Vector2.from_angle(pose.angle)
+	var side := dir.orthogonal()
+	var tip: Vector2 = pose.pos
+	draw_colored_polygon(PackedVector2Array([tip, tip - dir * ARROW_SIZE + side * ARROW_SIZE * 0.5, tip - dir * ARROW_SIZE - side * ARROW_SIZE * 0.5]), color)
+	var text := distance_text((ship.state.pos - carrier).length())
+	var w := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
+	var inner_c := tip - dir * (ARROW_SIZE + LABEL_GAP) - dir * Vector2(w, FONT_SIZE).length() * 0.5
+	var at := inner_c - Vector2(w * 0.5, -FONT_SIZE * 0.35)
+	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, color)
 
 
 func _draw_bars(font: Font, frame_color: Color, reserve: float) -> void:
@@ -227,14 +242,6 @@ static func hull_segments(hull: float, hull_max: float) -> int:
 	return ceili(clampf(hull / hull_max, 0.0, 1.0) * HULL_SEGMENTS)
 
 
-static func reserve_state(energy: float, need: float, reserve: float) -> State:
-	if energy < need:
-		return State.BELOW
-	if energy <= reserve:
-		return State.NEAR
-	return State.CALM
-
-
 static func reserve_x(cells: Array[HoldCell], capacity: int, reserve: float, rects: Array[Rect2]) -> float:
 	if rects.is_empty():
 		return 0.0
@@ -251,6 +258,14 @@ static func reserve_x(cells: Array[HoldCell], capacity: int, reserve: float, rec
 			return rects[i].position.x + rects[i].size.x * maxf(left, 0.0) / e
 		left -= e
 	return rects[rects.size() - 1].end.x
+
+
+static func reserve_state(energy: float, need: float, reserve: float) -> State:
+	if energy < need:
+		return State.BELOW
+	if energy <= reserve:
+		return State.NEAR
+	return State.CALM
 
 
 static func reserve_color(state: State) -> Color:
@@ -295,9 +310,37 @@ static func tow_line(tow_left: float, share: float, holding: bool, notice: Strin
 		return "буксир через %d с · %s" % [ceili(tow_left), price]
 	if holding:
 		return "буксир: " + price
-	if notice_left > 0.0:
-		return notice
 	return ""
+
+
+static func ship_reserve(s: ShipState) -> State:
+	var need := Fuel.climb_energy(s.pos.length(), s.vel.length(), Hold.mass(s))
+	var reserve := maxf(Tuning.resources[&"fuel"].energy, need)
+	return reserve_state(Hold.energy(s), need, reserve)
+
+
+static func arrow_pose(p: Vector2, size: Vector2, margin: float) -> Dictionary:
+	var inner := Rect2(Vector2.ZERO, size).grow(-margin)
+	if inner.has_point(p):
+		return {"visible": false, "pos": p, "angle": 0.0}
+	var c := size * 0.5
+	var d := p - c
+	var k := INF
+	if absf(d.x) > 1e-6:
+		k = minf(k, inner.size.x * 0.5 / absf(d.x))
+	if absf(d.y) > 1e-6:
+		k = minf(k, inner.size.y * 0.5 / absf(d.y))
+	return {"visible": true, "pos": c + d * k, "angle": d.angle()}
+
+
+static func distance_text(d: float) -> String:
+	var digits := str(roundi(d))
+	var out := ""
+	for i in digits.length():
+		if i > 0 and (digits.length() - i) % 3 == 0:
+			out += " "
+		out += digits[i]
+	return out + " ед."
 
 
 static func tow_share() -> float:
