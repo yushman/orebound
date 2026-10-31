@@ -104,6 +104,7 @@ const ROWS := [
 	["view", "ring_period", 0.2, 10.0, 0.1],
 	["view", "ring_px", 0.5, 5.0, 0.05],
 	["view", "ring_alpha", 0.0, 1.0, 0.01],
+	["view", "volume", 0.0, 1.0, 0.05],
 ]
 
 var sliders := {}

@@ -63,7 +63,7 @@ func test_slider_set_covers_all_parameters() -> void:
 					"piece_swallow_radius", "piece_despawn_radius", "piece_bounce", "v_safe", "impact_k",
 					"split_count", "split_area_divisor", "collect_radius", "break_per_sqrt_radius", "piece_lifetime", "piece_min_radius", "piece_scatter", "piece_spread"]:
 		expect.append("planet." + p)
-	for p in ["halo_alpha", "ring_count", "ring_period", "ring_px", "ring_alpha"]:
+	for p in ["halo_alpha", "ring_count", "ring_period", "ring_px", "ring_alpha", "volume"]:
 		expect.append("view." + p)
 	for id in expect:
 		assert_true(ids.has(id), id)
@@ -630,3 +630,16 @@ func test_transfer_sliders_write_ship_params() -> void:
 	assert_eq(Tuning.ship.transfer_hold_time, 2.0)
 	_panel.sliders["ship.transfer_interval"].value = 1.5
 	assert_eq(Tuning.ship.transfer_interval, 1.5)
+
+
+func test_volume_slider_in_range_and_writes_view() -> void:
+	assert_true(_panel.sliders.has("view.volume"))
+	if not _panel.sliders.has("view.volume"):
+		return
+	var s: HSlider = _panel.sliders["view.volume"]
+	assert_eq(s.min_value, 0.0)
+	assert_eq(s.max_value, 1.0)
+	assert_eq(s.step, 0.05)
+	assert_between(Tuning.view.volume, s.min_value, s.max_value)
+	s.value = 0.35
+	assert_eq(Tuning.view.volume, 0.35)

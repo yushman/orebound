@@ -14,3 +14,7 @@ extends Resource
 @export var star_px: float = 1.5
 @export var summary_delay: float = 1.5
 @export var warning_time: float = 2.5
+@export var volume: float = 0.8
+@export var reserve_click_period: float = 4.0
+@export var reserve_beep_period: float = 2.0
+@export var crack_period: float = 0.4
