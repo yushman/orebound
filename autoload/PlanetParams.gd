@@ -11,6 +11,7 @@ extends Resource
 @export var dock_radius: float = 20.0
 @export var dock_speed: float = 2.0
 @export var tow_delay: float = 5.0
+@export var violation_time: float = 10.0
 @export var tow_base: float = 10.0
 @export var tow_markup: float = 2.0
 @export var energy_price: float = 20.0 / 3.0

@@ -8,6 +8,16 @@ static func refusal(pos: Vector2) -> String:
 	return ""
 
 
+static func violation(pos: Vector2, boat: bool) -> String:
+	var t: Dictionary = WellGenerator.tiers()
+	var r := pos.length()
+	if r > t["ceiling"]:
+		return "ceiling"
+	if boat and r < t["tow"]:
+		return "boundary"
+	return ""
+
+
 static func fee(s: ShipState) -> float:
 	var p: PlanetParams = Tuning.planet
 	return p.tow_base + p.tow_markup * p.energy_price * Fuel.climb_energy(s.pos.length(), s.vel.length(), Hold.mass(s))
@@ -27,9 +37,9 @@ static func seized_share(s: ShipState) -> float:
 	return minf(1.0, fee(s) / v)
 
 
-static func pay(s: ShipState) -> Dictionary:
-	var f := fee(s)
-	var share := seized_share(s)
+static func pay(s: ShipState, forced := false) -> Dictionary:
+	var f := cargo_value(s) if forced else fee(s)
+	var share := 1.0 if forced else seized_share(s)
 	var seized := {}
 	var kept: Array[HoldCell] = []
 	for c in s.hold:

@@ -54,3 +54,9 @@ func test_seized_defaults_are_empty() -> void:
 	var d := FlightSummary.build(_state(), "returned", 5.0)
 	assert_true(d["seized"].is_empty())
 	assert_eq(d["seized_share"], 0.0)
+
+
+func test_tow_kind_for_towed_only() -> void:
+	assert_eq(FlightSummary.build(_state(), "towed", 5.0, {"kind": "ceiling"})["tow_kind"], "ceiling")
+	assert_eq(FlightSummary.build(_state(), "towed", 5.0, {"kind": "manual"})["tow_kind"], "manual")
+	assert_eq(FlightSummary.build(_state(), "returned", 5.0)["tow_kind"], "")

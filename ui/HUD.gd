@@ -79,7 +79,7 @@ func _draw() -> void:
 		return
 	if debug_visible(panel):
 		draw_string(font, DEBUG_POS, debug_text(ship.state, need), HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, Palette.HALO)
-	var line := tow_line(ship.tow_left, ship.tow_share_preview, ship.tow_holding, ship.tow_notice, ship.tow_notice_left)
+	var line := tow_line(ship.tow_left, ship.tow_share_preview, ship.tow_holding, ship.tow_notice, ship.tow_notice_left, ship.violation, ship.violation_left())
 	if line != "":
 		var w := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE).x
 		draw_string(font, Vector2((size.x - w) * 0.5, DEBUG_POS.y), line, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, Palette.SAFE)
@@ -285,8 +285,12 @@ static func segments() -> Array[Vector2]:
 	return out
 
 
-static func tow_line(tow_left: float, share: float, holding: bool, notice: String, notice_left: float) -> String:
+static func tow_line(tow_left: float, share: float, holding: bool, notice: String, notice_left: float, violation := "", violation_left := -1.0) -> String:
 	var price := "−%d%% груза" % roundi(share * 100.0)
+	if violation == "ceiling":
+		return "потолок: буксир через %d с · %s" % [ceili(violation_left), price]
+	if violation == "boundary":
+		return "ниже границы: буксир через %d с · −100%% груза" % ceili(violation_left)
 	if tow_left >= 0.0:
 		return "буксир через %d с · %s" % [ceili(tow_left), price]
 	if holding:

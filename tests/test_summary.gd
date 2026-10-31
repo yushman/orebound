@@ -126,3 +126,15 @@ func test_towed_title_color_and_lines() -> void:
 	assert_true("изъято 37%" in rows)
 	assert_true("изъято: ore_middle — 2.5" in rows)
 	assert_false("изъято 0%" in load("res://ui/Summary.gd").lines(_sample()))
+
+
+func test_tow_kind_lines() -> void:
+	var d := _sample("towed")
+	d["tow_kind"] = "ceiling"
+	assert_true("потолок" in load("res://ui/Summary.gd").lines(d))
+	d["tow_kind"] = "forced"
+	assert_true("ниже границы буксира" in load("res://ui/Summary.gd").lines(d))
+	d["tow_kind"] = "manual"
+	var rows: PackedStringArray = load("res://ui/Summary.gd").lines(d)
+	assert_false("потолок" in rows)
+	assert_false("ниже границы буксира" in rows)

@@ -111,3 +111,10 @@ func test_tow_knobs_defaults() -> void:
 	assert_eq(p.tow_base, 10.0)
 	assert_eq(p.tow_markup, 2.0)
 	assert_almost_eq(p.energy_price, 20.0 / 3.0, 1e-9)
+
+
+func test_violation_knobs_defaults() -> void:
+	assert_eq(Tuning.ship.service_boat, true)
+	assert_eq(Tuning.planet.violation_time, 10.0)
+	assert_true(Telemetry.get("ceiling_tows") is int)
+	assert_true(Telemetry.get("forced_tows") is int)

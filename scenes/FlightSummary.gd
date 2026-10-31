@@ -19,4 +19,5 @@ static func build(state: ShipState, outcome: String, flight_time: float, tow := 
 		"time": flight_time,
 		"seized": tow.get("seized", {}),
 		"seized_share": tow.get("share", 0.0),
+		"tow_kind": tow.get("kind", "") if outcome == "towed" else "",
 	}

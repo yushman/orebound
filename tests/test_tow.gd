@@ -75,3 +75,31 @@ func test_pay_drops_emptied_cells() -> void:
 	var r := Tow.pay(s)
 	assert_eq(r["share"], 1.0)
 	assert_true(s.hold.is_empty())
+
+
+func test_violation_is_ceiling_above_tiers_ceiling() -> void:
+	var t: Dictionary = WellGenerator.tiers()
+	assert_eq(Tow.violation(Vector2(t["ceiling"] + 1.0, 0), true), "ceiling")
+	assert_eq(Tow.violation(Vector2(t["ceiling"] + 1.0, 0), false), "ceiling")
+	assert_eq(Tow.violation(Vector2(t["ceiling"] - 1.0, 0), true), "")
+
+
+func test_violation_boundary_only_for_boat() -> void:
+	var tow_r: float = WellGenerator.tiers()["tow"]
+	assert_eq(Tow.violation(Vector2(tow_r - 1.0, 0), true), "boundary")
+	assert_eq(Tow.violation(Vector2(tow_r - 1.0, 0), false), "")
+	assert_eq(Tow.violation(Vector2(tow_r + 1.0, 0), true), "")
+
+
+func test_forced_pay_seizes_everything_and_drains_tank() -> void:
+	var s := _state(WellGenerator.tiers()["tow"], 2)
+	s.hold.append(_cell(&"ice", 0.5))
+	var value := Tow.cargo_value(s)
+	var energy := Hold.energy(s)
+	var r := Tow.pay(s, true)
+	assert_eq(r["share"], 1.0)
+	assert_almost_eq(r["fee"], value, 1e-6)
+	assert_almost_eq(r["drained_energy"], energy, 1e-6)
+	assert_true(s.hold.is_empty())
+	assert_true(s.tank.is_empty())
+	assert_almost_eq(r["seized"][&"ore_middle"], 4.0, 1e-6)

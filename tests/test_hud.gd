@@ -258,3 +258,12 @@ func test_tow_line_price_countdown_and_notice() -> void:
 	assert_eq(HUD_SCRIPT.tow_line(3.2, 0.42, true, "x", 1.0), "буксир через 4 с · −42% груза")
 	assert_eq(HUD_SCRIPT.tow_line(-1.0, 0.0, false, "в атмосфере", 1.0), "в атмосфере")
 	assert_eq(HUD_SCRIPT.tow_line(-1.0, 0.0, false, "в атмосфере", 0.0), "")
+
+
+func test_tow_line_shows_the_ceiling_countdown() -> void:
+	assert_eq(HUD_SCRIPT.tow_line(-1.0, 0.42, false, "", 0.0, "ceiling", 3.2), "потолок: буксир через 4 с · −42% груза")
+	assert_eq(HUD_SCRIPT.tow_line(2.0, 0.42, true, "x", 1.0, "ceiling", 3.2), "потолок: буксир через 4 с · −42% груза")
+
+
+func test_tow_line_boundary_is_full_seizure() -> void:
+	assert_eq(HUD_SCRIPT.tow_line(-1.0, 0.1, false, "", 0.0, "boundary", 9.0), "ниже границы: буксир через 9 с · −100% груза")

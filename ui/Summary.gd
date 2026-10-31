@@ -32,6 +32,11 @@ static func lines(summary: Dictionary) -> PackedStringArray:
 	if summary["cargo_lost"]:
 		out.append("груз потерян")
 	if summary["outcome"] == "towed":
+		match summary.get("tow_kind", ""):
+			"ceiling":
+				out.append("потолок")
+			"forced":
+				out.append("ниже границы буксира")
 		out.append("изъято %d%%" % roundi(summary.get("seized_share", 0.0) * 100.0))
 		var seized: Dictionary = summary.get("seized", {})
 		for type in seized:

@@ -642,3 +642,91 @@ func test_holding_tow_updates_preview_and_flag() -> void:
 	Input.action_release("ship_tow")
 	assert_true(ship.tow_holding)
 	assert_almost_eq(ship.tow_share_preview, Tow.seized_share(ship.state), 0.05)
+
+
+func _violation_ship(r: float) -> Node:
+	var ship = _make()
+	ship.state.pos = Vector2(r, 0.0)
+	ship.state.vel = Vector2.ZERO
+	return ship
+
+
+func _ceiling_r() -> float:
+	return float(WellGenerator.tiers()["ceiling"]) + 500.0
+
+
+func test_crossing_the_ceiling_starts_the_violation_countdown() -> void:
+	var ship = _violation_ship(_ceiling_r())
+	ship._physics_process(GravityField.DT)
+	assert_eq(ship.violation, "ceiling")
+	assert_eq(ship.violation_ticks, 1)
+	var need := ceili(Tuning.planet.violation_time / GravityField.DT)
+	assert_almost_eq(ship.violation_left(), (need - 1) * GravityField.DT, 1e-6)
+	ship.state.pos = Vector2(float(WellGenerator.tiers()["ceiling"]) - 500.0, 0.0)
+	ship._physics_process(GravityField.DT)
+	assert_eq(ship.violation, "")
+	assert_eq(ship.violation_ticks, 0)
+	assert_eq(ship.violation_left(), -1.0)
+
+
+func test_ceiling_expiry_ends_towed_after_exact_ticks_with_ceiling_kind() -> void:
+	var count: int = Telemetry.ceiling_tows
+	var ship = _violation_ship(_ceiling_r())
+	Hold.add(ship.state, &"ore_middle", 3.0)
+	var ends := []
+	ship.flight_ended.connect(func(d): ends.append(d))
+	var need := ceili(Tuning.planet.violation_time / GravityField.DT)
+	_run_ticks(ship, need - 1)
+	assert_true(ends.is_empty())
+	_run_ticks(ship, 1)
+	assert_eq(ends.size(), 1)
+	assert_eq(ends[0]["outcome"], "towed")
+	assert_eq(ends[0]["tow_kind"], "ceiling")
+	assert_true(ship.state.tank.is_empty())
+	assert_lt(ends[0]["seized_share"], 1.0 + 1e-9)
+	assert_eq(Telemetry.ceiling_tows, count + 1)
+	_run_ticks(ship, 10)
+	assert_eq(ends.size(), 1)
+	assert_eq(Telemetry.ceiling_tows, count + 1)
+
+
+func test_boat_below_boundary_is_forced_tow_seizing_all_cargo() -> void:
+	var count: int = Telemetry.forced_tows
+	var ship = _violation_ship(float(WellGenerator.tiers()["tow"]) - 500.0)
+	Hold.add(ship.state, &"ore_middle", 3.0)
+	var ends := []
+	ship.flight_ended.connect(func(d): ends.append(d))
+	_run_ticks(ship, ceili(Tuning.planet.violation_time / GravityField.DT))
+	assert_eq(ends.size(), 1)
+	assert_eq(ends[0]["tow_kind"], "forced")
+	assert_eq(ends[0]["seized_share"], 1.0)
+	assert_true(ends[0]["cargo"].is_empty())
+	assert_gt(Telemetry.tow_fee, 0.0)
+	assert_eq(Telemetry.forced_tows, count + 1)
+
+
+func test_non_boat_below_boundary_never_counts() -> void:
+	var saved: ShipParams = Tuning.ship
+	Tuning.ship = Tuning.ship.duplicate()
+	Tuning.ship.service_boat = false
+	var ship = _violation_ship(float(WellGenerator.tiers()["tow"]) - 500.0)
+	var ends := []
+	ship.flight_ended.connect(func(d): ends.append(d))
+	_run_ticks(ship, 5)
+	assert_eq(ship.violation, "")
+	assert_eq(ship.violation_ticks, 0)
+	Tuning.ship = saved
+
+
+func test_manual_tow_above_the_ceiling_still_arrives_as_manual() -> void:
+	var saved: float = Tuning.planet.violation_time
+	Tuning.planet.violation_time = 60.0
+	var ship = _violation_ship(_ceiling_r())
+	var ends := []
+	ship.flight_ended.connect(func(d): ends.append(d))
+	_press_tow(ship, 125)
+	assert_gt(ship.tow_left, 0.0)
+	_run_ticks(ship, int(Tuning.planet.tow_delay * 60.0) + 5)
+	assert_eq(ends.size(), 1)
+	assert_eq(ends[0]["tow_kind"], "manual")
+	Tuning.planet.violation_time = saved

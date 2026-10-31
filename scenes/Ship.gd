@@ -10,6 +10,8 @@ var tow_notice := ""
 var tow_notice_left := 0.0
 var tow_share_preview := 0.0
 var tow_holding := false
+var violation := ""
+var violation_ticks := 0
 
 const TOW_NOTICE_TIME := 2.0
 
@@ -39,6 +41,8 @@ func respawn() -> void:
 	tow_notice_left = 0.0
 	tow_share_preview = 0.0
 	tow_holding = false
+	violation = ""
+	violation_ticks = 0
 	# Spawn on the carrier nose-down: the nose points at the planet and the
 	# velocity is the carrier's motion plus the descend speed toward it
 	# (co-moving with the patrolling матка AND descending).
@@ -83,6 +87,29 @@ func _physics_process(_delta: float) -> void:
 		tow_holding = false
 		_end("crashed" if state.crashed else "returned")
 		return
+	var v := Tow.violation(state.pos, Tuning.ship.service_boat)
+	if v != violation:
+		violation = v
+		violation_ticks = 0
+	if v != "":
+		violation_ticks += 1
+		tow_share_preview = 1.0 if v == "boundary" else Tow.seized_share(state)
+		if violation_ticks >= _violation_need():
+			var forced := v == "boundary"
+			var paid := Tow.pay(state, forced)
+			paid["kind"] = "forced" if forced else "ceiling"
+			Telemetry.tow_fee = paid["fee"]
+			Telemetry.tow_seized_share = paid["share"]
+			if forced:
+				Telemetry.forced_tows += 1
+			else:
+				Telemetry.ceiling_tows += 1
+			tow_left = -1.0
+			tow_holding = false
+			violation = ""
+			violation_ticks = 0
+			_end("towed", paid)
+			return
 	if tow_left >= 0.0:
 		var reason := Tow.refusal(state.pos)
 		if reason != "":
@@ -94,6 +121,7 @@ func _physics_process(_delta: float) -> void:
 				tow_left = -1.0
 				tow_share_preview = Tow.seized_share(state)
 				var paid := Tow.pay(state)
+				paid["kind"] = "manual"
 				Telemetry.tow_fee = paid["fee"]
 				Telemetry.tow_seized_share = paid["share"]
 				tow_holding = false
@@ -102,6 +130,16 @@ func _physics_process(_delta: float) -> void:
 	tow_holding = Input.is_action_pressed("ship_tow")
 	if tow_holding or tow_left >= 0.0:
 		tow_share_preview = Tow.seized_share(state)
+
+
+func _violation_need() -> int:
+	return ceili(Tuning.planet.violation_time / GravityField.DT)
+
+
+func violation_left() -> float:
+	if violation == "":
+		return -1.0
+	return maxi(_violation_need() - violation_ticks, 0) * GravityField.DT
 
 
 func _end(outcome: String, tow := {}) -> void:
