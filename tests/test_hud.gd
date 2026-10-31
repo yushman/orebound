@@ -212,22 +212,6 @@ func test_reserve_state_and_colors() -> void:
 	assert_eq(HUD_SCRIPT.reserve_color(HUD_SCRIPT.State.CALM), Palette.HALO)
 
 
-func test_reserve_x_one_cell_grows_with_need_and_clamps() -> void:
-	var e: float = Tuning.resources[&"fuel"].energy
-	var cells: Array[HoldCell] = []
-	for i in 2:
-		var c := HoldCell.new()
-		c.type = &"fuel"
-		c.fill = 1.0
-		cells.append(c)
-	var rects := HUD_SCRIPT.bar_cells(4, 1280.0, HUD_SCRIPT.TANK_Y)
-	assert_almost_eq(HUD_SCRIPT.reserve_x(cells, 4, e, rects), rects[0].end.x, 0.001)
-	var half: float = rects[1].position.x + rects[1].size.x * 0.5
-	assert_almost_eq(HUD_SCRIPT.reserve_x(cells, 4, e * 1.5, rects), half, 0.001)
-	assert_almost_eq(HUD_SCRIPT.reserve_x(cells, 4, e * 3.0, rects), rects[2].end.x, 0.001)
-	assert_almost_eq(HUD_SCRIPT.reserve_x(cells, 4, e * 100.0, rects), rects[3].end.x, 0.001)
-
-
 func test_debug_text_shows_energy_mass_hold_tank_slots_and_need() -> void:
 	assert_eq(HUD_SCRIPT.debug_text(ShipState.new(), 1.5), "энергия 6.00 · масса 10.0 · трюм 0/10 · бак 2/4 · нужно 1.50")
 

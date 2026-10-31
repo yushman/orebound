@@ -10,7 +10,6 @@ const HULL_Y := 772.0
 const HULL_H := 14.0
 const HULL_SEGMENTS := 5
 const HULL_SEG_W := 28.0
-const RESERVE_H := 3.0
 const PATTERN_STEP := 6.0
 const FRAME_PAD := 4.0
 const OUTLINE_W := 2.0
@@ -56,8 +55,7 @@ func _draw() -> void:
 		var s: ShipState = ship.state
 		need = Fuel.climb_energy(s.pos.length(), s.vel.length(), Hold.mass(s))
 		color = reserve_color(ship_reserve(s))
-	var reserve := maxf(Tuning.resources[&"fuel"].energy, need)
-	_draw_bars(font, color, reserve)
+	_draw_bars(font, color)
 	var segs := segments()
 	for i in segs.size():
 		var top := share_y(segs[i].y)
@@ -102,7 +100,7 @@ func _draw_arrow(font: Font, color: Color) -> void:
 	draw_string(font, at, text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE, color)
 
 
-func _draw_bars(font: Font, frame_color: Color, reserve: float) -> void:
+func _draw_bars(font: Font, frame_color: Color) -> void:
 	var p: ShipParams = Tuning.ship
 	var s: ShipState = ship.state if ship != null else ShipState.new()
 	_draw_cells(font, "топливо", tank_slots(s.tank), int(p.tank_capacity), TANK_Y, "")
@@ -110,8 +108,6 @@ func _draw_bars(font: Font, frame_color: Color, reserve: float) -> void:
 	if not tank.is_empty():
 		var frame := tank[0].merge(tank[tank.size() - 1]).grow(FRAME_PAD)
 		draw_rect(frame, frame_color, false, OUTLINE_W)
-		var x := reserve_x(tank_slots(s.tank), int(p.tank_capacity), reserve, tank)
-		_draw_diagonals(Rect2(tank[0].position.x, TANK_Y + CELL_SIZE + 2.0, x - tank[0].position.x, RESERVE_H), Palette.DANGER)
 	_draw_cells(font, "трюм", s.hold, int(p.hold_capacity), HOLD_Y, "масса %.1f" % Hold.mass(s), hold_frame_index(s))
 	_draw_hull(font, s)
 
@@ -240,24 +236,6 @@ static func hull_segments(hull: float, hull_max: float) -> int:
 	if hull_max <= 0.0:
 		return 0
 	return ceili(clampf(hull / hull_max, 0.0, 1.0) * HULL_SEGMENTS)
-
-
-static func reserve_x(cells: Array[HoldCell], capacity: int, reserve: float, rects: Array[Rect2]) -> float:
-	if rects.is_empty():
-		return 0.0
-	var unit: float = Tuning.resources[&"fuel"].energy
-	var left := reserve
-	for i in mini(capacity, rects.size()):
-		var e := unit
-		if i < cells.size():
-			var c := cells[i]
-			e = c.fill * Tuning.resources[c.type].energy + (1.0 - c.fill) * unit
-		if e <= 0.0:
-			continue
-		if left <= e:
-			return rects[i].position.x + rects[i].size.x * maxf(left, 0.0) / e
-		left -= e
-	return rects[rects.size() - 1].end.x
 
 
 static func reserve_state(energy: float, need: float, reserve: float) -> State:
