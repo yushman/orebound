@@ -3,7 +3,7 @@ extends Resource
 
 @export var tier_shares: Array[float] = [0.25, 0.40, 0.25, 0.10]
 @export var ceiling_offset: float = 5000.0
-@export var carrier_patrol_speed: float = 40.0
+@export var carrier_patrol_speed: float = 0.0
 @export var moon_count_min: int = 2
 @export var moon_count_max: int = 3
 @export var moon_large_radius_min: float = 1000.0

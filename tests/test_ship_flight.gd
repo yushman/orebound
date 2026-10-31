@@ -594,6 +594,8 @@ func test_sync_to_carrier_kills_relative_velocity() -> void:
 func test_carrier_pos_and_vel_are_pure_formulas_of_t() -> void:
 	_planet_field(1.0)
 	var rc: float = Tuning.field.carrier_orbit_radius
+	var saved_speed: float = Tuning.planet.carrier_patrol_speed
+	Tuning.planet.carrier_patrol_speed = 40.0
 	var speed: float = Tuning.planet.carrier_patrol_speed
 	var om: float = speed / rc
 	for t: float in [0.0, 10.0, 731.5]:
@@ -606,6 +608,7 @@ func test_carrier_pos_and_vel_are_pure_formulas_of_t() -> void:
 		# counter-clockwise, exactly the knob magnitude
 		assert_almost_eq(v.length(), speed, 1e-6)
 		assert_gt(p.cross(v), 0.0)
+	Tuning.planet.carrier_patrol_speed = saved_speed
 
 
 func test_carrier_patrol_zero_restores_the_fixed_point() -> void:
@@ -644,6 +647,8 @@ func test_reference_vel_matches_the_reference_kind() -> void:
 
 func test_sync_step_pulls_toward_the_reference_velocity() -> void:
 	_gentle_field()
+	var saved_speed: float = Tuning.planet.carrier_patrol_speed
+	Tuning.planet.carrier_patrol_speed = 40.0
 	var s := _state(ShipFlight.carrier_pos(0.0), Vector2.ZERO)
 	var ref := ShipFlight.sync_reference(s.pos, 0.0)
 	assert_true(ref["is_carrier"], "the carrier is the reference here")
@@ -651,10 +656,13 @@ func test_sync_step_pulls_toward_the_reference_velocity() -> void:
 	var out := ShipFlight.step(s, _drift_sync_input(), 0.0, DT)
 	assert_lt(out.vel.distance_to(v_ref), s.vel.distance_to(v_ref),
 			"the sync pull aims at the reference velocity")
+	Tuning.planet.carrier_patrol_speed = saved_speed
 
 
 func test_sync_to_the_moving_carrier_pulls_toward_carrier_vel() -> void:
 	_gentle_field()
+	var saved_speed: float = Tuning.planet.carrier_patrol_speed
+	Tuning.planet.carrier_patrol_speed = 40.0
 	var s := _state(ShipFlight.carrier_pos(0.0), Vector2.ZERO)
 	var inp := _drift_sync_input()
 	var steps := 900
@@ -666,6 +674,7 @@ func test_sync_to_the_moving_carrier_pulls_toward_carrier_vel() -> void:
 	assert_lt(s.vel.distance_to(ShipFlight.carrier_vel(t_end)), 0.5)
 	assert_gt(s.fuel_sync, 0.0)
 	assert_lt(s.pos.distance_to(ShipFlight.carrier_pos(t_end)), 1000.0)
+	Tuning.planet.carrier_patrol_speed = saved_speed
 
 
 func test_sync_to_body_matches_body_velocity() -> void:

@@ -59,7 +59,7 @@ func test_default_rest_speed():
 
 
 func test_default_carrier_patrol_speed():
-	assert_eq(Tuning.planet.get("carrier_patrol_speed"), 40.0)
+	assert_eq(Tuning.planet.get("carrier_patrol_speed"), 0.0)
 
 
 func test_default_band_chunk_and_asteroid_knobs():

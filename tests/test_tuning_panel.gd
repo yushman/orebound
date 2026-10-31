@@ -606,7 +606,7 @@ func test_carrier_patrol_speed_slider_writes_planet_without_regenerate() -> void
 	assert_eq(s.min_value, 0.0, "patrol min")
 	assert_eq(s.max_value, 100.0, "patrol max")
 	assert_eq(s.step, 5.0, "patrol step")
-	assert_eq(Tuning.planet.carrier_patrol_speed, 40.0, "playtest hypothesis default")
+	assert_eq(Tuning.planet.carrier_patrol_speed, 0.0, "default: carrier at rest")
 	var before: Dictionary = Tuning.picture
 	var old_seed := Telemetry.seed
 	s.value = 25.0

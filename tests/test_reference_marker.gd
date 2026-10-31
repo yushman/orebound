@@ -42,10 +42,13 @@ func test_marker_keeps_carrier_and_body_cases() -> void:
 
 
 func test_marker_carrier_case_follows_the_patrol() -> void:
+	var saved_speed: float = Tuning.planet.carrier_patrol_speed
+	Tuning.planet.carrier_patrol_speed = 40.0
 	var marker: Node2D = load("res://scenes/ReferenceMarker.gd").new()
 	var ref := {"asteroid": {}, "is_carrier": true, "index": -1}
 	assert_eq(marker.marker_pos(ref, 7.5), ShipFlight.carrier_pos(7.5))
 	marker.free()
+	Tuning.planet.carrier_patrol_speed = saved_speed
 
 
 func test_marker_color_is_halo_with_alpha_unchanged() -> void:

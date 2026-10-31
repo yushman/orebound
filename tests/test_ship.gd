@@ -37,6 +37,8 @@ func test_respawn_at_carrier_nose_at_the_planet_descending() -> void:
 
 
 func test_spawn_velocity_is_the_descend_speed_toward_the_planet() -> void:
+	var saved_speed: float = Tuning.planet.carrier_patrol_speed
+	Tuning.planet.carrier_patrol_speed = 40.0
 	var ship = _make()
 	var t0 := GravityField.time()
 	var pos: Vector2 = ShipFlight.carrier_pos(t0)
@@ -46,6 +48,7 @@ func test_spawn_velocity_is_the_descend_speed_toward_the_planet() -> void:
 			"co-moving with the patrolling carrier AND descending toward the planet")
 	assert_ne(ship.state.vel, ShipFlight.carrier_vel(t0))
 	assert_almost_eq(Vector2.UP.rotated(ship.state.rot), planet_dir, Vector2(1e-5, 1e-5))
+	Tuning.planet.carrier_patrol_speed = saved_speed
 
 
 func test_physics_process_steps_with_post_increment_field_time() -> void:
