@@ -37,7 +37,7 @@
 | 41 | `before_each` / `after_each` не сохраняют и не восстанавливают `Tuning.picture`, хотя тесты вызывают `Tuning.regenerate` (требование `tests/CLAUDE.md`) | `tests/test_tuning_panel.gd` | сохранять и восстанавливать `Tuning.picture` |
 | 42 | Перемежающиеся падения: `test_sync_fallback_band_drift_below_carrier_from_both_directions` (см. #39) и тест времени предсказания с астероидами (раз вышло 3,15 мс при бюджете 3,0 мс) | `tests/test_ship_flight.gd`, `tests/test_ship_prediction.gd` | для первого — как в #39; для второго — ослабить бюджет или мерять медиану нескольких прогонов |
 | 52 | Негативные тесты удалённых ручек собирают имена склейкой `"return_" + "speed_" + k`, чтобы обойти grep | `tests/test_ship_params.gd:76`, `tests/test_tuning_panel.gd:534` | писать имена целиком (`return_speed_mode`, `return_speed_tau`) |
-| 64 | При запуске одного `tests/test_ship_flight.gd` падают 2 теста луча с «Cannot compare Vector3i to int» (в полном прогоне проходят): протекающее состояние, как в #39 | `tests/test_ship_flight.gd` | найти протекающее состояние и задать его в `before_each` |
+| 64 | При запуске одного `tests/test_ship_flight.gd` падают 2 теста луча с «Cannot compare Vector3i to int» (в полном прогоне проходят): соседний тест (строка 1319) и `test_beam_splits_a_body_at_threshold_with_asteroids_among_candidates` (строка 1333); луч цепляет астероид `Vector3i(0, 160, 3)` вместо тела с id 22, то есть без предыдущих тестов в зоне оказывается астероид. Протекающее состояние, как в #39 | `tests/test_ship_flight.gd` | найти протекающее состояние и задать его в `before_each` |
 
 ## Топливо (M2)
 
