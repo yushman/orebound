@@ -213,22 +213,49 @@ func test_stick_heading_is_screen_relative() -> void:
 	assert_almost_eq(up_top, Vector2(0, -1), Vector2(1e-5, 1e-5))
 
 
-func test_crashed_step_respawns_at_carrier_with_full_hull_and_counts_a_crash() -> void:
+func test_crash_ends_the_flight_once_with_outcome_crashed_and_no_respawn() -> void:
 	Tuning.planet.carrier_patrol_speed = 0.0
 	var saved_crashes: int = Telemetry.crashes
 	Telemetry.crashes = 0
 	var ship = _make()
+	watch_signals(ship)
 	ship.state.pos = Vector2(Tuning.field.planet_surface_radius - 10.0, 0.0)
 	ship.state.hull = 12.0
 	ship._physics_process(GravityField.DT)
 	assert_eq(Telemetry.crashes, 1)
-	assert_eq(ship.state.pos, Vector2(Tuning.field.carrier_orbit_radius, 0.0))
-	assert_eq(ship.state.vel, Tuning.ship.spawn_descend_speed * Vector2(-1.0, 0.0))
-	assert_eq(ship.state.hull, Tuning.ship.hull_max)
-	assert_false(ship.state.crashed)
+	assert_eq(ship.phase, ship.Phase.ENDED)
+	assert_true(ship.state.crashed, "no respawn")
+	assert_lt(ship.state.pos.length(), Tuning.field.planet_surface_radius)
+	assert_signal_emit_count(ship, "flight_ended", 1)
+	var summary: Dictionary = get_signal_parameters(ship, "flight_ended")[0]
+	assert_eq(summary["outcome"], "crashed")
+	assert_true(summary["cargo_lost"])
+	var crash_pos: Vector2 = ship.state.pos
+	ship._physics_process(GravityField.DT)
 	ship._physics_process(GravityField.DT)
 	assert_eq(Telemetry.crashes, 1)
+	assert_eq(ship.state.pos, crash_pos, "crashed ship stays at the crash point")
+	assert_signal_emit_count(ship, "flight_ended", 1)
 	Telemetry.crashes = saved_crashes
+
+
+func test_respawn_resets_phase_and_flight_start() -> void:
+	var ship = _make()
+	ship.state.pos = Vector2(Tuning.field.planet_surface_radius - 10.0, 0.0)
+	ship._physics_process(GravityField.DT)
+	assert_eq(ship.phase, ship.Phase.ENDED)
+	GravityField.tick = 120
+	ship.respawn()
+	assert_eq(ship.phase, ship.Phase.FLYING)
+	assert_eq(ship.flight_start_t, GravityField.time())
+	assert_false(ship.state.crashed)
+
+
+func test_preset_applied_mid_flight_emits_no_flight_ended() -> void:
+	var ship = _make()
+	watch_signals(ship)
+	ship.respawn()
+	assert_signal_not_emitted(ship, "flight_ended")
 
 
 func test_preset_change_restores_hull_without_touching_the_crash_counter() -> void:
@@ -452,21 +479,46 @@ func _dock(ship: Node) -> void:
 	ship.state.pos = ShipFlight.carrier_pos(GravityField.time())
 
 
-func test_docked_ship_ignores_input_and_undocks_only_on_fresh_press() -> void:
+func test_docked_ends_the_flight_returned_once_and_ignores_thrust() -> void:
 	var ship = _make()
+	watch_signals(ship)
+	_dock(ship)
+	GravityField.tick = 300
+	ship._physics_process(1.0 / 60.0)
+	assert_eq(ship.phase, ship.Phase.ENDED)
+	assert_signal_emit_count(ship, "flight_ended", 1)
+	var summary: Dictionary = get_signal_parameters(ship, "flight_ended")[0]
+	assert_eq(summary["outcome"], "returned")
+	assert_false(summary["cargo_lost"])
+	assert_almost_eq(summary["time"], GravityField.time() - ship.flight_start_t, 1e-6)
 	Input.action_press("ship_thrust")
 	ship._physics_process(1.0 / 60.0)
+	Input.action_release("ship_thrust")
+	Input.action_press("ship_thrust")
+	ship._physics_process(1.0 / 60.0)
+	assert_true(ship.state.docked, "thrust does not undock")
+	assert_false(ship.input.thrust, "input is empty while ended")
+	assert_eq(ship.state.pos, ShipFlight.carrier_pos(GravityField.time()), "keeps tracking the carrier")
+	assert_signal_emit_count(ship, "flight_ended", 1)
+	Input.action_release("ship_thrust")
+
+
+func test_ended_docked_ship_tracks_a_patrolling_carrier() -> void:
+	Tuning.planet.carrier_patrol_speed = 40.0
+	var ship = _make()
 	_dock(ship)
 	ship._physics_process(1.0 / 60.0)
-	assert_true(ship.state.docked, "thrust held at docking does not undock")
-	assert_false(ship.input.thrust, "input is empty while docked")
-	Input.action_release("ship_thrust")
-	ship._physics_process(1.0 / 60.0)
-	assert_true(ship.state.docked)
-	Input.action_press("ship_thrust")
-	ship._physics_process(1.0 / 60.0)
-	assert_false(ship.state.docked, "fresh press respawns")
-	Input.action_release("ship_thrust")
+	var p0: Vector2 = ship.state.pos
+	for i in 30:
+		GravityField.tick += 1
+		ship._physics_process(1.0 / 60.0)
+		assert_eq(ship.state.pos, ShipFlight.carrier_pos(GravityField.time()))
+	assert_ne(ship.state.pos, p0)
+	assert_eq(ship.state.vel, ShipFlight.carrier_vel(GravityField.time()))
+
+
+func test_summary_delay_default() -> void:
+	assert_eq(Tuning.view.summary_delay, 1.5)
 
 
 func test_fresh_ship_leaves_capture_radius_within_70s_with_no_input() -> void:

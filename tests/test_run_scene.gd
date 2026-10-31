@@ -612,3 +612,38 @@ func _set_field(f: FieldParams) -> void:
 	Tuning.lock.lock()
 	Tuning.field = f
 	Tuning.lock.unlock()
+
+
+func test_run_has_summary_under_canvas_layer_after_hud_connected_to_ship():
+	var run = _run()
+	var layer = run.get_node("CanvasLayer")
+	var summary = layer.get_node_or_null("Summary")
+	assert_not_null(summary, "layer holds Summary")
+	assert_eq(summary.scene_file_path, "res://ui/Summary.tscn")
+	assert_gt(summary.get_index(), layer.get_node("HUD").get_index(), "after HUD")
+	assert_false(summary.visible, "hidden by default")
+	assert_true(run.get_node("Ship").flight_ended.is_connected(summary.show_summary))
+
+
+func test_crash_then_summary_then_flight_next_starts_the_next_flight():
+	var run = _run()
+	var ship = run.get_node("Ship")
+	var summary = run.get_node("CanvasLayer/Summary")
+	var seed_before: int = Telemetry.seed
+	var flight_before: int = Telemetry.flight
+	ship.state.pos = Vector2(Tuning.field.planet_surface_radius - 10.0, 0.0)
+	ship._physics_process(GravityField.DT)
+	assert_eq(ship.phase, ship.Phase.ENDED)
+	assert_false(summary.visible, "not before the delay")
+	summary._process(Tuning.view.summary_delay + 0.1)
+	assert_true(summary.visible)
+	Input.action_press("flight_next")
+	summary._process(0.016)
+	Input.action_release("flight_next")
+	assert_false(summary.visible)
+	assert_eq(Telemetry.flight, flight_before + 1)
+	assert_eq(Telemetry.seed, seed_before)
+	assert_eq(ship.phase, ship.Phase.FLYING)
+	assert_false(ship.state.crashed)
+	assert_eq(ship.state.pos, ShipFlight.carrier_pos(GravityField.time()))
+	Tuning.regenerate(seed_before, flight_before)

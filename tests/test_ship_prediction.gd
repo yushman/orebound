@@ -337,7 +337,6 @@ func test_preset_applied_refreshes_line_immediately() -> void:
 	var ship = nodes[0]
 	var line: Line2D = nodes[1]
 	GravityField.tick = Tuning.ship.predict_every * 5
-	ship.state.pos = Vector2(5000.0, 300.0)
 	Input.action_press("ship_thrust")
 	ship._physics_process(GravityField.DT)
 	line._physics_process(GravityField.DT)
@@ -353,7 +352,7 @@ func test_preset_applied_refreshes_line_immediately() -> void:
 	assert_eq(line.points, _expected(ship))
 
 
-func test_crash_respawn_refreshes_line_with_predict_every_gt_1() -> void:
+func test_crash_ends_the_flight_and_hides_the_line_without_a_new_task() -> void:
 	var nodes := _run_scene()
 	var ship = nodes[0]
 	var line: Line2D = nodes[1]
@@ -367,11 +366,15 @@ func test_crash_respawn_refreshes_line_with_predict_every_gt_1() -> void:
 	GravityField.tick = 6
 	ship.state.hull = 0.0
 	ship._physics_process(GravityField.DT)
+	Input.action_release("ship_thrust")
+	assert_eq(ship.phase, ship.Phase.ENDED)
+	assert_true(ship.state.crashed, "no respawn")
 	line._physics_process(GravityField.DT)
 	_settle(line)
 	_settle(line)
 	Tuning.ship.predict_every = saved
-	assert_eq(line.points, _expected(ship))
+	assert_false(line.visible, "empty input after the crash hides the line")
+	assert_eq(line._task, -1, "no new task starts")
 
 
 func test_result_of_a_task_started_before_respawn_is_dropped_and_a_fresh_task_starts_at_once() -> void:

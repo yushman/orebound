@@ -4,9 +4,14 @@ var state := ShipState.new()
 var input := ShipInput.new()
 var _jettison_press := LongPress.new()
 var _transfer_press := LongPress.new()
-var _thrust_prev := false
+
+enum Phase { FLYING, ENDED }
+
+var phase := Phase.FLYING
+var flight_start_t := 0.0
 
 signal respawned
+signal flight_ended(summary: Dictionary)
 
 
 func _ready() -> void:
@@ -16,6 +21,8 @@ func _ready() -> void:
 
 func respawn() -> void:
 	state = ShipState.new()
+	phase = Phase.FLYING
+	flight_start_t = GravityField.time()
 	_jettison_press = LongPress.new()
 	_transfer_press = LongPress.new()
 	# Spawn on the carrier nose-down: the nose points at the planet and the
@@ -34,13 +41,15 @@ func respawn() -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	var report := {}
-	var thrust := Input.is_action_pressed("ship_thrust")
-	var fresh_press := thrust and not _thrust_prev
-	_thrust_prev = thrust
-	if state.docked and fresh_press:
-		respawn()
+	if phase == Phase.ENDED:
+		input = ShipInput.new()
+		if state.docked:
+			var t := GravityField.time()
+			state.pos = ShipFlight.carrier_pos(t)
+			state.vel = ShipFlight.carrier_vel(t)
+			move_and_collide(state.pos - position)
 		return
+	var report := {}
 	var was_docked := state.docked
 	input = ShipInput.new() if state.docked else _read_input()
 	state = ShipFlight.step(state, input, GravityField.time(), GravityField.DT, null, report)
@@ -50,12 +59,15 @@ func _physics_process(_delta: float) -> void:
 			print("FLOG docked t=%.2f docking_time=%.2f" % [GravityField.time(), state.approach_time])
 	if report.get("transferred", false):
 		Telemetry.transfers += 1
-	if state.crashed:
-		Telemetry.crashes += 1
-		respawn()
-		return
 	move_and_collide(state.pos - position)
 	rotation = state.rot
+	if state.crashed or state.docked:
+		if state.crashed:
+			Telemetry.crashes += 1
+		phase = Phase.ENDED
+		input = ShipInput.new()
+		var outcome := "crashed" if state.crashed else "returned"
+		flight_ended.emit(FlightSummary.build(state, outcome, GravityField.time() - flight_start_t))
 
 
 func _read_input() -> ShipInput:

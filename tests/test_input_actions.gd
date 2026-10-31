@@ -130,3 +130,10 @@ func test_transfer_action_bound_to_r_and_x() -> void:
 			continue
 		assert_false(_has_key(a, KEY_R), a)
 		assert_false(_has_joy_button(a, JOY_BUTTON_X), a)
+
+
+func test_flight_next_action():
+	assert_true(InputMap.has_action("flight_next"))
+	assert_true(_has_key("flight_next", KEY_ENTER))
+	assert_true(_has_key("flight_next", KEY_KP_ENTER))
+	assert_true(_has_joy_button("flight_next", JOY_BUTTON_A))
