@@ -37,6 +37,6 @@ static func run(state: ShipState, input: ShipInput, tick: int, steps: int) -> Pa
 					local.append(a)
 		s = ShipFlight.step(s, input, t, GravityField.DT, local)
 		pts.append(s.pos)
-		if s.crashed:
+		if s.crashed or s.docked:
 			break
 	return pts

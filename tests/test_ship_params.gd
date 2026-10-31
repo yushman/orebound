@@ -42,7 +42,7 @@ func test_spawn_radius_removed_from_ship_params() -> void:
 
 
 func test_spawn_descend_speed_default() -> void:
-	assert_eq(Tuning.ship.get("spawn_descend_speed"), 5.0)
+	assert_eq(Tuning.ship.get("spawn_descend_speed"), 10.0)
 
 
 func test_tuning_ship_prediction_defaults() -> void:

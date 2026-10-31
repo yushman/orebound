@@ -722,3 +722,20 @@ func test_predicted_points_equal_repeated_step_with_tank_ice_and_fuel() -> void:
 	for i in N:
 		cur = ShipFlight.step(cur, inp, GravityField.time_at(50 + i + 1), GravityField.DT, [])
 		assert_eq(pts[i], cur.pos, "point %d" % i)
+
+
+func test_prediction_stops_at_dock_and_equals_flight() -> void:
+	Tuning.planet = Tuning.planet.duplicate()
+	var c := ShipFlight.carrier_pos(0.0)
+	var s := ShipState.new()
+	s.dock_armed = true
+	s.pos = c + Vector2(0, -520)
+	s.vel = Vector2(0, 5)
+	var inp := ShipInput.new()
+	var pts := ShipPrediction.run(s, inp, 0, 6000)
+	assert_lt(pts.size(), 6000)
+	var cur := s
+	for i in pts.size():
+		cur = ShipFlight.step(cur, inp, GravityField.time_at(i + 1), GravityField.DT, [])
+		assert_eq(pts[i], cur.pos, "point %d" % i)
+	assert_true(cur.docked)

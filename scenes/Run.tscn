@@ -19,6 +19,7 @@
 [ext_resource type="Script" path="res://scenes/SmallObjectView.gd" id="16_small"]
 [ext_resource type="Script" path="res://scenes/CollectorView.gd" id="17_collector"]
 [ext_resource type="Script" path="res://scenes/StarfieldView.gd" id="18_star"]
+[ext_resource type="PackedScene" path="res://scenes/Carrier.tscn" id="19_carrier"]
 
 [node name="Run" type="Node2D"]
 script = ExtResource("11_run")
@@ -54,6 +55,8 @@ index = 2
 
 [node name="Moon3" parent="." instance=ExtResource("2_body")]
 index = 3
+
+[node name="Carrier" parent="." instance=ExtResource("19_carrier")]
 
 [node name="BeamView" type="Line2D" parent="."]
 script = ExtResource("15_beam")

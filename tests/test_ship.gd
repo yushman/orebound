@@ -445,3 +445,51 @@ func test_transfer_freed_by_the_same_tick_drain_is_counted() -> void:
 	assert_eq(ship.state.tank.size(), 4)
 	assert_eq(Telemetry.transfers, 1)
 	Telemetry.transfers = saved
+
+
+func _dock(ship: Node) -> void:
+	ship.state.docked = true
+	ship.state.pos = ShipFlight.carrier_pos(GravityField.time())
+
+
+func test_docked_ship_ignores_input_and_undocks_only_on_fresh_press() -> void:
+	var ship = _make()
+	Input.action_press("ship_thrust")
+	ship._physics_process(1.0 / 60.0)
+	_dock(ship)
+	ship._physics_process(1.0 / 60.0)
+	assert_true(ship.state.docked, "thrust held at docking does not undock")
+	assert_false(ship.input.thrust, "input is empty while docked")
+	Input.action_release("ship_thrust")
+	ship._physics_process(1.0 / 60.0)
+	assert_true(ship.state.docked)
+	Input.action_press("ship_thrust")
+	ship._physics_process(1.0 / 60.0)
+	assert_false(ship.state.docked, "fresh press respawns")
+	Input.action_release("ship_thrust")
+
+
+func test_fresh_ship_leaves_capture_radius_within_70s_with_no_input() -> void:
+	Tuning.planet.carrier_patrol_speed = 0.0
+	var ship = _make()
+	var s: ShipState = ship.state
+	var left := -1.0
+	for i in 60 * 70:
+		var t := GravityField.time_at(i + 1)
+		s = ShipFlight.step(s, ShipInput.new(), t, GravityField.DT)
+		if s.pos.distance_to(ShipFlight.carrier_pos(t)) >= Tuning.planet.capture_radius:
+			left = t
+			break
+	assert_gt(left, 0.0, "left the zone")
+	assert_false(s.docked)
+
+
+func test_docked_tick_writes_docking_time() -> void:
+	var ship = _make()
+	ship.state.dock_armed = true
+	ship.state.pos = ShipFlight.carrier_pos(GravityField.time()) + Vector2(5, 0)
+	ship.state.vel = ShipFlight.carrier_vel(GravityField.time())
+	ship.state.approach_time = 12.5
+	ship._physics_process(1.0 / 60.0)
+	assert_true(ship.state.docked)
+	assert_gt(Telemetry.docking_time, 12.5)

@@ -4,6 +4,7 @@ var state := ShipState.new()
 var input := ShipInput.new()
 var _jettison_press := LongPress.new()
 var _transfer_press := LongPress.new()
+var _thrust_prev := false
 
 signal respawned
 
@@ -34,9 +35,20 @@ func respawn() -> void:
 
 func _physics_process(_delta: float) -> void:
 	var report := {}
-	input = _read_input()
+	var thrust := Input.is_action_pressed("ship_thrust")
+	var fresh_press := thrust and not _thrust_prev
+	_thrust_prev = thrust
+	if state.docked and fresh_press:
+		respawn()
+		return
+	var was_docked := state.docked
+	input = ShipInput.new() if state.docked else _read_input()
 	state = ShipFlight.step(state, input, GravityField.time(), GravityField.DT, null, report)
-	if report["transferred"]:
+	if state.docked and not was_docked:
+		Telemetry.docking_time = state.approach_time
+		if Telemetry.flight_log:
+			print("FLOG docked t=%.2f docking_time=%.2f" % [GravityField.time(), state.approach_time])
+	if report.get("transferred", false):
 		Telemetry.transfers += 1
 	if state.crashed:
 		Telemetry.crashes += 1

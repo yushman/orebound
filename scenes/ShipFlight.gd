@@ -92,9 +92,29 @@ static func ring_flow(pos: Vector2) -> Vector2:
 	return WellGenerator.relative_omega(ring["radius"]) * Vector2(-pos.y, pos.x)
 
 
+## Damped-spring pull toward the carrier, zero outside capture_radius and
+## strengthening toward the centre; offset / v_rel are carrier-relative.
+static func carrier_pull(offset: Vector2, v_rel: Vector2) -> Vector2:
+	var pl: PlanetParams = Tuning.planet
+	var d := offset.length()
+	if d >= pl.capture_radius:
+		return Vector2.ZERO
+	var w := 1.0 - d / pl.capture_radius
+	var om := pl.pull_omega
+	return (w * (-om * om * offset - 2.0 * om * v_rel)).limit_length(pl.pull_accel_max)
+
+
+static func _dock_step(s: ShipState, t: float) -> void:
+	s.pos = carrier_pos(t)
+	s.vel = carrier_vel(t)
+
+
 static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapshot = null, report = null) -> ShipState:
 	var p: ShipParams = Tuning.ship
 	var s := state.copy()
+	if s.docked:
+		_dock_step(s, t)
+		return s
 	var ang_acc := input.turn * p.turn_accel
 	if input.has_heading:
 		ang_acc = clampf(p.heading_gain * wrapf(input.target_heading - s.rot, -PI, PI) - 2.0 * sqrt(p.heading_gain) * s.ang_vel, -p.turn_accel, p.turn_accel)
@@ -159,7 +179,10 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 	s.heat = clampf(s.heat, 0.0, 1.0)
 	s.vel *= exp(-Tuning.planet.atmosphere_drag * atmosphere_density(s.pos) * dt)
 	_ring_drag(s, dt)
-	s.vel += (GravityField.accel(s.pos, t) + GravityField.frame_accel(s.pos, s.vel) + nose * thr + a_b) * dt
+	var a_pull := Vector2.ZERO
+	if s.dock_armed:
+		a_pull = carrier_pull(s.pos - carrier_pos(t), s.vel - carrier_vel(t))
+	s.vel += (GravityField.accel(s.pos, t) + GravityField.frame_accel(s.pos, s.vel) + nose * thr + a_b + a_pull) * dt
 	s.pos += s.vel * dt
 	_jettison(s, input)
 	var transferred := _transfer(s, input)
@@ -173,7 +196,23 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 	_small_contact(s, input)
 	s.hull = maxf(s.hull - Tuning.planet.atmosphere_damage * atmosphere_density(s.pos) * dt, 0.0)
 	s.crashed = s.pos.length() <= Tuning.field.planet_surface_radius or s.hull <= 0.0
+	if not s.crashed:
+		_capture(s, t, dt)
 	return s
+
+
+static func _capture(s: ShipState, t: float, dt: float) -> void:
+	var pl: PlanetParams = Tuning.planet
+	var d := s.pos.distance_to(carrier_pos(t))
+	if d >= pl.capture_radius:
+		s.dock_armed = true
+	if d < pl.approach_radius:
+		s.approach_time += dt
+	else:
+		s.approach_time = 0.0
+	if s.dock_armed and d < pl.dock_radius and (s.vel - carrier_vel(t)).length() < pl.dock_speed:
+		s.docked = true
+		_dock_step(s, t)
 
 
 static func _ring_drag(s: ShipState, dt: float) -> void:
