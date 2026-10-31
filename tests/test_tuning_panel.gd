@@ -658,3 +658,38 @@ func test_time_warp_checkbox_writes_tuning_and_syncs_from_preset() -> void:
 	_panel.sliders["ship.time_warp_mult"].value = 6.0
 	assert_eq(Tuning.ship.time_warp_mult, 6)
 	assert_true(Tuning.ship.time_warp_mult is int)
+
+
+func _write_preset(dir: String, k: float) -> void:
+	DirAccess.make_dir_recursive_absolute(dir)
+	Tuning.field.k = k
+	assert_eq(Tuning.save_preset("%s/p2.tres" % dir, "t"), OK)
+
+
+func test_load_prefers_user_preset_over_res_preset() -> void:
+	var res_dir := "user://t_res_presets"
+	var user_dir := "user://t_user_presets"
+	_write_preset(res_dir, 111.0)
+	_write_preset(user_dir, 222.0)
+	_panel.presets_dir = res_dir
+	_panel.user_presets_dir = user_dir
+	_panel.preset_select.select(1)
+	_panel.load_button.pressed.emit()
+	assert_eq(Tuning.field.k, 222.0)
+	DirAccess.remove_absolute(user_dir + "/p2.tres")
+	_panel.load_button.pressed.emit()
+	assert_eq(Tuning.field.k, 111.0, "falls back to presets_dir")
+	DirAccess.remove_absolute(res_dir + "/p2.tres")
+	DirAccess.remove_absolute(res_dir)
+	DirAccess.remove_absolute(user_dir)
+
+
+func test_save_goes_to_save_dir_and_creates_it() -> void:
+	var dir := "user://t_save_presets/nested"
+	_panel.save_dir = dir
+	_panel.preset_select.select(1)
+	_panel.save_button.pressed.emit()
+	assert_true(FileAccess.file_exists(dir + "/p2.tres"))
+	DirAccess.remove_absolute(dir + "/p2.tres")
+	DirAccess.remove_absolute(dir)
+	DirAccess.remove_absolute("user://t_save_presets")

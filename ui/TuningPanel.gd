@@ -111,6 +111,8 @@ const ROWS := [
 var sliders := {}
 var row_boxes := {}
 var presets_dir := "res://presets"
+var user_presets_dir := "user://presets"
+var save_dir := "user://presets" if OS.has_feature("template") else ""
 var preset_select: OptionButton
 var load_button: Button
 var save_button: Button
@@ -225,23 +227,32 @@ func _add_header() -> void:
 	_box.add_child(sb)
 
 
-func _preset_path() -> String:
-	return "%s/p%d.tres" % [presets_dir.trim_suffix("/"), preset_select.selected + 1]
+func _preset_path(dir: String) -> String:
+	return "%s/p%d.tres" % [dir.trim_suffix("/"), preset_select.selected + 1]
+
+
+func _load_path() -> String:
+	var user_path := _preset_path(user_presets_dir)
+	return user_path if FileAccess.file_exists(user_path) else _preset_path(presets_dir)
 
 
 func _on_load() -> void:
-	var preset := Tuning.load_preset(_preset_path())
+	var path := _load_path()
+	var preset := Tuning.load_preset(path)
 	if preset == null:
-		push_error("TuningPanel: cannot load %s" % _preset_path())
+		push_error("TuningPanel: cannot load %s" % path)
 		return
 	Tuning.apply(preset, false)
 	Tuning.regenerate(Telemetry.seed, Telemetry.flight)
 
 
 func _on_save() -> void:
-	var err := Tuning.save_preset(_preset_path(), preset_select.get_item_text(preset_select.selected))
+	var dir := save_dir if save_dir != "" else presets_dir
+	DirAccess.make_dir_recursive_absolute(dir)
+	var path := _preset_path(dir)
+	var err := Tuning.save_preset(path, preset_select.get_item_text(preset_select.selected))
 	if err != OK:
-		push_error("TuningPanel: save to %s failed (%d)" % [_preset_path(), err])
+		push_error("TuningPanel: save to %s failed (%d)" % [path, err])
 
 
 func _id(target: Variant, prop: String, idx := -1) -> String:

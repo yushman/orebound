@@ -47,6 +47,7 @@ static func lines(summary: Dictionary) -> PackedStringArray:
 	var secs := int(summary["time"])
 	out.append("время — %02d:%02d" % [secs / 60, secs % 60])
 	out.append("Enter / A — следующий вылет")
+	out.append(BuildInfo.label())
 	return out
 
 

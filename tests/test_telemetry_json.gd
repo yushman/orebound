@@ -1,6 +1,6 @@
 extends GutTest
 
-const KEYS := ["autoscale_overrides", "boost_share", "brake_presses", "brake_time", "cargo", "ceiling_tows", "crash_cause", "crashes", "damage", "docking_time", "flight", "forced_tows", "fuel", "heat_limited_time", "jettison_cancelled", "jettison_selects", "jettisons", "max_depth", "max_heat", "outcome", "preset", "seed", "seized", "sync_presses", "sync_time", "tier_time", "time", "tow_calls", "tow_cancelled", "tow_fee", "tow_kind", "tow_seized_share", "transfers", "version"]
+const KEYS := ["autoscale_overrides", "boost_share", "brake_presses", "brake_time", "cargo", "ceiling_tows", "commit", "crash_cause", "crashes", "damage", "docking_time", "flight", "forced_tows", "fuel", "heat_limited_time", "jettison_cancelled", "jettison_selects", "jettisons", "max_depth", "max_heat", "outcome", "preset", "seed", "seized", "sync_presses", "sync_time", "tier_time", "time", "tow_calls", "tow_cancelled", "tow_fee", "tow_kind", "tow_seized_share", "transfers", "version"]
 const DIR := "user://telemetry_test"
 
 var _saved_dir: String
@@ -211,3 +211,10 @@ func test_close_request_on_the_summary_writes_nothing_more() -> void:
 	Telemetry._notification(NOTIFICATION_WM_CLOSE_REQUEST)
 	assert_eq(_files().size(), 1)
 	assert_eq(_read()["outcome"], "crashed")
+
+
+func test_record_version_and_commit_equal_build_info() -> void:
+	Telemetry.begin_flight()
+	var rec := Telemetry.record(_sm())
+	assert_eq(rec["version"], BuildInfo.version())
+	assert_eq(rec["commit"], BuildInfo.commit())

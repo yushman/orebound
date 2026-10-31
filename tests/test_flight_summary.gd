@@ -60,3 +60,9 @@ func test_tow_kind_for_towed_only() -> void:
 	assert_eq(FlightSummary.build(_state(), "towed", 5.0, {"kind": "ceiling"})["tow_kind"], "ceiling")
 	assert_eq(FlightSummary.build(_state(), "towed", 5.0, {"kind": "manual"})["tow_kind"], "manual")
 	assert_eq(FlightSummary.build(_state(), "returned", 5.0)["tow_kind"], "")
+
+
+func test_summary_lines_end_with_build_label() -> void:
+	var rows: PackedStringArray = load("res://ui/Summary.gd").lines(FlightSummary.build(_state(), "returned", 83.0))
+	assert_eq(rows[rows.size() - 1], BuildInfo.label())
+	assert_eq(rows[rows.size() - 2], "Enter / A — следующий вылет")

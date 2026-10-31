@@ -147,7 +147,8 @@ func record(summary: Dictionary) -> Dictionary:
 	if outcome == "crashed":
 		cause = "surface" if _last_r <= Tuning.field.planet_surface_radius else "hull"
 	return {
-		"version": ProjectSettings.get_setting("application/config/version", ""),
+		"version": BuildInfo.version(),
+		"commit": BuildInfo.commit(),
 		"seed": start_seed,
 		"flight": start_flight,
 		"preset": preset,
