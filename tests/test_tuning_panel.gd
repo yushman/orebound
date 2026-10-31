@@ -53,7 +53,7 @@ func test_slider_set_covers_all_parameters() -> void:
 				"hull_mass", "hold_capacity", "ref_mass", "loadout_fuel_cells", "tank_capacity",
 				"beam_range", "beam_damage", "collect_angle", "collect_accel", "return_margin", "hit_radius",
 				"jettison_tap_time", "jettison_hold_time", "jettison_interval", "jettison_push", "jettison_pickup_delay",
-				"refiner", "transfer_hold_time", "transfer_interval"]:
+				"time_warp_mult", "refiner", "transfer_hold_time", "transfer_interval"]:
 		expect.append("ship." + p)
 	for p in ["carrier_patrol_speed", "atmosphere_drag", "atmosphere_damage", "density_shape", "moon_mass_k", "moon_mass_exp",
 			"moon_influence_k", "moon_margin", "moon_bounce", "moon_impact_damage",
@@ -643,3 +643,18 @@ func test_volume_slider_in_range_and_writes_view() -> void:
 	assert_between(Tuning.view.volume, s.min_value, s.max_value)
 	s.value = 0.35
 	assert_eq(Tuning.view.volume, 0.35)
+
+
+func test_time_warp_checkbox_writes_tuning_and_syncs_from_preset() -> void:
+	Tuning.ship = Tuning.ship.duplicate(true)
+	Tuning.ship.time_warp = true
+	_panel._sync()
+	assert_true(_panel.time_warp_box.button_pressed)
+	_panel.time_warp_box.button_pressed = false
+	assert_false(Tuning.ship.time_warp)
+	Tuning.ship.time_warp = true
+	_panel._sync()
+	assert_true(_panel.time_warp_box.button_pressed)
+	_panel.sliders["ship.time_warp_mult"].value = 6.0
+	assert_eq(Tuning.ship.time_warp_mult, 6)
+	assert_true(Tuning.ship.time_warp_mult is int)

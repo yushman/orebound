@@ -19,6 +19,7 @@ const ROWS := [
 	[1, "influence_radius", 0.0, 20000.0, 10.0],
 	[2, "influence_radius", 0.0, 20000.0, 10.0],
 	["ship", "thrust_accel", 0.0, 50.0, 0.5],
+	["ship", "time_warp_mult", 2.0, 10.0, 1.0],
 	["ship", "boost_accel_mult", 1.0, 10.0, 0.05],
 	["ship", "boost_fuel_mult", 0.0, 10.0, 0.05],
 	["ship", "spawn_descend_speed", 0.0, 20.0, 1.0],
@@ -114,6 +115,7 @@ var preset_select: OptionButton
 var load_button: Button
 var save_button: Button
 var seed_box: SpinBox
+var time_warp_box: CheckBox
 var next_seed_button: Button
 var _requested_seed := 0
 var _values := {}
@@ -136,6 +138,11 @@ func _ready() -> void:
 	scroll.add_child(_box)
 	_box.add_child(readout)
 	_add_header()
+	time_warp_box = CheckBox.new()
+	time_warp_box.text = "time warp (Space)"
+	time_warp_box.focus_mode = Control.FOCUS_NONE
+	time_warp_box.toggled.connect(func(on: bool) -> void: Tuning.ship.time_warp = on)
+	_box.add_child(time_warp_box)
 	for row in ROWS:
 		_add_row(row)
 	_sync()
@@ -307,6 +314,7 @@ func _fmt(v: float) -> String:
 
 func _sync() -> void:
 	seed_box.set_value_no_signal(Telemetry.seed)
+	time_warp_box.set_pressed_no_signal(Tuning.ship.time_warp)
 	# Rows of bodies the field does not have stay hidden and unsynced.
 	var body_count := Tuning.field.bodies.size()
 	for row in ROWS:

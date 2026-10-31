@@ -82,9 +82,12 @@ func test_stick_beyond_deadzone_sets_heading_keys_set_turn() -> void:
 	assert_eq(ship._read_input().turn, 0.0)
 	Input.action_press("ship_thrust")
 	Input.action_press("ship_boost")
+	var saved_warp := Tuning.ship.time_warp
+	Tuning.ship.time_warp = false
 	inp = ship._read_input()
 	assert_true(inp.thrust)
 	assert_true(inp.boost)
+	Tuning.ship.time_warp = saved_warp
 	Input.action_release("ship_thrust")
 	Input.action_release("ship_boost")
 
@@ -730,3 +733,19 @@ func test_manual_tow_above_the_ceiling_still_arrives_as_manual() -> void:
 	assert_eq(ends.size(), 1)
 	assert_eq(ends[0]["tow_kind"], "manual")
 	Tuning.planet.violation_time = saved
+
+
+func test_warp_mode_suppresses_boost_and_respawn_restores_60_ticks() -> void:
+	var saved_warp := Tuning.ship.time_warp
+	Tuning.ship.time_warp = true
+	var ship = _make()
+	Input.action_press("ship_boost")
+	assert_false(ship._read_input().boost)
+	ship._physics_process(0.0)
+	assert_eq(Engine.physics_ticks_per_second, 60 * Tuning.ship.time_warp_mult)
+	assert_gte(Engine.max_physics_steps_per_frame, Tuning.ship.time_warp_mult * 2)
+	ship.respawn()
+	assert_eq(Engine.physics_ticks_per_second, 60)
+	assert_eq(Engine.max_physics_steps_per_frame, 8)
+	Input.action_release("ship_boost")
+	Tuning.ship.time_warp = saved_warp

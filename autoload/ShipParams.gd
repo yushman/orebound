@@ -45,3 +45,5 @@ extends Resource
 @export var refiner: bool = false
 @export var transfer_hold_time: float = 1.0
 @export var transfer_interval: float = 0.7
+@export var time_warp: bool = true
+@export var time_warp_mult: int = 4

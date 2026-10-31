@@ -118,3 +118,8 @@ func test_violation_knobs_defaults() -> void:
 	assert_eq(Tuning.planet.violation_time, 10.0)
 	assert_true(Telemetry.get("ceiling_tows") is int)
 	assert_true(Telemetry.get("forced_tows") is int)
+
+
+func test_time_warp_defaults() -> void:
+	assert_true(Tuning.ship.time_warp)
+	assert_eq(Tuning.ship.time_warp_mult, 4)

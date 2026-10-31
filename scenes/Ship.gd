@@ -32,6 +32,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_apply_warp(false)
 	if Telemetry.ship == self:
 		Telemetry.ship = null
 
@@ -39,6 +40,7 @@ func _exit_tree() -> void:
 func respawn() -> void:
 	if phase == Phase.FLYING and Telemetry.open and Telemetry.flight_time >= Telemetry.RESET_MIN_TIME:
 		Telemetry.end_flight(FlightSummary.build(state, "reset", Telemetry.flight_time))
+	_apply_warp(false)
 	state = ShipState.new()
 	phase = Phase.FLYING
 	flight_start_t = GravityField.time()
@@ -70,6 +72,7 @@ func respawn() -> void:
 
 func _physics_process(_delta: float) -> void:
 	if phase == Phase.ENDED:
+		_apply_warp(false)
 		input = ShipInput.new()
 		if state.docked:
 			var t := GravityField.time()
@@ -80,6 +83,7 @@ func _physics_process(_delta: float) -> void:
 	var report := {}
 	var was_docked := state.docked
 	input = ShipInput.new() if state.docked else _read_input()
+	_apply_warp(not state.docked)
 	state = ShipFlight.step(state, input, GravityField.time(), GravityField.DT, null, report)
 	if state.docked and not was_docked:
 		Telemetry.docking_time = state.approach_time
@@ -143,6 +147,14 @@ func _physics_process(_delta: float) -> void:
 		tow_share_preview = Tow.seized_share(state)
 
 
+func _apply_warp(flying: bool) -> void:
+	var p := Tuning.ship
+	var held := Input.is_action_pressed("ship_boost")
+	var ticks := TimeWarp.ticks_per_second(p.time_warp, held, flying, p.time_warp_mult)
+	Engine.physics_ticks_per_second = ticks
+	Engine.max_physics_steps_per_frame = TimeWarp.max_steps(ticks)
+
+
 func _violation_need() -> int:
 	return ceili(Tuning.planet.violation_time / GravityField.DT)
 
@@ -196,7 +208,7 @@ func _read_input() -> ShipInput:
 	inp.collect = Input.is_action_pressed("ship_collect")
 	inp.aim = ShipInput.aim_angle(beam_stick, mouse_held, get_global_mouse_position(), state.pos, state.rot)
 	inp.thrust = Input.is_action_pressed("ship_thrust")
-	inp.boost = Input.is_action_pressed("ship_boost")
+	inp.boost = Input.is_action_pressed("ship_boost") and not Tuning.ship.time_warp
 	inp.soft_brake = Input.is_action_pressed("ship_brake")
 	inp.drift_sync = Input.is_action_pressed("ship_drift_sync")
 	_jettison_press.tap_time = Tuning.ship.jettison_tap_time

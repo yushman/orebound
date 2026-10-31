@@ -4,7 +4,7 @@ Godot 4.7 2D game; stage 0 skeleton with placeholder ship and stub modules.
 
 ## Project
 - Main scene is `res://scenes/Run.tscn`. Renderer `gl_compatibility` (2D, canvas_item shaders; targets Windows, macOS; Steam Deck secondary, see D34 in docs/decisions.md).
-- Base viewport 1280x800 (Steam Deck 16:10), stretch mode `canvas_items`, aspect `expand`. Physics 60 ticks/s.
+- Base viewport 1280x800 (Steam Deck 16:10), stretch mode `canvas_items`, aspect `expand`. Physics 60 ticks/s (60 × `time_warp_mult` while the time warp is held, see `scenes/CLAUDE.md` Time warp).
 - Autoloads: `GravityField`, `Tuning` (incl. `Tuning.picture`, the generated moons and ring; `Tuning.view`; `Tuning.resources`, the `CellType` table of mass / volume / energy / price per cell type, not saved in presets), `Telemetry` (see `autoload/`).
 - Known deferred issues (review nits, small bugs left for later) go to `docs/production/tech-debt.md`; remove a row once fixed.
 - Visual style (W7): one palette in `scenes/Palette.gd` (`Palette`, colours bound to meaning; clear colour `Palette.BACKGROUND`), bodies are flat discs with a terminator, the ship look is `Ship/Visual` + `ShipView`; see `scenes/CLAUDE.md`.
