@@ -3,6 +3,7 @@ extends Resource
 
 @export var tier_shares: Array[float] = [0.25, 0.40, 0.25, 0.10]
 @export var ceiling_offset: float = 5000.0
+@export var carrier_patrol_speed: float = 40.0
 @export var moon_count_min: int = 2
 @export var moon_count_max: int = 3
 @export var moon_large_radius_min: float = 1000.0
@@ -12,6 +13,8 @@ extends Resource
 @export var ring_tier: int = 2
 @export var ring_width: float = 1500.0
 @export var ring_density: float = 0.5
+@export var ring_dust_density: float = 0.5
+@export var ring_drag_tau: float = 15.0
 @export var atmosphere_drag: float = 0.5
 @export var atmosphere_damage: float = 5.0
 @export var density_shape: float = 2.0
@@ -26,6 +29,7 @@ extends Resource
 @export var rest_speed: float = 0.3
 @export var band_width: float = 1500.0
 @export var chunk_arc: float = 4000.0
+@export var ring_boulders_per_chunk: float = 1.0
 @export var chunk_gen_radius: float = 20000.0
 @export var asteroids_per_band: float = 200.0
 @export var drop_start: float = 6.0

@@ -327,12 +327,15 @@ func test_band_drift_orbit_keeps_radius_within_1_percent_over_several_revolution
 
 func test_ship_at_rest_at_carrier_stays_in_place() -> void:
 	_planet_field(1.0)
+	var saved_speed: float = Tuning.planet.carrier_patrol_speed
+	Tuning.planet.carrier_patrol_speed = 0.0
 	var rc: float = Tuning.field.carrier_orbit_radius
 	var s := _state(Vector2(rc, 0), Vector2.ZERO)
 	var max_dev := 0.0
 	for i in 180:
 		s = ShipFlight.step(s, ShipInput.new(), i * DT, DT)
 		max_dev = maxf(max_dev, s.pos.distance_to(Vector2(rc, 0)))
+	Tuning.planet.carrier_patrol_speed = saved_speed
 	assert_lt(max_dev, 0.1)
 	assert_lt(s.vel.length(), 0.1)
 
@@ -577,12 +580,92 @@ func test_sync_priority_soft_brake_beats_sync_beats_boost_beats_thrust() -> void
 func test_sync_to_carrier_kills_relative_velocity() -> void:
 	_gentle_field()
 	var rc: float = Tuning.field.carrier_orbit_radius
+	var saved_speed: float = Tuning.planet.carrier_patrol_speed
+	Tuning.planet.carrier_patrol_speed = 0.0
 	var s := _state(Vector2(rc, 30.0), Vector2(2.0, -3.0))
 	var inp := _drift_sync_input()
 	for i in 300:
 		s = ShipFlight.step(s, inp, i * DT, DT)
+	Tuning.planet.carrier_patrol_speed = saved_speed
 	assert_lt(s.vel.length(), 0.01)
 	assert_gt(s.fuel_sync, 0.0)
+
+
+func test_carrier_pos_and_vel_are_pure_formulas_of_t() -> void:
+	_planet_field(1.0)
+	var rc: float = Tuning.field.carrier_orbit_radius
+	var speed: float = Tuning.planet.carrier_patrol_speed
+	var om: float = speed / rc
+	for t: float in [0.0, 10.0, 731.5]:
+		var a: float = om * t
+		assert_almost_eq(ShipFlight.carrier_angle(t), a, 1e-9)
+		var p := ShipFlight.carrier_pos(t)
+		var v := ShipFlight.carrier_vel(t)
+		assert_almost_eq(p, Vector2(cos(a), sin(a)) * rc, Vector2(1e-6, 1e-6))
+		assert_almost_eq(v, speed * Vector2(-sin(a), cos(a)), Vector2(1e-6, 1e-6))
+		# counter-clockwise, exactly the knob magnitude
+		assert_almost_eq(v.length(), speed, 1e-6)
+		assert_gt(p.cross(v), 0.0)
+
+
+func test_carrier_patrol_zero_restores_the_fixed_point() -> void:
+	_planet_field(1.0)
+	var rc: float = Tuning.field.carrier_orbit_radius
+	var saved_speed: float = Tuning.planet.carrier_patrol_speed
+	Tuning.planet.carrier_patrol_speed = 0.0
+	for t: float in [0.0, 3.5, 7200.0]:
+		assert_eq(ShipFlight.carrier_angle(t), 0.0)
+		assert_eq(ShipFlight.carrier_pos(t), Vector2(rc, 0.0))
+		assert_eq(ShipFlight.carrier_vel(t), Vector2.ZERO)
+	Tuning.planet.carrier_patrol_speed = saved_speed
+
+
+func test_reference_vel_matches_the_reference_kind() -> void:
+	_gentle_field()
+	var t := 3.0
+	# the carrier: the patrol velocity
+	var carrier := {"valid": true, "index": -1, "is_carrier": true, "asteroid": {}}
+	assert_eq(ShipFlight.reference_vel(carrier, t), ShipFlight.carrier_vel(t),
+			"the carrier reference moves with the patrol")
+	# an asteroid: its own velocity
+	var ast := {"valid": true, "index": -1, "is_carrier": false,
+			"asteroid": {"pos": Vector2(10.0, 20.0), "vel": Vector2(3.0, -4.0)}}
+	assert_eq(ShipFlight.reference_vel(ast, t), Vector2(3.0, -4.0),
+			"an asteroid reference moves with its own velocity")
+	# a body: the body velocity
+	var body := {"valid": true, "index": 1, "is_carrier": false, "asteroid": {}}
+	assert_eq(ShipFlight.reference_vel(body, t), GravityField.body_vel(1, t),
+			"a body reference moves with the body")
+	# no reference: no velocity
+	var none := {"valid": false, "index": -1, "is_carrier": false, "asteroid": {}}
+	assert_eq(ShipFlight.reference_vel(none, t), Vector2.ZERO,
+			"an invalid reference has no velocity")
+
+
+func test_sync_step_pulls_toward_the_reference_velocity() -> void:
+	_gentle_field()
+	var s := _state(ShipFlight.carrier_pos(0.0), Vector2.ZERO)
+	var ref := ShipFlight.sync_reference(s.pos, 0.0)
+	assert_true(ref["is_carrier"], "the carrier is the reference here")
+	var v_ref := ShipFlight.reference_vel(ref, 0.0)
+	var out := ShipFlight.step(s, _drift_sync_input(), 0.0, DT)
+	assert_lt(out.vel.distance_to(v_ref), s.vel.distance_to(v_ref),
+			"the sync pull aims at the reference velocity")
+
+
+func test_sync_to_the_moving_carrier_pulls_toward_carrier_vel() -> void:
+	_gentle_field()
+	var s := _state(ShipFlight.carrier_pos(0.0), Vector2.ZERO)
+	var inp := _drift_sync_input()
+	var steps := 900
+	for i in steps:
+		s = ShipFlight.step(s, inp, i * DT, DT)
+	var t_end := steps * DT
+	assert_gt(ShipFlight.carrier_pos(t_end).distance_to(ShipFlight.carrier_pos(0.0)), 0.0,
+			"the carrier advances along its orbit")
+	assert_lt(s.vel.distance_to(ShipFlight.carrier_vel(t_end)), 0.5)
+	assert_gt(s.fuel_sync, 0.0)
+	assert_lt(s.pos.distance_to(ShipFlight.carrier_pos(t_end)), 1000.0)
 
 
 func test_sync_to_body_matches_body_velocity() -> void:
@@ -733,6 +816,9 @@ func test_heat_never_grows_on_soft_brake_and_drift_sync() -> void:
 
 func _check_band_drift_sync(r: float, v_rel_tangential: float) -> void:
 	Tuning.field = load("res://presets/p1.tres").field.duplicate(true)
+	Tuning.planet.asteroids_per_band = 0.0
+	Tuning.planet.ring_boulders_per_chunk = 0.0
+	Tuning.picture = {"seed": 1, "flight": 1, "moons": [], "ring": {}}
 	var pos := Vector2(0.0, r)
 	var tangent := Vector2(-1.0, 0.0)
 	var s := _state(pos, tangent * v_rel_tangential)
@@ -1007,8 +1093,11 @@ func test_heavier_ship_soft_brake_and_drift_sync_limit_scale_by_ref_mass_over_ma
 
 func test_heavy_sync_below_scaled_limit_still_matches_reference_velocity() -> void:
 	_gentle_field()
+	var saved_speed: float = Tuning.planet.carrier_patrol_speed
+	Tuning.planet.carrier_patrol_speed = 0.0
 	var rc := Vector2(Tuning.field.carrier_orbit_radius, 0.0)
 	var out := ShipFlight.step(_heavy_state(rc, Vector2(0.001, 0.0)), _drift_sync_input(), 0.0, DT)
+	Tuning.planet.carrier_patrol_speed = saved_speed
 	assert_almost_eq(out.vel, Vector2.ZERO, Vector2(1e-5, 1e-5))
 
 
@@ -1578,6 +1667,78 @@ func test_step_with_transfer_input_pours_hold_ice_into_the_tank() -> void:
 	assert_eq(out.tank[out.tank.size() - 1].fill, f)
 	assert_eq(ShipFlight.step(s, ShipInput.new(), 0.0, DT).hold.size(), before)
 	Tuning.ship.refiner = saved_refiner
+
+
+func _ring_empty_picture() -> void:
+	Tuning.picture = {"seed": 1, "flight": 1, "moons": [], "ring": {}}
+
+
+func _hand_ring(radius: float) -> void:
+	Tuning.picture = {"seed": 1, "flight": 1, "moons": [], "ring": {"radius": radius, "width": Tuning.planet.ring_width, "phase": 0.0}}
+
+
+func _ring_expected_delta(pos: Vector2, v0: Vector2, tau: float) -> Vector2:
+	var ring: Dictionary = Tuning.picture["ring"]
+	var flow: Vector2 = WellGenerator.relative_omega(ring["radius"]) * Vector2(-pos.y, pos.x)
+	var delta := (flow - v0) * (1.0 - exp(-DT / tau))
+	# the relaxed velocity also shifts the Coriolis part of the same tick
+	return delta - Vector2(-delta.y, delta.x) * (2.0 * GravityField.frame_omega() * DT)
+
+
+func test_flight_inside_the_ring_band_relaxes_velocity_toward_the_ring_flow() -> void:
+	Tuning.planet.asteroids_per_band = 0.0
+	Tuning.planet.ring_boulders_per_chunk = 0.0
+	var radius := 110000.0
+	var pos := Vector2(radius, 0.0)
+	var v0 := Vector2(0.0, -100.0)
+	_ring_empty_picture()
+	var free := ShipFlight.step(_state(pos, v0), ShipInput.new(), 1.0, DT)
+	_hand_ring(radius)
+	var dragged := ShipFlight.step(_state(pos, v0), ShipInput.new(), 1.0, DT)
+	var expected := _ring_expected_delta(pos, v0, Tuning.planet.ring_drag_tau)
+	assert_gt(expected.length(), 0.1)
+	assert_almost_eq(dragged.vel - free.vel, expected, Vector2(1e-4, 1e-4))
+	var ring: Dictionary = Tuning.picture["ring"]
+	var flow: Vector2 = WellGenerator.relative_omega(ring["radius"]) * Vector2(-pos.y, pos.x)
+	assert_lt((dragged.vel - flow).length(), (free.vel - flow).length())
+	# tau is read per call: a smaller tau relaxes faster
+	var tau: float = Tuning.planet.ring_drag_tau
+	Tuning.planet.ring_drag_tau = 0.25
+	var stiff := ShipFlight.step(_state(pos, v0), ShipInput.new(), 1.0, DT)
+	var expected_fast := _ring_expected_delta(pos, v0, 0.25)
+	assert_gt(expected_fast.length(), expected.length())
+	assert_almost_eq(stiff.vel - free.vel, expected_fast, Vector2(1e-4, 1e-4))
+	Tuning.planet.ring_drag_tau = tau
+	# every control branch gets the same relaxation and the drag charges no fuel
+	var thrust := ShipInput.new()
+	thrust.thrust = true
+	var boost := ShipInput.new()
+	boost.boost = true
+	var brake := ShipInput.new()
+	brake.soft_brake = true
+	var sync := ShipInput.new()
+	sync.drift_sync = true
+	var branch := 0
+	for inp in [thrust, boost, brake, sync]:
+		_ring_empty_picture()
+		var free_b := ShipFlight.step(_state(pos, v0), inp, 1.0, DT)
+		_hand_ring(radius)
+		var dragged_b := ShipFlight.step(_state(pos, v0), inp, 1.0, DT)
+		assert_almost_eq(dragged_b.vel - free_b.vel, expected, Vector2(1e-4, 1e-4), "branch %d" % branch)
+		assert_eq(dragged_b.fuel_engine, free_b.fuel_engine, "fuel engine %s" % inp)
+		assert_eq(dragged_b.fuel_boost, free_b.fuel_boost, "fuel boost %s" % inp)
+		assert_eq(dragged_b.fuel_soft_brake, free_b.fuel_soft_brake, "fuel brake %s" % inp)
+		assert_eq(dragged_b.fuel_sync, free_b.fuel_sync, "fuel sync %d" % branch)
+		assert_eq(dragged_b.heat, free_b.heat, "heat %d" % branch)
+		assert_eq(dragged_b.hull, free_b.hull, "hull %d" % branch)
+		branch += 1
+	# no effect outside the band or with an empty ring
+	var outside := Vector2(radius + 0.5 * Tuning.planet.ring_width + 500.0, 0.0)
+	_hand_ring(radius)
+	var out_ring := ShipFlight.step(_state(outside, v0), ShipInput.new(), 1.0, DT)
+	_ring_empty_picture()
+	var out_free := ShipFlight.step(_state(outside, v0), ShipInput.new(), 1.0, DT)
+	assert_true(_same(out_ring, out_free))
 
 
 func test_thrust_works_from_a_tank_holding_only_raw_ice() -> void:

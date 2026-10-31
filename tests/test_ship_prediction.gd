@@ -518,6 +518,107 @@ func test_prediction_equals_flight_with_beam_and_collector_held_near_an_asteroid
 	assert_gt(max_bodies, 0, "an asteroid broke")
 
 
+func test_predicted_points_equal_flight_through_the_ring_band_with_boulders() -> void:
+	var saved_picture = Tuning.picture
+	Tuning.planet.asteroids_per_band = 0.0
+	Tuning.planet.ring_boulders_per_chunk = 3.0
+	var ring := {"radius": 110000.0, "width": 600.0, "phase": 0.0}
+	Tuning.picture = {"seed": 1, "flight": 1, "moons": [], "ring": ring}
+	# boulders really surround the crossing path at the band edge
+	var found: Array = AsteroidField.near(Vector2(ring["radius"] + 400.0, 0.0), 0.0, 3000.0)
+	assert_gt(found.size(), 0, "boulders lie around the crossing path")
+	var boulder_in_band := false
+	var min_d := INF
+	for e in found:
+		if e["type"] == &"ore_middle" and ShipFlight.in_ring_band(e["pos"]):
+			boulder_in_band = true
+			min_d = minf(min_d, Vector2(ring["radius"] + 400.0, 0.0).distance_to(e["pos"]))
+	assert_true(boulder_in_band, "an ore_middle boulder sits in the band")
+	assert_lt(min_d, 1500.0, "a boulder passes close to the path")
+	var start := ShipState.new()
+	start.pos = Vector2(ring["radius"] + 400.0, 0.0)
+	start.vel = Vector2(-900.0, 60.0)
+	var inp := ShipInput.new()
+	var pts := ShipPrediction.run(start, inp, 0, 240)
+	var s := start.copy()
+	var diverged := 0
+	var first := -1
+	var in_band := 0
+	var crossed := false
+	var v0 := -1.0
+	var vend := -1.0
+	for i in pts.size():
+		s = ShipFlight.step(s, inp, GravityField.time_at(i + 1), GravityField.DT)
+		if pts[i] != s.pos:
+			diverged += 1
+			if first < 0:
+				first = i
+		if ShipFlight.in_ring_band(s.pos):
+			if in_band == 0:
+				v0 = (s.vel - ShipFlight.ring_flow(s.pos)).length()
+			vend = (s.vel - ShipFlight.ring_flow(s.pos)).length()
+			in_band += 1
+		elif in_band > 0:
+			crossed = true
+	Tuning.picture = saved_picture
+	assert_eq(pts.size(), 240)
+	assert_eq(diverged, 0, "first diverged point %d" % first)
+	assert_gt(in_band, 30, "the ship flies inside the band")
+	assert_true(crossed, "the path crosses the ring band")
+	assert_lt(vend, v0, "drag pulls the velocity toward the ring flow while inside")
+
+
+func test_prediction_equals_flight_while_beaming_and_breaking_a_ring_boulder() -> void:
+	var saved_picture = Tuning.picture
+	var saved_ship = Tuning.ship
+	Tuning.planet.asteroids_per_band = 0.0
+	Tuning.planet.ring_boulders_per_chunk = 1.0
+	Tuning.planet.ast_radius_min = 90.0
+	Tuning.planet.ast_radius_max = 110.0
+	Tuning.planet.break_per_sqrt_radius = 0.01
+	Tuning.ship = saved_ship.duplicate()
+	Tuning.ship.beam_range = 900.0
+	# the ship rams the remnants at full closing speed: keep it alive to see it through
+	Tuning.ship.hull_max = 100000.0
+	var ring := {"radius": 110000.0, "width": 600.0, "phase": 0.0}
+	Tuning.picture = {"seed": 1, "flight": 1, "moons": [], "ring": ring}
+	var k := AsteroidField.band_of(ring["radius"])
+	var cs: Array = AsteroidField.chunk(k, 4)
+	assert_gt(cs.size(), 0, "the ring band chunk holds a boulder")
+	var key := Vector3i(k, 4, 0)
+	var st: Dictionary = AsteroidField.state(k, cs[0], 0.0)
+	var ap: Vector2 = st["pos"]
+	var start := ShipState.new()
+	# tangential offset keeps the ship at the boulder's radius, inside the band
+	start.pos = ap + Vector2.from_angle(ap.angle() + PI * 0.5) * 250.0
+	# co-moving with the boulder, closing head-on; the ring drag eats any slower approach
+	start.vel = st["vel"] + (ap - start.pos).normalized() * 300.0
+	assert_true(ShipFlight.in_ring_band(start.pos), "the ship starts inside the band")
+	var inp := ShipInput.new()
+	inp.beam = true
+	inp.aim = (ap - start.pos).angle()
+	var pts := ShipPrediction.run(start, inp, 0, 300)
+	var s := start.copy()
+	var diverged := 0
+	var first := -1
+	var max_bodies := 0
+	var hull0: float = s.hull
+	for i in pts.size():
+		s = ShipFlight.step(s, inp, GravityField.time_at(i + 1), GravityField.DT)
+		max_bodies = maxi(max_bodies, s.bodies.size())
+		if pts[i] != s.pos:
+			diverged += 1
+			if first < 0:
+				first = i
+	Tuning.picture = saved_picture
+	Tuning.ship = saved_ship
+	assert_eq(pts.size(), 300)
+	assert_eq(diverged, 0, "first diverged point %d" % first)
+	assert_true(s.broken.has(key), "the beam breaks the boulder mid-run")
+	assert_gt(max_bodies, 0, "pieces spawn from the break")
+	assert_lt(s.hull, hull0, "the ship runs into the break remnants")
+
+
 func _big_body(ship_pos: Vector2) -> FreeBody:
 	var b := FreeBody.new()
 	b.pos = ship_pos + Vector2(60.0, 0.0)

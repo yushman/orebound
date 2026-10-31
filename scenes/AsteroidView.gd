@@ -46,7 +46,9 @@ func refresh(pos: Vector2, t: float, broken := {}) -> void:
 				polys.append(p)
 			polys[i].visible = true
 			polys[i].polygon = list[i]["points"]
-			polys[i].color = color_of(list[i]["type"])
+			# ring boulders (M6) are ore_middle but draw the obod accent,
+			# discriminated by the band index of the entry key
+			polys[i].color = Palette.OBOD_ACCENT if AsteroidField._ring_band(list[i]["band"]) else color_of(list[i]["type"])
 		for i in range(list.size(), polys.size()):
 			polys[i].visible = false
 	var polys := get_children()

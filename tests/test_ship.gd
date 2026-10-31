@@ -20,19 +20,32 @@ func _make() -> Node:
 	return ship
 
 
-func test_respawns_at_carrier_at_rest() -> void:
+func test_respawn_at_carrier_nose_at_the_planet_descending() -> void:
+	Tuning.planet.carrier_patrol_speed = 0.0
 	var ship = _make()
 	var r: float = Tuning.field.carrier_orbit_radius
 	var s: ShipState = ship.state
 	assert_eq(s.pos, Vector2(r, 0.0))
-	assert_eq(s.vel, Vector2.ZERO)
+	assert_eq(s.vel, Tuning.ship.spawn_descend_speed * Vector2(-1.0, 0.0))
 	assert_eq(ship.position, Vector2(r, 0.0))
-	assert_almost_eq(Vector2.UP.rotated(s.rot), s.pos.normalized(), Vector2(1e-5, 1e-5))
+	assert_almost_eq(Vector2.UP.rotated(s.rot), -s.pos.normalized(), Vector2(1e-5, 1e-5))
 	assert_almost_eq(ship.rotation, s.rot, 1e-6)
 	assert_eq(s.ang_vel, 0.0)
 	assert_eq(s.fuel_engine, 0.0)
 	assert_eq(s.fuel_boost, 0.0)
 	assert_eq(s.fuel_soft_brake, 0.0)
+
+
+func test_spawn_velocity_is_the_descend_speed_toward_the_planet() -> void:
+	var ship = _make()
+	var t0 := GravityField.time()
+	var pos: Vector2 = ShipFlight.carrier_pos(t0)
+	var planet_dir := -pos.normalized()
+	assert_eq(ship.state.pos, pos, "spawn stays on the carrier")
+	assert_eq(ship.state.vel, ShipFlight.carrier_vel(t0) + Tuning.ship.spawn_descend_speed * planet_dir,
+			"co-moving with the patrolling carrier AND descending toward the planet")
+	assert_ne(ship.state.vel, ShipFlight.carrier_vel(t0))
+	assert_almost_eq(Vector2.UP.rotated(ship.state.rot), planet_dir, Vector2(1e-5, 1e-5))
 
 
 func test_physics_process_steps_with_post_increment_field_time() -> void:
@@ -74,6 +87,7 @@ func test_stick_beyond_deadzone_sets_heading_keys_set_turn() -> void:
 
 
 func test_read_input_maps_drift_sync_action() -> void:
+	Tuning.planet.carrier_patrol_speed = 0.0
 	var ship = _make()
 	Input.action_press("ship_drift_sync")
 	Input.action_press("ship_brake")
@@ -111,7 +125,8 @@ func test_physics_process_steps_with_dt_regardless_of_delta_and_stores_input() -
 	assert_true(ship.input.thrust)
 
 
-func test_respawn_at_carrier_is_at_rest_even_when_moon_dominates() -> void:
+func test_respawn_nose_at_the_planet_even_when_moon_dominates() -> void:
+	Tuning.planet.carrier_patrol_speed = 0.0
 	var saved = Tuning.field
 	var f := FieldParams.new()
 	f.k = 1000.0
@@ -135,10 +150,11 @@ func test_respawn_at_carrier_is_at_rest_even_when_moon_dominates() -> void:
 	Tuning.field = saved
 	assert_eq(ref, 1)
 	assert_eq(ship.state.pos, carrier)
-	assert_eq(ship.state.vel, Vector2.ZERO)
+	assert_eq(ship.state.vel, Tuning.ship.spawn_descend_speed * (-carrier.normalized()))
 
 
 func test_preset_applied_respawns_at_carrier_of_new_field() -> void:
+	Tuning.planet.carrier_patrol_speed = 0.0
 	var saved_field = Tuning.field
 	var saved_ship = Tuning.ship
 	var ship = _make()
@@ -160,13 +176,13 @@ func test_preset_applied_respawns_at_carrier_of_new_field() -> void:
 	var pos := Vector2(700.0, 0.0)
 	assert_eq(ship.state.pos, pos)
 	assert_eq(ship.position, pos)
-	assert_eq(ship.state.vel, Vector2.ZERO)
-	assert_almost_eq(ship.state.rot, PI / 2.0, 1e-6)
+	assert_eq(ship.state.vel, Tuning.ship.spawn_descend_speed * Vector2(-1.0, 0.0))
+	assert_almost_eq(ship.state.rot, -PI / 2.0, 1e-6)
 	assert_eq(ship.state.ang_vel, 0.0)
 	assert_eq(ship.state.fuel_engine, 0.0)
 	assert_eq(ship.state.fuel_boost, 0.0)
 	assert_eq(ship.state.fuel_soft_brake, 0.0)
-	assert_almost_eq(ship.rotation, PI / 2.0, 1e-6)
+	assert_almost_eq(ship.rotation, -PI / 2.0, 1e-6)
 	Tuning.field = saved_field
 	Tuning.ship = saved_ship
 
@@ -195,6 +211,7 @@ func test_stick_heading_is_screen_relative() -> void:
 
 
 func test_crashed_step_respawns_at_carrier_with_full_hull_and_counts_a_crash() -> void:
+	Tuning.planet.carrier_patrol_speed = 0.0
 	var saved_crashes: int = Telemetry.crashes
 	Telemetry.crashes = 0
 	var ship = _make()
@@ -203,7 +220,7 @@ func test_crashed_step_respawns_at_carrier_with_full_hull_and_counts_a_crash() -
 	ship._physics_process(GravityField.DT)
 	assert_eq(Telemetry.crashes, 1)
 	assert_eq(ship.state.pos, Vector2(Tuning.field.carrier_orbit_radius, 0.0))
-	assert_eq(ship.state.vel, Vector2.ZERO)
+	assert_eq(ship.state.vel, Tuning.ship.spawn_descend_speed * Vector2(-1.0, 0.0))
 	assert_eq(ship.state.hull, Tuning.ship.hull_max)
 	assert_false(ship.state.crashed)
 	ship._physics_process(GravityField.DT)

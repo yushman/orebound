@@ -220,6 +220,9 @@ func test_run_has_reference_marker_on_reference_body():
 func test_marker_tracks_sync_reference_body_or_carrier():
 	# Маркер стоит на ориентире синхронизации: у луны — луна, у матки — точка
 	# матки, вне sync_radius — доминантное тело; яркость — чистым хелпером.
+	# Стационарная матка: тест привязан к фиксированной точке (rc, 0).
+	var saved_speed: float = Tuning.planet.carrier_patrol_speed
+	Tuning.planet.carrier_patrol_speed = 0.0
 	var run = _run()
 	_set_field(_three_body_field())
 	var marker = run.get_node("ReferenceMarker")
@@ -253,6 +256,11 @@ func test_marker_tracks_sync_reference_body_or_carrier():
 	ship.state.pos = Vector2(Tuning.field.carrier_orbit_radius + 3.0, 0.0)
 	marker._physics_process(0.0)
 	assert_true(marker.visible)
+
+	# яркое кольцо только при drift_sync (чистый хелпер альфы)
+	assert_eq(marker.alpha_for(true), 1.0)
+	assert_eq(marker.alpha_for(false), 0.35)
+	Tuning.planet.carrier_patrol_speed = saved_speed
 
 	# яркое кольцо только при drift_sync (чистый хелпер альфы)
 	assert_eq(marker.alpha_for(true), 1.0)
@@ -375,6 +383,46 @@ func test_crosshair_geometry_and_no_speed_gate():
 	assert_gt(FlightVectorScript.NEEDLE_STROKE_PX, FlightVectorScript.STROKE_PX,
 			"needle stroke thicker than the ticks")
 	assert_eq(FlightVectorScript.CROSSHAIR_COLOR, Palette.SAFE)
+
+
+func test_chevron_lines_at_takes_the_base_distance():
+	# The shared chevron geometry: the back edge at base_px SCREEN px from the
+	# centre, the tip CHEVRON_DEPTH_PX further out, 12 px across; the label
+	# LABEL_OFFSET_PX past the tip (base + 5 + 24).
+	var FlightVectorScript = load("res://scenes/FlightVector.gd")
+	var pos := Vector2(10.0, -2.0)
+	var vel := Vector2(0.0, 80.0)
+	var s := 2.0
+	var lines: Array = FlightVectorScript.chevron_lines_at(pos, vel, s, 28.0)
+	assert_eq(lines.size(), 2, "two chevron lines, no shaft")
+	for seg in lines:
+		assert_almost_eq(seg[1].distance_to(pos), 33.0 * s, 1e-3,
+				"the tip is 5 px past the back edge")
+		var rel: Vector2 = seg[0] - pos
+		assert_almost_eq(rel.dot(Vector2(0.0, 1.0)), 28.0 * s, 1e-3,
+				"the back edge is at base_px")
+		assert_almost_eq(absf(rel.dot(Vector2(1.0, 0.0))), 6.0 * s, 1e-3,
+				"the back vertex is +-6 px off")
+	assert_almost_eq(lines[0][0].distance_to(lines[1][0]), 12.0 * s, 1e-3,
+			"the chevron is 12 px across")
+	# The ship chevron is the same shape at its own base (25 px).
+	var ship_lines: Array = FlightVectorScript.chevron_lines(pos, vel, s)
+	assert_almost_eq(ship_lines[0][1].distance_to(pos), 30.0 * s, 1e-3,
+			"the ship chevron tip stays at 30 px")
+	assert_almost_eq((ship_lines[0][0] - pos).dot(Vector2(0.0, 1.0)), 25.0 * s, 1e-3,
+			"the ship chevron back edge stays at 25 px")
+	# The label anchor: base + 5 + 24 from the centre.
+	var anchor: Vector2 = FlightVectorScript.label_pos_at(pos, vel, s, 28.0)
+	assert_almost_eq(anchor.distance_to(pos), 57.0 * s, 1e-3,
+			"the label is 57 px from the centre")
+	var ship_anchor: Vector2 = FlightVectorScript.label_pos(pos, vel, s)
+	assert_almost_eq(ship_anchor.distance_to(pos), 54.0 * s, 1e-3,
+			"the ship label stays at 54 px")
+	# The shared label drawing helper (the ship overlay and the marker).
+	var methods := []
+	for m in FlightVectorScript.get_script_method_list():
+		methods.append(m.name)
+	assert_true("draw_label_at" in methods, "the shared label drawing helper")
 
 
 func test_chevron_sits_at_fixed_screen_distance_along_velocity():

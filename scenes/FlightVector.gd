@@ -9,8 +9,9 @@ const STROKE_PX := 2.0
 const MIN_SPEED := 1.0
 const COLOR := Color(Palette.HALO, 0.85)
 # Chevron: tip 30 px along v-hat, back edge 25 px, 12 px across; label past it.
-const CHEVRON_DIST_PX := 30.0
 const CHEVRON_BACK_PX := 25.0
+const CHEVRON_DEPTH_PX := 5.0
+const CHEVRON_DIST_PX := CHEVRON_BACK_PX + CHEVRON_DEPTH_PX
 const CHEVRON_PX := 12.0
 const LABEL_OFFSET_PX := 24.0
 const LABEL_FONT_PX := 20
@@ -47,9 +48,16 @@ static func chevron_pos(pos: Vector2, vel: Vector2, s: float) -> Vector2:
 ## pointing along v-hat, the back edge 25 px out (clears the 9 px crosshair)
 ## and 12 px across.
 static func chevron_lines(pos: Vector2, vel: Vector2, s: float) -> Array[PackedVector2Array]:
+	return chevron_lines_at(pos, vel, s, CHEVRON_BACK_PX)
+
+
+## The chevron lines with the back edge at base_px SCREEN px from the centre:
+## the shared geometry of the ship chevron and the reference marker chevron.
+## The tip is CHEVRON_DEPTH_PX further out, 12 px across.
+static func chevron_lines_at(pos: Vector2, vel: Vector2, s: float, base_px: float) -> Array[PackedVector2Array]:
 	var dir := vector_dir(vel)
-	var tip := chevron_pos(pos, vel, s)
-	var back := pos + dir * screen_px(CHEVRON_BACK_PX, s)
+	var back := pos + dir * screen_px(base_px, s)
+	var tip := pos + dir * screen_px(base_px + CHEVRON_DEPTH_PX, s)
 	var side := Vector2(-dir.y, dir.x) * screen_px(CHEVRON_PX * 0.5, s)
 	return [
 		PackedVector2Array([back + side, tip]),
@@ -65,7 +73,31 @@ static func chevron_label(vel: Vector2) -> int:
 ## Label anchor: LABEL_OFFSET_PX beyond the chevron tip along v-hat — strictly
 ## past the arms for any direction.
 static func label_pos(pos: Vector2, vel: Vector2, s: float) -> Vector2:
-	return chevron_pos(pos, vel, s) + vector_dir(vel) * screen_px(LABEL_OFFSET_PX, s)
+	return label_pos_at(pos, vel, s, CHEVRON_BACK_PX)
+
+
+## Label anchor with the chevron back edge at base_px: the tip is
+## CHEVRON_DEPTH_PX further out and the label LABEL_OFFSET_PX past the tip.
+static func label_pos_at(pos: Vector2, vel: Vector2, s: float, base_px: float) -> Vector2:
+	return pos + vector_dir(vel) * screen_px(base_px + CHEVRON_DEPTH_PX + LABEL_OFFSET_PX, s)
+
+
+## Draw a screen-constant, upright label at a world point: the transform moves
+## the origin to the camera and undoes its zoom and rotation, so the text keeps
+## its LABEL_FONT_PX screen size and stays upright at any zoom. Shared by the
+## ship overlay and the reference marker.
+static func draw_label_at(ci: Node2D, world_pos: Vector2, text: String,
+		color: Color, zoom: float, s: float, rot: float, cam_pos: Vector2) -> void:
+	ci.draw_set_transform(cam_pos - ci.global_position, rot, Vector2.ONE * s)
+	var text_w := ThemeDB.fallback_font.get_string_size(text,
+			HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_FONT_PX).x
+	var anchor_px := (world_pos - cam_pos).rotated(-rot) * zoom
+	# Horizontally and vertically centred on the anchor: the x shift by half
+	# the measured width (draw_string centres only for a width > 0) and the
+	# baseline offset from the font metrics.
+	var off := Vector2(-text_w * 0.5, label_baseline_off(ThemeDB.fallback_font, LABEL_FONT_PX))
+	ci.draw_string(ThemeDB.fallback_font, anchor_px + off, text,
+			HORIZONTAL_ALIGNMENT_CENTER, text_w, LABEL_FONT_PX, color)
 
 
 ## Baseline y-offset from the label anchor that centres the glyphs on it:
@@ -160,25 +192,16 @@ func _draw_crosshair(zoom: float, s: float, stroke: float) -> void:
 			screen_px(NEEDLE_STROKE_PX, s))
 
 
-## The speed label beyond the chevron tip: the draw transform moves the origin
-## to the camera and undoes its zoom and rotation, so the text keeps its 20 px
-## screen size and stays upright at any zoom.
+## The speed label beyond the chevron tip: the shared draw helper moves the
+## origin to the camera and undoes its zoom and rotation, so the text keeps its
+## 20 px screen size and stays upright at any zoom.
 func _draw_label(vel: Vector2, zoom: float, s: float) -> void:
 	var vp := get_viewport()
 	var cam := vp.get_camera_2d() if vp != null else null
 	var cam_pos := cam.position if cam != null else Vector2.ZERO
 	var rot := FlightCamera.rotation_for(ship.state.pos)
-	draw_set_transform(cam_pos, rot, Vector2.ONE * s)
-	var text := str(chevron_label(vel))
-	var text_w := ThemeDB.fallback_font.get_string_size(text,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_FONT_PX).x
-	var anchor_px := (label_pos(ship.state.pos, vel, s) - cam_pos).rotated(-rot) * zoom
-	# Horizontally and vertically centred on the anchor: the x shift by half
-	# the measured width (draw_string centres only for a width > 0) and the
-	# baseline offset from the font metrics.
-	var off := Vector2(-text_w * 0.5, label_baseline_off(ThemeDB.fallback_font, LABEL_FONT_PX))
-	draw_string(ThemeDB.fallback_font, anchor_px + off, text,
-			HORIZONTAL_ALIGNMENT_CENTER, text_w, LABEL_FONT_PX, COLOR)
+	draw_label_at(self, label_pos(ship.state.pos, vel, s), str(chevron_label(vel)),
+			COLOR, zoom, s, rot, cam_pos)
 
 
 func _camera_zoom() -> float:

@@ -24,7 +24,20 @@ static func band_centre(k: int) -> float:
 	return Tuning.field.atmosphere_edge + (k + 0.5) * Tuning.planet.band_width
 
 
+static func _ring_band(k: int) -> bool:
+	var ring: Dictionary = Tuning.picture["ring"]
+	if ring.is_empty():
+		return false
+	var lo: float = Tuning.field.atmosphere_edge + k * Tuning.planet.band_width
+	var half: float = ring["width"] * 0.5
+	return ring["radius"] + half >= lo and ring["radius"] - half <= lo + Tuning.planet.band_width
+
+
 static func band_omega(k: int) -> float:
+	# the ring is its own band with one rigid omega: boulders in ring bands
+	# rotate with the ring, not with the band-centre omega
+	if _ring_band(k):
+		return WellGenerator.relative_omega(Tuning.picture["ring"]["radius"])
 	return WellGenerator.relative_omega(band_centre(k))
 
 
@@ -62,7 +75,14 @@ static func chunk(k: int, i: int, bands := -1, bounds: Array = []) -> Array:
 	var out: Array = []
 	if bands < 0:
 		bands = band_count()
-	if k < 0 or k >= bands or band_blocked(k):
+	if k < 0 or k >= bands:
+		return out
+	# Key-space coupling (M6): band_blocked gives asteroid fields to no band
+	# touching the ring annulus, so boulders (this branch) and fields never
+	# share a Vector3i(band, chunk, idx) key in ShipState.broken.
+	if _ring_band(k):
+		return _boulders(k, i)
+	if band_blocked(k):
 		return out
 	var pl: PlanetParams = Tuning.planet
 	var n := chunk_count(k)
@@ -93,6 +113,38 @@ static func chunk(k: int, i: int, bands := -1, bounds: Array = []) -> Array:
 		var q: Dictionary = placed[j]
 		var pos: Vector2 = centre + q["off"]
 		out.append({"r": pos.length(), "theta": pos.angle(), "radius": q["radius"], "points": q["points"], "type": _type_of(pos.length(), k, i, j, bounds), "amount": _area(q["points"]) * pl.amount_per_area})
+	return out
+
+
+static func _boulders(k: int, i: int) -> Array:
+	# Ring boulders (M6): the ring band's interactive objects, ore_middle, in
+	# the same entry shape and Vector3i(band, chunk, idx) space as asteroid
+	# fields. Uniqueness of the keys relies on band_blocked keeping fields out
+	# of every band touching the ring annulus. Rotating with the ring's single
+	# omega (band_omega), placement inside the annulus, positions a formula of t.
+	var pl: PlanetParams = Tuning.planet
+	var per := pl.ring_boulders_per_chunk
+	if per <= 0.0:
+		return []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([Tuning.picture["seed"], Tuning.picture["flight"], k, i])
+	var count := int(per)
+	if rng.randf() < per - count:
+		count += 1
+	var n := chunk_count(k)
+	var dth := TAU / n
+	var lo: float = Tuning.field.atmosphere_edge + k * pl.band_width
+	var ring: Dictionary = Tuning.picture["ring"]
+	var half: float = ring["width"] * 0.5
+	var r_lo := maxf(lo, ring["radius"] - half)
+	var r_hi := minf(lo + pl.band_width, ring["radius"] + half)
+	var out: Array = []
+	for j in count:
+		var rad := rng.randf_range(pl.ast_radius_min, pl.ast_radius_max)
+		var ang := (i + rng.randf()) * dth
+		var r := rng.randf_range(r_lo, r_hi)
+		var pts := _hull(rng, rad)
+		out.append({"r": r, "theta": Vector2.from_angle(ang).angle(), "radius": rad, "points": pts, "type": &"ore_middle", "amount": _area(pts) * pl.amount_per_area})
 	return out
 
 
@@ -166,7 +218,8 @@ static func near(pos: Vector2, t: float, radius: float) -> Array:
 	var k_hi := mini(bands - 1, floori((d + radius + fr - edge) / bw))
 	var phi := pos.angle()
 	for k in range(k_lo, k_hi + 1):
-		if band_blocked(k):
+		# ring bands are skipped for fields but hold boulders
+		if band_blocked(k) and not _ring_band(k):
 			continue
 		var n := chunk_count(k)
 		var om := band_omega(k)

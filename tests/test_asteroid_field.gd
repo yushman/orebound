@@ -69,6 +69,9 @@ func test_bands_crossing_moon_annulus_or_ring_have_no_fields():
 	Tuning.picture["ring"]["radius"] = edge + 8.0 * bw + pad + 400.0 + 1.0
 	assert_false(AsteroidField.band_blocked(7))
 	_dense()
+	# only the asteroid-field exclusion is pinned here; the ring band's boulders
+	# are test_ring_boulders.gd's subject
+	Tuning.planet.ring_boulders_per_chunk = 0.0
 	Tuning.picture["moons"] = [_moon(edge + 20.5 * bw, 300.0)]
 	Tuning.picture["ring"] = {"radius": edge + 30.5 * bw, "width": 800.0, "phase": 0.0}
 	var m_reach := 300.0 + margin
@@ -158,6 +161,9 @@ func test_hull_points_reach_near_contact_radius():
 func test_chunk_empty_in_blocked_band():
 	_dense()
 	Tuning.picture["ring"] = {"radius": AsteroidField.band_centre(5), "width": 500.0, "phase": 0.0}
+	# the band itself holds boulders now (test_ring_boulders.gd); with the knob
+	# at 0 a blocked band holds nothing
+	Tuning.planet.ring_boulders_per_chunk = 0.0
 	assert_eq(AsteroidField.chunk(5, 3), [])
 
 

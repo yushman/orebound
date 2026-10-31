@@ -129,6 +129,34 @@ func test_asteroid_polygons_are_coloured_by_type():
 		assert_eq(polys[i].color, AsteroidViewScript.color_of(want[i]["type"]))
 
 
+func test_ring_boulders_draw_obod_accent_while_tier2_ore_stays_ore():
+	# a ring centred in band 3, narrower than the band: exactly band 3 is the ring band
+	var bw: float = Tuning.planet.band_width
+	var ring := {"radius": AsteroidField.band_centre(3), "width": 0.8 * bw, "phase": 0.0}
+	Tuning.picture = {"seed": 3, "flight": 1, "moons": [], "ring": ring}
+	Tuning.planet.chunk_gen_radius = 3000.0
+	var pos := _spot()
+	var t := 10.0
+	var want: Array = AsteroidField.near(pos, t, Tuning.planet.chunk_gen_radius)
+	var v = add_child_autofree(AsteroidViewScript.new())
+	v.refresh(pos, t)
+	var polys := _polys(v)
+	assert_eq(polys.size(), want.size())
+	var boulders := 0
+	for i in want.size():
+		if AsteroidField._ring_band(want[i]["band"]):
+			boulders += 1
+			assert_eq(want[i]["type"], &"ore_middle", "ring-band entries are boulders")
+			assert_eq(polys[i].color, Palette.OBOD_ACCENT, "boulders draw the obod accent, not the ore colour")
+		else:
+			assert_eq(polys[i].color, AsteroidViewScript.color_of(want[i]["type"]), "non-ring entries keep the type colour")
+	assert_gt(boulders, 0, "boulders visible near the ring")
+	# tier-2 ore outside the ring band keeps the ore colour, never the accent
+	assert_false(AsteroidField._ring_band(0), "band 0 is outside this ring")
+	assert_eq(AsteroidViewScript.color_of(&"ore_middle"), Palette.ORE)
+	assert_ne(Palette.ORE, Palette.OBOD_ACCENT)
+
+
 func test_asteroid_view_hides_a_broken_asteroid():
 	var v = add_child_autofree(AsteroidViewScript.new())
 	var pos := _spot()

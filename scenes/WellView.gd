@@ -90,9 +90,10 @@ static func screen_px(px: float, s: float) -> float:
 	return px if s <= 0.0 else px * s
 
 
-## Carrier point (D35): the frame origin, read from Tuning on every call.
-static func carrier_marker_pos() -> Vector2:
-	return Vector2(Tuning.field.carrier_orbit_radius, 0.0)
+## Carrier point: the patrolling carrier position, read from Tuning on every
+## call (a formula of t).
+static func carrier_marker_pos(t: float) -> Vector2:
+	return ShipFlight.carrier_pos(t)
 
 
 func _ready() -> void:
@@ -113,7 +114,7 @@ func _draw() -> void:
 	for r: float in orbit_radii():
 		var style := orbit_style(r, highlight)
 		_draw_ring(r, style["color"], screen_px(style["px"], s))
-	draw_circle(carrier_marker_pos(), screen_px(CARRIER_MARKER_PX, s),
+	draw_circle(carrier_marker_pos(GravityField.time()), screen_px(CARRIER_MARKER_PX, s),
 			CARRIER_MARKER_COLOR)
 
 

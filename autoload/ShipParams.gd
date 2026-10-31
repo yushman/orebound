@@ -8,6 +8,7 @@ extends Resource
 @export var heading_gain: float = 30.0
 @export var climb_coefficient: float = 0.05
 @export var boost_fuel_mult: float = 3.5
+@export var spawn_descend_speed: float = 5.0
 @export var brake_accel: float = 3.0
 @export var brake_fuel_mult: float = 1.0
 @export var ramp_time: float = 1.5

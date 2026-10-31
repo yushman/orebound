@@ -6,6 +6,45 @@ static func reference_body(pos: Vector2, t: float) -> int:
 	return GravityField.dominant(pos, t)
 
 
+static func _carrier_omega() -> float:
+	# linear in-frame patrol speed along the carrier orbit; 0 = stationary
+	var rc: float = Tuning.field.carrier_orbit_radius
+	return 0.0 if rc <= 0.0 else Tuning.planet.carrier_patrol_speed / rc
+
+
+## Carrier angle on its orbit: a pure formula of t.
+static func carrier_angle(t: float) -> float:
+	return _carrier_omega() * t
+
+
+## Carrier position in the rotating frame: a pure formula of t.
+static func carrier_pos(t: float) -> Vector2:
+	return Vector2(cos(carrier_angle(t)), sin(carrier_angle(t))) * Tuning.field.carrier_orbit_radius
+
+
+## Carrier velocity in the rotating frame: counter-clockwise, exactly the
+## carrier_patrol_speed magnitude. A pure formula of t.
+static func carrier_vel(t: float) -> Vector2:
+	var a := carrier_angle(t)
+	return Tuning.planet.carrier_patrol_speed * Vector2(-sin(a), cos(a))
+
+
+## Velocity of the sync reference: the asteroid's own velocity, the carrier
+## patrol velocity, the body's velocity, zero for an invalid reference.
+static func reference_vel(ref: Dictionary, t: float) -> Vector2:
+	if ref.has("valid") and not ref["valid"]:
+		return Vector2.ZERO
+	var asteroid: Dictionary = ref.get("asteroid", {})
+	if not asteroid.is_empty():
+		return asteroid.get("vel", Vector2.ZERO)
+	if ref.get("is_carrier", false):
+		return carrier_vel(t)
+	var index := int(ref.get("index", -1))
+	if index < 0:
+		return Vector2.ZERO
+	return GravityField.body_vel(index, t)
+
+
 static func sync_reference(pos: Vector2, t: float, snapshot = null, broken := {}) -> Dictionary:
 	# candidates: all bodies, the carrier point and asteroids; nearest within sync_radius wins
 	var best_d := Tuning.ship.sync_radius
@@ -17,7 +56,7 @@ static func sync_reference(pos: Vector2, t: float, snapshot = null, broken := {}
 		if d < best_d:
 			best_d = d
 			index = i
-	var d_carrier := pos.distance_to(Vector2(Tuning.field.carrier_orbit_radius, 0.0))
+	var d_carrier := pos.distance_to(carrier_pos(t))
 	if d_carrier < best_d:
 		index = -1
 		is_carrier = true
@@ -36,6 +75,21 @@ static func atmosphere_density(pos: Vector2) -> float:
 	var f: FieldParams = Tuning.field
 	var depth := (f.atmosphere_edge - pos.length()) / (f.atmosphere_edge - f.planet_surface_radius)
 	return pow(clampf(depth, 0.0, 1.0), Tuning.planet.density_shape)
+
+
+static func in_ring_band(pos: Vector2) -> bool:
+	var ring: Dictionary = Tuning.picture["ring"]
+	if ring.is_empty():
+		return false
+	var half: float = ring["width"] * 0.5
+	return absf(pos.length() - ring["radius"]) <= half
+
+
+static func ring_flow(pos: Vector2) -> Vector2:
+	var ring: Dictionary = Tuning.picture["ring"]
+	if ring.is_empty():
+		return Vector2.ZERO
+	return WellGenerator.relative_omega(ring["radius"]) * Vector2(-pos.y, pos.x)
 
 
 static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapshot = null, report = null) -> ShipState:
@@ -66,11 +120,7 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 		s.hold_time = 0.0
 		var ref := sync_reference(s.pos, t, snapshot, s.broken)
 		if ref["valid"]:
-			var v_ref := Vector2.ZERO
-			if not ref["asteroid"].is_empty():
-				v_ref = ref["asteroid"]["vel"]
-			elif not ref["is_carrier"]:
-				v_ref = GravityField.body_vel(int(ref["index"]), t)
+			var v_ref := reference_vel(ref, t)
 			a_b = ((v_ref - s.vel) / dt).limit_length(p.sync_accel * k)
 		else:
 			a_b = _band_drift_accel(s, t, dt, p.sync_accel * k)
@@ -108,6 +158,7 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 		s.heat -= p.heat_cooldown * dt
 	s.heat = clampf(s.heat, 0.0, 1.0)
 	s.vel *= exp(-Tuning.planet.atmosphere_drag * atmosphere_density(s.pos) * dt)
+	_ring_drag(s, dt)
 	s.vel += (GravityField.accel(s.pos, t) + GravityField.frame_accel(s.pos, s.vel) + nose * thr + a_b) * dt
 	s.pos += s.vel * dt
 	_jettison(s, input)
@@ -123,6 +174,15 @@ static func step(state: ShipState, input: ShipInput, t: float, dt: float, snapsh
 	s.hull = maxf(s.hull - Tuning.planet.atmosphere_damage * atmosphere_density(s.pos) * dt, 0.0)
 	s.crashed = s.pos.length() <= Tuning.field.planet_surface_radius or s.hull <= 0.0
 	return s
+
+
+static func _ring_drag(s: ShipState, dt: float) -> void:
+	# ring drag (M6): inside the band the velocity relaxes toward the rigid ring
+	# flow, every control branch, no fuel charged; the same code serves live
+	# flight and the prediction snapshot
+	if not in_ring_band(s.pos):
+		return
+	s.vel += (ring_flow(s.pos) - s.vel) * (1.0 - exp(-dt / Tuning.planet.ring_drag_tau))
 
 
 static func _moon_contact(s: ShipState, t: float) -> void:

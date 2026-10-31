@@ -58,6 +58,10 @@ func test_default_rest_speed():
 	assert_eq(Tuning.planet.get("rest_speed"), 0.3)
 
 
+func test_default_carrier_patrol_speed():
+	assert_eq(Tuning.planet.get("carrier_patrol_speed"), 40.0)
+
+
 func test_default_band_chunk_and_asteroid_knobs():
 	var p: PlanetParams = Tuning.planet
 	assert_almost_eq(float(p.get("band_width")), 1500.0, 500.0)
@@ -108,6 +112,13 @@ func test_scheduled_small_body_params_are_gone() -> void:
 	for n in ["small_rate", "small_window", "small_e_min", "small_e_max", "small_radius_min",
 			"small_radius_max", "small_spawn_radius", "small_max_bodies"]:
 		assert_false(names.has(n), n)
+
+
+func test_planet_defaults_include_ring_boulders_and_drag() -> void:
+	var p: PlanetParams = Tuning.planet
+	assert_eq(p.get("ring_boulders_per_chunk"), 1.0, "ring_boulders_per_chunk")
+	assert_eq(p.get("ring_drag_tau"), 15.0, "ring_drag_tau")
+	assert_eq(p.get("ring_dust_density"), 0.5, "ring_dust_density")
 
 
 func test_piece_knobs_use_piece_names() -> void:

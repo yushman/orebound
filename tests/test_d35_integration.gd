@@ -43,6 +43,8 @@ func _d35_field() -> FieldParams:
 
 func test_rest_at_carrier_holds_over_minutes() -> void:
 	Tuning.field = _d35_field()
+	# стационарная матка: тест про устойчивость покоя в фиксированной точке
+	Tuning.planet.carrier_patrol_speed = 0.0
 	# рецепт R1: из массы выводится именно Ω_f ≈ 0.00255
 	assert_almost_eq(GravityField.frame_omega(), OMEGA_F, 1e-6)
 	var carrier := Vector2(CARRIER_RADIUS, 0.0)

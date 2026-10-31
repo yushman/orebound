@@ -41,6 +41,10 @@ func test_spawn_radius_removed_from_ship_params() -> void:
 	assert_null(Tuning.ship.get("spawn_radius"), "spawn_radius must be gone from ShipParams")
 
 
+func test_spawn_descend_speed_default() -> void:
+	assert_eq(Tuning.ship.get("spawn_descend_speed"), 5.0)
+
+
 func test_tuning_ship_prediction_defaults() -> void:
 	var s: ShipParams = Tuning.ship
 	assert_eq(s.predict_short_steps, 900)

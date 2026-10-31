@@ -17,11 +17,15 @@ func respawn() -> void:
 	state = ShipState.new()
 	_jettison_press = LongPress.new()
 	_transfer_press = LongPress.new()
-	# The carrier is a fixed point of the rotating frame, so rest there is stable.
-	var pos := Vector2(Tuning.field.carrier_orbit_radius, 0.0)
+	# Spawn on the carrier nose-down: the nose points at the planet and the
+	# velocity is the carrier's motion plus the descend speed toward it
+	# (co-moving with the patrolling матка AND descending).
+	var t := GravityField.time()
+	var pos := ShipFlight.carrier_pos(t)
+	var planet_dir := (Vector2.ZERO - pos).normalized()
 	state.pos = pos
-	state.vel = Vector2.ZERO
-	state.rot = FlightCamera.rotation_for(pos)
+	state.vel = ShipFlight.carrier_vel(t) + Tuning.ship.spawn_descend_speed * planet_dir
+	state.rot = wrapf(planet_dir.angle() + PI / 2.0, -PI, PI)
 	state.hull = Tuning.ship.hull_max
 	position = pos
 	rotation = state.rot

@@ -46,7 +46,7 @@ func test_slider_set_covers_all_parameters() -> void:
 		expect.append("body%d.mass" % i)
 	for i in [1, 2]:
 		expect.append("body%d.influence_radius" % i)
-	for p in ["thrust_accel", "boost_accel_mult", "boost_fuel_mult", "brake_accel",
+	for p in ["thrust_accel", "boost_accel_mult", "boost_fuel_mult", "spawn_descend_speed", "brake_accel",
 			"brake_fuel_mult", "climb_coefficient", "ramp_time", "ramp_min_fraction", "heat_growth_engine",
 			"heat_growth_boost", "heat_threshold", "heat_cooldown", "min_thrust_fraction",
 			"sync_accel", "sync_fuel_mult", "predict_every", "predict_short_steps", "hull_max",
@@ -55,9 +55,9 @@ func test_slider_set_covers_all_parameters() -> void:
 				"jettison_tap_time", "jettison_hold_time", "jettison_interval", "jettison_push", "jettison_pickup_delay",
 				"refiner", "transfer_hold_time", "transfer_interval"]:
 		expect.append("ship." + p)
-	for p in ["atmosphere_drag", "atmosphere_damage", "density_shape", "moon_mass_k", "moon_mass_exp",
+	for p in ["carrier_patrol_speed", "atmosphere_drag", "atmosphere_damage", "density_shape", "moon_mass_k", "moon_mass_exp",
 			"moon_influence_k", "moon_margin", "moon_bounce", "moon_impact_damage",
-				"ring_width", "ring_density", "band_width", "chunk_arc", "chunk_gen_radius",
+				"ring_width", "ring_density", "ring_dust_density", "ring_drag_tau", "band_width", "chunk_arc", "ring_boulders_per_chunk", "chunk_gen_radius",
 				"asteroids_per_band", "drop_start", "drop_ratio", "above_factor", "field_radius",
 				"ast_radius_min", "ast_radius_max", "asteroid_bounce", "asteroid_impact_damage", "rest_speed", "amount_per_area", "top_ice_share",
 					"piece_swallow_radius", "piece_despawn_radius", "piece_bounce", "v_safe", "impact_k",
@@ -100,11 +100,16 @@ func test_slider_ranges_new_scale() -> void:
 		"ship.min_thrust_fraction": [0.0, 1.0],
 		"ship.sync_accel": [0.0, 30.0],
 		"ship.sync_fuel_mult": [0.0, 10.0],
+		"ship.spawn_descend_speed": [0.0, 20.0],
+		"planet.ring_dust_density": [0.0, 1.0],
+		"planet.carrier_patrol_speed": [0.0, 100.0],
 	}
 	for id in ranges:
 		var s: HSlider = _panel.sliders[id]
 		assert_eq(s.min_value, ranges[id][0], id)
 		assert_eq(s.max_value, ranges[id][1], id)
+	assert_eq(_panel.sliders["planet.carrier_patrol_speed"].step, 5.0)
+	assert_eq(_panel.sliders["ship.spawn_descend_speed"].step, 1.0)
 	assert_eq(_panel.sliders["ship.predict_every"].min_value, 1.0)
 	var ps: HSlider = _panel.sliders["ship.predict_short_steps"]
 	assert_eq(ps.min_value, 300.0)
@@ -553,6 +558,61 @@ func test_jettison_slider_writes_ship_params() -> void:
 	assert_eq(Tuning.ship.jettison_push, 8.0)
 	_panel.sliders["ship.jettison_pickup_delay"].value = 2.5
 	assert_eq(Tuning.ship.jettison_pickup_delay, 2.5)
+
+
+func test_ring_boulder_and_drag_sliders_write_into_tuning_planet() -> void:
+	for k in ["planet.ring_boulders_per_chunk", "planet.ring_drag_tau"]:
+		assert_true(_panel.sliders.has(k), k)
+		if not _panel.sliders.has(k):
+			return
+	var boulders: HSlider = _panel.sliders["planet.ring_boulders_per_chunk"]
+	assert_eq(boulders.min_value, 0.0, "boulders min")
+	assert_eq(boulders.max_value, 10.0, "boulders max")
+	assert_eq(boulders.step, 0.1, "boulders step")
+	var tau: HSlider = _panel.sliders["planet.ring_drag_tau"]
+	assert_eq(tau.min_value, 0.05, "tau min")
+	assert_eq(tau.max_value, 30.0, "tau max")
+	assert_eq(tau.step, 0.05, "tau step")
+	assert_between(Tuning.planet.ring_boulders_per_chunk, boulders.min_value, boulders.max_value)
+	assert_between(Tuning.planet.ring_drag_tau, tau.min_value, tau.max_value)
+	var before: Dictionary = Tuning.picture
+	var old_seed := Telemetry.seed
+	boulders.value = 2.5
+	tau.value = 4.0
+	assert_eq(Tuning.planet.ring_boulders_per_chunk, 2.5)
+	assert_eq(Tuning.planet.ring_drag_tau, 4.0)
+	assert_same(Tuning.picture, before, "no picture regeneration")
+	assert_eq(Telemetry.seed, old_seed, "no regenerate")
+
+
+func test_ring_dust_density_slider_writes_planet_without_regenerate() -> void:
+	assert_true(_panel.sliders.has("planet.ring_dust_density"))
+	var s: HSlider = _panel.sliders["planet.ring_dust_density"]
+	assert_eq(s.min_value, 0.0, "dust min")
+	assert_eq(s.max_value, 1.0, "dust max")
+	assert_eq(s.step, 0.05, "dust step")
+	assert_between(Tuning.planet.ring_dust_density, s.min_value, s.max_value)
+	var before: Dictionary = Tuning.picture
+	var old_seed := Telemetry.seed
+	s.value = 0.35
+	assert_almost_eq(Tuning.planet.ring_dust_density, 0.35, 1e-6)
+	assert_same(Tuning.picture, before, "no picture regeneration")
+	assert_eq(Telemetry.seed, old_seed, "no regenerate")
+
+
+func test_carrier_patrol_speed_slider_writes_planet_without_regenerate() -> void:
+	assert_true(_panel.sliders.has("planet.carrier_patrol_speed"))
+	var s: HSlider = _panel.sliders["planet.carrier_patrol_speed"]
+	assert_eq(s.min_value, 0.0, "patrol min")
+	assert_eq(s.max_value, 100.0, "patrol max")
+	assert_eq(s.step, 5.0, "patrol step")
+	assert_eq(Tuning.planet.carrier_patrol_speed, 40.0, "playtest hypothesis default")
+	var before: Dictionary = Tuning.picture
+	var old_seed := Telemetry.seed
+	s.value = 25.0
+	assert_eq(Tuning.planet.carrier_patrol_speed, 25.0)
+	assert_same(Tuning.picture, before, "no picture regeneration")
+	assert_eq(Telemetry.seed, old_seed, "no regenerate")
 
 
 func test_transfer_sliders_write_ship_params() -> void:

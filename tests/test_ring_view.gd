@@ -37,6 +37,10 @@ func _instances(v) -> MultiMesh:
 	return v.get_node("Particles").multimesh
 
 
+func _dust(v) -> MultiMesh:
+	return v.get_node("Dust").multimesh
+
+
 func test_ring_particles_stay_in_width_and_rotate_with_ring_omega():
 	_set_picture(_ring())
 	var v = add_child_autofree(RingViewScript.new())
@@ -79,3 +83,60 @@ func test_ring_particle_colour_is_palette_ice():
 	var c: Color = v.get_node("Particles").modulate
 	assert_eq(Color(c.r, c.g, c.b), Color(Palette.ICE.r, Palette.ICE.g, Palette.ICE.b))
 	assert_almost_eq(c.a, 0.6, 1e-6)
+
+
+func test_ring_dust_count_scales_with_the_dust_knob():
+	assert_eq(RingViewScript.dust_count(0.0), 0)
+	assert_eq(RingViewScript.dust_count(0.5), 8000)
+	assert_eq(RingViewScript.dust_count(1.0), RingViewScript.DUST_MAX)
+	assert_eq(RingViewScript.dust_count(2.0), RingViewScript.DUST_MAX, "clamped above 1")
+	assert_eq(RingViewScript.dust_count(-1.0), 0, "clamped below 0")
+
+
+func test_ring_dust_positions_are_pure_and_inside_the_band():
+	_set_picture(_ring())
+	var ring := _ring()
+	var a := RingViewScript.dust_positions(ring, 200)
+	assert_eq(a, RingViewScript.dust_positions(ring, 200), "pure function of the picture")
+	for p in a:
+		var r: float = p.length()
+		assert_between(r, 108000.0 - 750.0 - 1.0, 108000.0 + 750.0 + 1.0)
+	Tuning.picture["flight"] = 2
+	assert_ne(a, RingViewScript.dust_positions(ring, 200), "flight changes the dust")
+
+
+func test_ring_dust_colour_is_two_ice_shades_at_alpha_025():
+	_set_picture(_ring())
+	var v = add_child_autofree(RingViewScript.new())
+	assert_true(_dust(v).use_colors, "per-instance colours")
+	var n: int = RingViewScript.dust_count(Tuning.planet.ring_dust_density)
+	var cols: PackedColorArray = RingViewScript.dust_colors(n)
+	assert_eq(cols.size(), n)
+	assert_eq(cols, RingViewScript.dust_colors(n), "pure function of the picture")
+	var ice := Color(Palette.ICE.r, Palette.ICE.g, Palette.ICE.b)
+	var distinct := {}
+	for c in cols:
+		assert_almost_eq(c.a, 0.25, 1e-6)
+		var k := c.r / ice.r
+		assert_almost_eq(k, c.g / ice.g, 1e-4, "ICE-family rgb")
+		assert_almost_eq(k, c.b / ice.b, 1e-4, "ICE-family rgb")
+		assert_almost_eq(snappedf(k, 0.01), k, 1e-6, "level on the two-step grid")
+		distinct[snappedf(k, 0.01)] = true
+	assert_eq(distinct.size(), 2, "two brightness levels")
+
+
+func test_ring_dust_rebuilds_and_hides_with_the_ring():
+	_set_picture({})
+	var v = add_child_autofree(RingViewScript.new())
+	assert_false(v.visible)
+	assert_eq(_dust(v).instance_count, 0)
+	_set_picture(_ring())
+	Tuning.preset_applied.emit()
+	assert_true(v.visible)
+	var dn: int = RingViewScript.dust_count(Tuning.planet.ring_dust_density)
+	assert_gt(dn, 0)
+	assert_eq(_dust(v).instance_count, dn)
+	_set_picture({})
+	Tuning.preset_applied.emit()
+	assert_false(v.visible)
+	assert_eq(_dust(v).instance_count, 0)

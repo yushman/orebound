@@ -88,11 +88,12 @@ func test_screen_px_scales_with_semantic_zoom():
 
 func test_carrier_marker_data():
 	var WellViewScript = load("res://scenes/WellView.gd")
-	# carrier point is the frame origin, read from Tuning on every call
+	# carrier point patrols its orbit: read from Tuning on every call, a formula of t
 	_set_field(_field([_planet()], 121500.0))
-	assert_eq(WellViewScript.carrier_marker_pos(), Vector2(121500.0, 0.0))
+	assert_eq(WellViewScript.carrier_marker_pos(0.0), Vector2(121500.0, 0.0))
+	assert_eq(WellViewScript.carrier_marker_pos(2.5), ShipFlight.carrier_pos(2.5))
 	_set_field(_field([_planet()], 50000.0))
-	assert_eq(WellViewScript.carrier_marker_pos(), Vector2(50000.0, 0.0))
+	assert_eq(WellViewScript.carrier_marker_pos(0.0), Vector2(50000.0, 0.0))
 	# constant screen size, dim marker
 	assert_between(WellViewScript.CARRIER_MARKER_PX, 3.0, 5.0)
 	assert_almost_eq(WellViewScript.CARRIER_MARKER_COLOR.a, 0.6, 0.05)
