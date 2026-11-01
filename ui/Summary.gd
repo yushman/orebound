@@ -45,7 +45,9 @@ static func lines(summary: Dictionary) -> PackedStringArray:
 	for row in FUEL_ROWS:
 		out.append("%s — %.2f" % [row[1], fuel[row[0]]])
 	var secs := int(summary["time"])
-	out.append("время — %02d:%02d" % [secs / 60, secs % 60])
+	out.append("время в игре — %02d:%02d" % [secs / 60, secs % 60])
+	var real := int(summary["real_time"])
+	out.append("реальное время — %02d:%02d" % [real / 60, real % 60])
 	out.append("Enter / A — следующий вылет")
 	out.append(BuildInfo.label())
 	return out

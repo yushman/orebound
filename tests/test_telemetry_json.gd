@@ -1,6 +1,6 @@
 extends GutTest
 
-const KEYS := ["autoscale_overrides", "boost_share", "brake_presses", "brake_time", "cargo", "ceiling_tows", "commit", "crash_cause", "crashes", "damage", "docking_time", "flight", "forced_tows", "fuel", "heat_limited_time", "jettison_cancelled", "jettison_selects", "jettisons", "max_depth", "max_heat", "outcome", "preset", "seed", "seized", "sync_presses", "sync_time", "tier_time", "time", "tow_calls", "tow_cancelled", "tow_fee", "tow_kind", "tow_seized_share", "transfers", "version"]
+const KEYS := ["autoscale_overrides", "boost_share", "brake_presses", "brake_time", "cargo", "ceiling_tows", "commit", "crash_cause", "crashes", "damage", "docking_real_time", "docking_time", "flight", "forced_tows", "fuel", "heat_limited_time", "jettison_cancelled", "jettison_selects", "jettisons", "max_depth", "max_heat", "outcome", "preset", "real_time", "seed", "seized", "sync_presses", "sync_time", "tier_time", "time", "tow_calls", "tow_cancelled", "tow_fee", "tow_kind", "tow_seized_share", "transfers", "version", "warp_time"]
 const DIR := "user://telemetry_test"
 
 var _saved_dir: String
@@ -81,6 +81,46 @@ func test_begin_flight_resets_counters_and_captures_header() -> void:
 	assert_eq(r["preset"], "Px")
 	Telemetry.seed = 1
 	Telemetry.flight = 1
+
+
+func test_real_time_equals_flight_time_without_warp() -> void:
+	Telemetry.begin_flight()
+	for i in 10:
+		Telemetry.sample(_state_at(100000.0), ShipInput.new(), {})
+	var rec := Telemetry.record(_sm())
+	assert_almost_eq(rec["real_time"], rec["time"], 1e-9)
+	assert_eq(rec["warp_time"], 0.0)
+
+
+func test_real_time_is_flight_time_over_k_for_an_all_warp_flight() -> void:
+	Telemetry.begin_flight()
+	for i in 8:
+		Telemetry.sample(_state_at(100000.0), ShipInput.new(), {}, 4.0)
+	var rec := Telemetry.record(_sm())
+	assert_almost_eq(rec["real_time"], rec["time"] / 4.0, 1e-9)
+	assert_almost_eq(rec["warp_time"], rec["time"], 1e-9)
+
+
+func test_warp_time_counts_only_warped_ticks() -> void:
+	Telemetry.begin_flight()
+	for i in 5:
+		Telemetry.sample(_state_at(100000.0), ShipInput.new(), {})
+	for i in 3:
+		Telemetry.sample(_state_at(100000.0), ShipInput.new(), {}, 4.0)
+	var rec := Telemetry.record(_sm())
+	assert_almost_eq(rec["warp_time"], 3 * GravityField.DT, 1e-9)
+	assert_almost_eq(rec["real_time"], 5 * GravityField.DT + 3 * GravityField.DT / 4.0, 1e-9)
+
+
+func test_begin_flight_zeroes_real_and_warp_time() -> void:
+	Telemetry.begin_flight()
+	Telemetry.sample(_state_at(100000.0), ShipInput.new(), {}, 4.0)
+	Telemetry.docking_real_time = 3.0
+	Telemetry.begin_flight()
+	var rec := Telemetry.record(_sm())
+	assert_eq(rec["real_time"], 0.0)
+	assert_eq(rec["warp_time"], 0.0)
+	assert_eq(rec["docking_real_time"], 0.0)
 
 
 func test_sample_accumulates_and_tiers_sum_to_time() -> void:

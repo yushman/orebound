@@ -5,6 +5,8 @@ var input := ShipInput.new()
 var _jettison_press := LongPress.new()
 var _transfer_press := LongPress.new()
 var _tow_press := LongPress.new()
+var warp_k := 1.0
+var _approach_real := 0.0
 var tow_left := -1.0
 var tow_notice := ""
 var tow_notice_left := 0.0
@@ -39,7 +41,7 @@ func _exit_tree() -> void:
 
 func respawn() -> void:
 	if phase == Phase.FLYING and Telemetry.open and Telemetry.flight_time >= Telemetry.RESET_MIN_TIME:
-		Telemetry.end_flight(FlightSummary.build(state, "reset", Telemetry.flight_time))
+		Telemetry.end_flight(FlightSummary.build(state, "reset", Telemetry.flight_time, {}, Telemetry.real_time))
 	_apply_warp(false)
 	state = ShipState.new()
 	phase = Phase.FLYING
@@ -47,6 +49,7 @@ func respawn() -> void:
 	_jettison_press = LongPress.new()
 	_transfer_press = LongPress.new()
 	_tow_press = LongPress.new()
+	_approach_real = 0.0
 	tow_left = -1.0
 	tow_notice = ""
 	tow_notice_left = 0.0
@@ -85,13 +88,15 @@ func _physics_process(_delta: float) -> void:
 	input = ShipInput.new() if state.docked else _read_input()
 	_apply_warp(not state.docked)
 	state = ShipFlight.step(state, input, GravityField.time(), GravityField.DT, null, report)
+	_approach_real = _approach_real + TimeWarp.real_step(warp_k) if state.approach_time > 0.0 else 0.0
 	if state.docked and not was_docked:
 		Telemetry.docking_time = state.approach_time
+		Telemetry.docking_real_time = _approach_real
 		if Telemetry.flight_log:
 			print("FLOG docked t=%.2f docking_time=%.2f" % [GravityField.time(), state.approach_time])
 	if report.get("transferred", false):
 		Telemetry.transfers += 1
-	Telemetry.sample(state, input, report)
+	Telemetry.sample(state, input, report, warp_k)
 	move_and_collide(state.pos - position)
 	rotation = state.rot
 	tow_notice_left = maxf(tow_notice_left - GravityField.DT, 0.0)
@@ -151,6 +156,7 @@ func _apply_warp(flying: bool) -> void:
 	var p := Tuning.ship
 	var held := Input.is_action_pressed("ship_boost")
 	var ticks := TimeWarp.ticks_per_second(p.time_warp, held, flying, p.time_warp_mult)
+	warp_k = TimeWarp.factor(ticks)
 	Engine.physics_ticks_per_second = ticks
 	Engine.max_physics_steps_per_frame = TimeWarp.max_steps(ticks)
 
@@ -168,7 +174,7 @@ func violation_left() -> float:
 func _end(outcome: String, tow := {}) -> void:
 	phase = Phase.ENDED
 	input = ShipInput.new()
-	var summary := FlightSummary.build(state, outcome, GravityField.time() - flight_start_t, tow)
+	var summary := FlightSummary.build(state, outcome, GravityField.time() - flight_start_t, tow, Telemetry.real_time)
 	Telemetry.end_flight(summary)
 	flight_ended.emit(summary)
 
@@ -181,7 +187,7 @@ func _notice(text: String) -> void:
 func _read_tow() -> void:
 	_tow_press.tap_time = Tuning.ship.jettison_tap_time
 	_tow_press.hold_time = Tuning.ship.tow_hold_time
-	match _tow_press.update(Input.is_action_pressed("ship_tow"), GravityField.DT):
+	match _tow_press.update(Input.is_action_pressed("ship_tow"), TimeWarp.real_step(warp_k)):
 		LongPress.Event.FIRE:
 			if tow_left >= 0.0:
 				return
@@ -214,7 +220,7 @@ func _read_input() -> ShipInput:
 	_jettison_press.tap_time = Tuning.ship.jettison_tap_time
 	_jettison_press.hold_time = Tuning.ship.jettison_hold_time
 	_jettison_press.interval = Tuning.ship.jettison_interval
-	match _jettison_press.update(Input.is_action_pressed("ship_jettison"), GravityField.DT):
+	match _jettison_press.update(Input.is_action_pressed("ship_jettison"), TimeWarp.real_step(warp_k)):
 		LongPress.Event.TAP:
 			inp.jettison_select = true
 			if not state.hold.is_empty():
@@ -228,7 +234,7 @@ func _read_input() -> ShipInput:
 	_transfer_press.tap_time = Tuning.ship.jettison_tap_time
 	_transfer_press.hold_time = Tuning.ship.transfer_hold_time
 	_transfer_press.interval = Tuning.ship.transfer_interval
-	if _transfer_press.update(Input.is_action_pressed("ship_transfer"), GravityField.DT) == LongPress.Event.FIRE:
+	if _transfer_press.update(Input.is_action_pressed("ship_transfer"), TimeWarp.real_step(warp_k)) == LongPress.Event.FIRE:
 		inp.transfer = true
 	_read_tow()
 	return inp

@@ -11,5 +11,13 @@ static func ticks_per_second(warp_mode: bool, held: bool, flying: bool, mult: in
 	return BASE_TICKS
 
 
+static func factor(ticks: int) -> float:
+	return float(ticks) / BASE_TICKS
+
+
+static func real_step(k: float) -> float:
+	return GravityField.DT / k
+
+
 static func max_steps(ticks: int) -> int:
 	return maxi(BASE_STEPS, ticks / BASE_TICKS * 2)

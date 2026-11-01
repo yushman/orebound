@@ -320,6 +320,37 @@ func test_holding_jettison_for_hold_time_sets_jettison_for_one_tick() -> void:
 	Telemetry.jettison_cancelled = saved[2]
 
 
+func test_holding_jettison_under_warp_takes_the_same_real_time() -> void:
+	var saved := [Telemetry.jettisons, Telemetry.jettison_selects, Telemetry.jettison_cancelled]
+	var ship = _make()
+	ship.warp_k = 4.0
+	Hold.add(ship.state, &"ice", 1.0)
+	var seen := _hold_jettison(ship, 4 * 121)
+	var fired := []
+	for i in seen.size():
+		if seen[i].jettison:
+			fired.append(i)
+	assert_eq(fired.size(), 1)
+	assert_between(fired[0], 4 * 120 - 2, 4 * 120)
+	Telemetry.jettisons = saved[0]
+	Telemetry.jettison_selects = saved[1]
+	Telemetry.jettison_cancelled = saved[2]
+
+
+func test_apply_warp_sets_warp_k() -> void:
+	var saved_ship = Tuning.ship
+	Tuning.ship = saved_ship.duplicate()
+	Tuning.ship.time_warp = true
+	var ship = _make()
+	Input.action_press("ship_boost")
+	ship._apply_warp(true)
+	assert_eq(ship.warp_k, float(Tuning.ship.time_warp_mult))
+	ship._apply_warp(false)
+	assert_eq(ship.warp_k, 1.0)
+	Input.action_release("ship_boost")
+	Tuning.ship = saved_ship
+
+
 func test_short_press_sets_jettison_select_for_one_tick() -> void:
 	var saved: int = Telemetry.jettison_selects
 	Telemetry.jettison_selects = 0
@@ -548,6 +579,29 @@ func test_docked_tick_writes_docking_time() -> void:
 	ship._physics_process(1.0 / 60.0)
 	assert_true(ship.state.docked)
 	assert_gt(Telemetry.docking_time, 12.5)
+
+
+func test_docking_real_time_is_docking_time_over_k() -> void:
+	var saved_ship = Tuning.ship
+	Tuning.ship = saved_ship.duplicate()
+	Tuning.ship.time_warp = true
+	Tuning.ship.time_warp_mult = 4
+	Input.action_press("ship_boost")
+	var ship = _make()
+	var t := GravityField.time()
+	ship.state.pos = ShipFlight.carrier_pos(t) + Vector2(Tuning.planet.approach_radius * 0.5, 0)
+	ship.state.vel = ShipFlight.carrier_vel(t)
+	for i in 3:
+		ship._physics_process(1.0 / 60.0)
+	ship.state.dock_armed = true
+	ship.state.pos = ShipFlight.carrier_pos(GravityField.time()) + Vector2(5, 0)
+	ship.state.vel = ShipFlight.carrier_vel(GravityField.time())
+	ship._physics_process(1.0 / 60.0)
+	assert_true(ship.state.docked)
+	assert_gt(Telemetry.docking_real_time, 0.0)
+	assert_almost_eq(Telemetry.docking_real_time, Telemetry.docking_time / 4.0, 1e-6)
+	Input.action_release("ship_boost")
+	Tuning.ship = saved_ship
 
 
 func _tow_ship() -> Node:

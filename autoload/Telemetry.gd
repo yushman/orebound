@@ -15,6 +15,7 @@ var tow_seized_share: float = 0.0
 var ceiling_tows: int = 0
 var forced_tows: int = 0
 var docking_time: float = 0.0
+var docking_real_time: float = 0.0
 var seed: int = 1
 var flight: int = 1
 var dir := "user://telemetry"
@@ -23,6 +24,8 @@ var preset := "default"
 var start_seed := 1
 var start_flight := 1
 var flight_time := 0.0
+var real_time := 0.0
+var warp_time := 0.0
 var open := false
 var max_heat := 0.0
 var heat_limited_time := 0.0
@@ -82,7 +85,10 @@ func begin_flight() -> void:
 	ceiling_tows = 0
 	forced_tows = 0
 	docking_time = 0.0
+	docking_real_time = 0.0
 	flight_time = 0.0
+	real_time = 0.0
+	warp_time = 0.0
 	max_heat = 0.0
 	heat_limited_time = 0.0
 	min_r = INF
@@ -99,10 +105,13 @@ func begin_flight() -> void:
 	open = true
 
 
-func sample(state: ShipState, input: ShipInput, report: Dictionary) -> void:
+func sample(state: ShipState, input: ShipInput, report: Dictionary, warp := 1.0) -> void:
 	var r := state.pos.length()
 	_last_r = r
 	flight_time += GravityField.DT
+	real_time += TimeWarp.real_step(warp)
+	if warp > 1.0:
+		warp_time += GravityField.DT
 	tier_time[_tier_key(r)] += GravityField.DT
 	min_r = minf(min_r, r)
 	max_heat = maxf(max_heat, state.heat)
@@ -154,6 +163,8 @@ func record(summary: Dictionary) -> Dictionary:
 		"preset": preset,
 		"outcome": outcome,
 		"time": flight_time,
+		"real_time": real_time,
+		"warp_time": warp_time,
 		"fuel": fuel.duplicate(),
 		"boost_share": fuel["boost"] / total if total > 0.0 else 0.0,
 		"heat_limited_time": heat_limited_time,
@@ -175,6 +186,7 @@ func record(summary: Dictionary) -> Dictionary:
 		"tow_calls": tow_calls,
 		"tow_cancelled": tow_cancelled,
 		"docking_time": docking_time,
+		"docking_real_time": docking_real_time,
 		"sync_presses": sync_presses,
 		"sync_time": sync_time,
 		"brake_presses": brake_presses,
@@ -208,4 +220,4 @@ func end_flight(summary: Dictionary) -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST and open and ship != null:
-		end_flight(FlightSummary.build(ship.state, "quit", flight_time))
+		end_flight(FlightSummary.build(ship.state, "quit", flight_time, {}, real_time))

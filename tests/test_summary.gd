@@ -29,6 +29,7 @@ func _sample(outcome := "returned") -> Dictionary:
 		"cargo_lost": outcome == "crashed",
 		"fuel": {"engine": 1.25, "boost": 0.5, "soft_brake": 0.0, "sync": 2.0},
 		"time": 83.0,
+		"real_time": 21.0,
 	}
 
 
@@ -50,7 +51,8 @@ func test_lines_show_outcome_title_cargo_rows_fuel_rows_and_time() -> void:
 	assert_false("потерян" in text)
 	assert_string_contains(text, "1.25")
 	assert_string_contains(text, "2.00")
-	assert_string_contains(text, "01:23")
+	assert_string_contains(text, "время в игре — 01:23")
+	assert_string_contains(text, "реальное время — 00:21")
 	assert_string_contains(text, "Enter / A — следующий вылет")
 
 
