@@ -154,7 +154,8 @@ func test_run_scene_is_main_scene_with_ship():
 	assert_true(visual is Node2D)
 	var hull: Array = visual.find_children("*", "Polygon2D", false, false).filter(
 			func(n): return not (n.name == &"Flame" or n.name == &"Glow"))
-	assert_between(hull.size(), 3, 4)
+	assert_eq(hull.size(), 0, "the hull is the 3D model")
+	assert_gt(visual.find_children("*", "MeshInstance3D", true, false).size(), 0)
 	var cs = ship.find_children("*", "CollisionShape2D", false, false)
 	assert_eq(cs.size(), 1)
 	assert_true(cs[0].shape is CircleShape2D)

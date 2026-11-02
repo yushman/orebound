@@ -12,11 +12,7 @@ func _body(pos: Vector2, type: StringName) -> FreeBody:
 
 
 func _visible(v) -> Array:
-	var out := []
-	for p in v.get_children():
-		if p.visible:
-			out.append(p)
-	return out
+	return v.shown
 
 
 func test_view_draws_one_polygon_per_body_in_composition_colour():
@@ -26,12 +22,12 @@ func test_view_draws_one_polygon_per_body_in_composition_colour():
 	var polys := _visible(v)
 	assert_eq(polys.size(), 2)
 	for i in 2:
-		assert_eq(polys[i].polygon, bodies[i].points)
-		assert_eq(polys[i].position, bodies[i].pos)
+		assert_eq(polys[i].points, bodies[i].points)
+		assert_eq(polys[i].pos, bodies[i].pos)
 		assert_eq(polys[i].color, AsteroidView.color_of(bodies[i].type))
 	bodies[0].pos = Vector2(11, 21)
 	v.refresh(bodies)
-	assert_eq(_visible(v)[0].position, Vector2(11, 21))
+	assert_eq(_visible(v)[0].pos, Vector2(11, 21))
 
 
 func test_view_hides_extra_polygons_when_bodies_disappear():

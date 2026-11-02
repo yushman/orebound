@@ -69,16 +69,13 @@ func test_planet_is_disc_of_surface_radius_with_lit_half() -> void:
 	body.index = 0
 	add_child_autofree(body)
 	var visual: Polygon2D = body.get_node("Visual")
-	var lit: Polygon2D = body.get_node("Visual/Lit")
-	assert_eq(visual.color, Palette.shade(Palette.OBOD_ACCENT))
-	assert_eq(lit.color, Palette.OBOD_ACCENT)
+	assert_eq(visual.material.get_shader_parameter("dark_color"), Palette.shade(Palette.OBOD_ACCENT))
+	assert_eq(visual.material.get_shader_parameter("lit_color"), Palette.OBOD_ACCENT)
 	assert_gte(visual.polygon.size(), 256, "smooth edge")
 	for zoom in [1.0, 40.0]:
 		_zoom_to(zoom)
 		body._process(0.0)
 		assert_almost_eq(_extent(visual.polygon) * visual.scale.x, 100000.0, 0.1, "zoom %s" % zoom)
-	for v in lit.polygon:
-		assert_gte(v.dot(Palette.LIGHT_DIR), -0.001, "lit points on the light side")
 	assert_false(body.get_script().has_method("visual_scale"), "no constant-size marker")
 
 
@@ -90,16 +87,14 @@ func test_moon_is_grey_disc_with_shaded_dark_side_and_lit_half() -> void:
 	body.index = 1
 	add_child_autofree(body)
 	var visual: Polygon2D = body.get_node("Visual")
-	var lit: Polygon2D = body.get_node("Visual/Lit")
-	assert_eq(visual.color, Palette.shade(Palette.MOON))
-	assert_eq(lit.color, Palette.MOON)
+	assert_eq(visual.material.get_shader_parameter("dark_color"), Palette.shade(Palette.MOON))
+	assert_eq(visual.material.get_shader_parameter("lit_color"), Palette.MOON)
 	assert_gt(visual.polygon.size(), 8, "disc polygon")
 	assert_false("MOON_COLOR" in body.get_script().get_script_constant_map())
 	for zoom in [1.0, 8.0, 40.0]:
 		_zoom_to(zoom)
 		body._process(0.0)
 		assert_almost_eq(_extent(visual.polygon) * visual.scale.x, 500.0, 0.01, "zoom %s" % zoom)
-		assert_eq(lit.scale, Vector2.ONE, "lit scales with its parent")
 
 
 func test_moon_disc_uses_fewer_points_than_the_planet_disc() -> void:
@@ -115,5 +110,4 @@ func test_moon_disc_uses_fewer_points_than_the_planet_disc() -> void:
 	var pv: Polygon2D = planet.get_node("Visual")
 	var mv: Polygon2D = moon.get_node("Visual")
 	assert_lt(mv.polygon.size(), pv.polygon.size(), "moon disc is coarser")
-	assert_lt(moon.get_node("Visual/Lit").polygon.size(), planet.get_node("Visual/Lit").polygon.size())
 	assert_gte(mv.polygon.size(), 32, "moon still round")

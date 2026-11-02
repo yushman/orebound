@@ -118,6 +118,9 @@ var load_button: Button
 var save_button: Button
 var seed_box: SpinBox
 var time_warp_box: CheckBox
+var outline_box: CheckBox
+var edges_box: CheckBox
+var shading_select: OptionButton
 var next_seed_button: Button
 var _requested_seed := 0
 var _values := {}
@@ -145,6 +148,7 @@ func _ready() -> void:
 	time_warp_box.focus_mode = Control.FOCUS_NONE
 	time_warp_box.toggled.connect(func(on: bool) -> void: Tuning.ship.time_warp = on)
 	_box.add_child(time_warp_box)
+	_add_style()
 	for row in ROWS:
 		_add_row(row)
 	_sync()
@@ -177,6 +181,25 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("debug_tuning_panel"):
 		visible = not visible
 		get_viewport().set_input_as_handled()
+
+
+func _add_style() -> void:
+	outline_box = CheckBox.new()
+	outline_box.text = "style: outline"
+	outline_box.focus_mode = Control.FOCUS_NONE
+	outline_box.toggled.connect(func(on: bool) -> void: Tuning.view.style_outline = on)
+	edges_box = CheckBox.new()
+	edges_box.text = "style: outline hard edges"
+	edges_box.focus_mode = Control.FOCUS_NONE
+	edges_box.toggled.connect(func(on: bool) -> void: Tuning.view.style_edges = on)
+	shading_select = OptionButton.new()
+	shading_select.focus_mode = Control.FOCUS_NONE
+	for n in ["style: plain", "style: dither", "style: hatch"]:
+		shading_select.add_item(n)
+	shading_select.item_selected.connect(func(i: int) -> void: Tuning.view.style_shading = i)
+	_box.add_child(outline_box)
+	_box.add_child(edges_box)
+	_box.add_child(shading_select)
 
 
 func _add_header() -> void:
@@ -326,6 +349,9 @@ func _fmt(v: float) -> String:
 func _sync() -> void:
 	seed_box.set_value_no_signal(Telemetry.seed)
 	time_warp_box.set_pressed_no_signal(Tuning.ship.time_warp)
+	outline_box.set_pressed_no_signal(Tuning.view.style_outline)
+	edges_box.set_pressed_no_signal(Tuning.view.style_edges)
+	shading_select.select(Tuning.view.style_shading)
 	# Rows of bodies the field does not have stay hidden and unsynced.
 	var body_count := Tuning.field.bodies.size()
 	for row in ROWS:

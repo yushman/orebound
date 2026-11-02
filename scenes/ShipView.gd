@@ -12,21 +12,37 @@ const GLOW_SCALE_MIN := 0.6
 const GLOW_SCALE_MAX := 1.8
 ## Full look span (hull nose to tail plus wings), the fade metric * camera zoom.
 const VISUAL_SPAN := 32.0
+const MODEL := preload("res://assets/models/ship.glb")
+const MATERIAL_COLORS := {"hull": Palette.HULL, "wing": Palette.HULL_SHADE}
 
 var flame := Polygon2D.new()
 var glow := Polygon2D.new()
+var layer := Layer3D.new()
+var model: Node3D = MODEL.instantiate()
 
 @onready var _ship: Node = get_parent()
 
 
 func _ready() -> void:
-	(get_node("Hull") as Polygon2D).color = Palette.HULL
-	(get_node("WingLeft") as Polygon2D).color = Palette.HULL_SHADE
-	(get_node("WingRight") as Polygon2D).color = Palette.HULL_SHADE
+	layer.name = "Layer3D"
+	add_child(layer)
+	layer.add_child(model)
+	material = layer.blit_material
+	layer.solid.set_shader_parameter("srgb_albedo", true)
+	for mi in model.find_children("*", "MeshInstance3D"):
+		var names := []
+		var colors := []
+		for i in mi.mesh.get_surface_count():
+			names.append(mi.mesh.surface_get_material(i).resource_name)
+			colors.append(MATERIAL_COLORS.get(names[i], Palette.HULL))
+		mi.mesh = SolidMesh.recolor(mi.mesh, colors)
+		for i in names.size():
+			mi.mesh.surface_set_name(i, names[i])
+		mi.material_override = layer.solid
 	flame.name = "Flame"
 	flame.color = Palette.DANGER
+	flame.show_behind_parent = true
 	add_child(flame)
-	move_child(flame, 0)
 	glow.name = "Glow"
 	glow.position = Vector2(0.0, NOZZLE_Y)
 	var ring := PackedVector2Array()
@@ -37,6 +53,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	queue_redraw()
 	modulate.a = ship_alpha(VISUAL_SPAN * _camera_zoom(), Tuning.view.ship_fade_threshold_px, Tuning.view.ship_fade_width_px)
 	var engine_off: bool = _ship.input.soft_brake or _ship.input.drift_sync or Hold.energy(_ship.state) <= Hold.EPS
 	var length := flame_length(_ship.input.thrust and not engine_off, _ship.input.boost and not engine_off, _ship.state.hold_time, _ship.state.heat, Tuning.ship)
@@ -80,6 +97,13 @@ static func ship_alpha(screen_px: float, threshold: float, width: float) -> floa
 	if screen_px >= threshold + width * 0.5:
 		return 1.0
 	return (screen_px - low) / width
+
+
+func _draw() -> void:
+	layer.sync(self)
+	model.position = layer.to_3d(global_position)
+	model.rotation = Vector3(0.0, 0.0, -global_rotation)
+	layer.blit(self)
 
 
 func _camera_zoom() -> float:

@@ -82,9 +82,18 @@ func test_view_is_on_visual_and_flame_is_danger() -> void:
 
 func test_hull_colour_is_hull_and_wings_are_hull_shade() -> void:
 	var view := _ship().get_node("Visual") as ShipView
-	assert_eq((view.get_node("Hull") as Polygon2D).color, Palette.HULL)
-	assert_eq((view.get_node("WingLeft") as Polygon2D).color, Palette.HULL_SHADE)
-	assert_eq((view.get_node("WingRight") as Polygon2D).color, Palette.HULL_SHADE)
+	var seen := {}
+	for mi in view.model.find_children("*", "MeshInstance3D"):
+		for i in mi.mesh.get_surface_count():
+			var name: String = mi.mesh.surface_get_name(i)
+			seen[name] = true
+			var c: Color = mi.mesh.surface_get_arrays(i)[Mesh.ARRAY_COLOR][0]
+			var want: Color = ShipView.MATERIAL_COLORS[name]
+			for ch in 4:
+				assert_almost_eq(c[ch], want[ch], 1.0 / 255.0, "8-bit vertex colour")
+	assert_eq(seen.keys().size(), 2, "hull and wing materials")
+	assert_eq(ShipView.MATERIAL_COLORS["hull"], Palette.HULL)
+	assert_eq(ShipView.MATERIAL_COLORS["wing"], Palette.HULL_SHADE)
 
 
 func test_hidden_flame_does_not_reassign_polygon() -> void:

@@ -16,8 +16,10 @@ const OBOD_ACCENT := Color("C9A27A")
 const MOON := Color(0.6, 0.6, 0.6)
 const HULL := Color(0.85, 0.88, 0.92)
 const HULL_SHADE := Color(0.6, 0.65, 0.72)
+const OUTLINE := HALO
 const SHADE_FACTOR := 0.35
 const LIGHT_DIR := Vector2(-0.6, -0.8)
+const LIGHT_ELEVATION := 0.35
 
 static func shade(c: Color) -> Color:
 	return Color(c.r * SHADE_FACTOR, c.g * SHADE_FACTOR, c.b * SHADE_FACTOR, c.a)

@@ -1,96 +1,103 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bnkcedrl78bex"]
 
 [ext_resource type="PackedScene" path="res://scenes/Ship.tscn" id="1_ship"]
 [ext_resource type="PackedScene" path="res://scenes/Body.tscn" id="2_body"]
-[ext_resource type="Script" path="res://scenes/Prediction.gd" id="3_pred"]
-[ext_resource type="Script" path="res://scenes/ReferenceMarker.gd" id="4_marker"]
+[ext_resource type="Script" uid="uid://8p5mb5wtix41" path="res://scenes/Prediction.gd" id="3_pred"]
+[ext_resource type="Script" uid="uid://cp7eyrn4eev0a" path="res://scenes/ReferenceMarker.gd" id="4_marker"]
 [ext_resource type="PackedScene" path="res://ui/TuningPanel.tscn" id="5_panel"]
-[ext_resource type="Script" path="res://scenes/FlightCamera.gd" id="6_camera"]
-[ext_resource type="Script" path="res://scenes/WellView.gd" id="7_well"]
-[ext_resource type="Script" path="res://scenes/FlightVector.gd" id="8_vector"]
-[ext_resource type="Script" path="res://scenes/AtmosphereView.gd" id="9_atmo"]
-
-[ext_resource type="Script" path="res://scenes/GravityHaloView.gd" id="10_halo"]
-[ext_resource type="Script" path="res://scenes/Run.gd" id="11_run"]
-[ext_resource type="Script" path="res://scenes/RingView.gd" id="12_ring"]
-[ext_resource type="Script" path="res://scenes/AsteroidView.gd" id="13_ast"]
+[ext_resource type="Script" uid="uid://vgo7win4pqwa" path="res://scenes/FlightCamera.gd" id="6_camera"]
+[ext_resource type="Script" uid="uid://cndml8pwoh7hl" path="res://scenes/WellView.gd" id="7_well"]
+[ext_resource type="Script" uid="uid://bcm6wvfsmegjh" path="res://scenes/FlightVector.gd" id="8_vector"]
+[ext_resource type="Script" uid="uid://d2r11143xafrf" path="res://scenes/AtmosphereView.gd" id="9_atmo"]
+[ext_resource type="Script" uid="uid://b5c3nbc5vfamp" path="res://scenes/GravityHaloView.gd" id="10_halo"]
+[ext_resource type="Script" uid="uid://1w0c00m4ryyc" path="res://scenes/Run.gd" id="11_run"]
+[ext_resource type="Script" uid="uid://btvjwlidjifwl" path="res://scenes/RingView.gd" id="12_ring"]
+[ext_resource type="Script" uid="uid://mbq4a36wxnvh" path="res://scenes/AsteroidView.gd" id="13_ast"]
 [ext_resource type="PackedScene" path="res://ui/HUD.tscn" id="14_hud"]
-[ext_resource type="Script" path="res://scenes/BeamView.gd" id="15_beam"]
-[ext_resource type="Script" path="res://scenes/SmallObjectView.gd" id="16_small"]
-[ext_resource type="Script" path="res://scenes/CollectorView.gd" id="17_collector"]
-[ext_resource type="Script" path="res://scenes/StarfieldView.gd" id="18_star"]
+[ext_resource type="Script" uid="uid://bif2l0xxerdp3" path="res://scenes/BeamView.gd" id="15_beam"]
+[ext_resource type="Script" uid="uid://bw6tuklxmsoyk" path="res://scenes/SmallObjectView.gd" id="16_small"]
+[ext_resource type="Script" uid="uid://cvrocehdq8qvk" path="res://scenes/CollectorView.gd" id="17_collector"]
+[ext_resource type="Script" uid="uid://b41uo6fswyleu" path="res://scenes/StarfieldView.gd" id="18_star"]
 [ext_resource type="PackedScene" path="res://scenes/Carrier.tscn" id="19_carrier"]
 [ext_resource type="PackedScene" path="res://ui/Summary.tscn" id="20_summary"]
 [ext_resource type="PackedScene" path="res://ui/Warnings.tscn" id="21_warnings"]
-[ext_resource type="Script" path="res://scenes/SoundView.gd" id="22_sound"]
+[ext_resource type="Script" uid="uid://xijfxlwjpa6" path="res://scenes/SoundView.gd" id="22_sound"]
 
-[node name="Run" type="Node2D"]
+[node name="Run" type="Node2D" unique_id=467074572]
 script = ExtResource("11_run")
 
-[node name="StarfieldView" type="Node2D" parent="."]
+[node name="StarfieldView" type="Node2D" parent="." unique_id=798770606]
 script = ExtResource("18_star")
 
-[node name="AtmosphereView" type="Node2D" parent="."]
+[node name="AtmosphereView" type="Node2D" parent="." unique_id=1821227989]
 script = ExtResource("9_atmo")
 
-[node name="GravityHaloView" type="Node2D" parent="."]
+[node name="GravityHaloView" type="Node2D" parent="." unique_id=93815777]
 script = ExtResource("10_halo")
 
-[node name="WellView" type="Node2D" parent="."]
+[node name="WellView" type="Node2D" parent="." unique_id=183449067]
 script = ExtResource("7_well")
 
-[node name="RingView" type="Node2D" parent="."]
+[node name="RingView" type="Node2D" parent="." unique_id=1525832288]
 script = ExtResource("12_ring")
 
-[node name="AsteroidView" type="Node2D" parent="."]
+[node name="AsteroidView" type="Node2D" parent="." unique_id=1557945050]
 script = ExtResource("13_ast")
 
-[node name="SmallObjectView" type="Node2D" parent="."]
+[node name="SmallObjectView" type="Node2D" parent="." unique_id=557477725]
 script = ExtResource("16_small")
 
-[node name="Planet" parent="." instance=ExtResource("2_body")]
+[node name="Planet" parent="." unique_id=1558622416 instance=ExtResource("2_body")]
 
-[node name="Moon1" parent="." instance=ExtResource("2_body")]
+[node name="Moon1" parent="." unique_id=728446108 instance=ExtResource("2_body")]
 index = 1
 
-[node name="Moon2" parent="." instance=ExtResource("2_body")]
+[node name="Moon2" parent="." unique_id=1188704697 instance=ExtResource("2_body")]
 index = 2
 
-[node name="Moon3" parent="." instance=ExtResource("2_body")]
+[node name="Moon3" parent="." unique_id=730042864 instance=ExtResource("2_body")]
 index = 3
 
-[node name="Carrier" parent="." instance=ExtResource("19_carrier")]
+[node name="Carrier" parent="." unique_id=97001064 instance=ExtResource("19_carrier")]
 
-[node name="BeamView" type="Line2D" parent="."]
+[node name="BeamView" type="Polygon2D" parent="." unique_id=440978233]
 script = ExtResource("15_beam")
 
-[node name="CollectorView" type="Polygon2D" parent="."]
+[node name="CollectorView" type="Polygon2D" parent="." unique_id=1608820590]
 script = ExtResource("17_collector")
 
-[node name="Ship" parent="." instance=ExtResource("1_ship")]
+[node name="Ship" parent="." unique_id=444903704 instance=ExtResource("1_ship")]
 
-[node name="Prediction" type="Line2D" parent="."]
+[node name="Prediction" type="Line2D" parent="." unique_id=106529001]
 width = 2.0
 script = ExtResource("3_pred")
 
-[node name="ReferenceMarker" type="Node2D" parent="."]
+[node name="ReferenceMarker" type="Node2D" parent="." unique_id=1004554832]
 script = ExtResource("4_marker")
 
-[node name="FlightVector" type="Node2D" parent="."]
+[node name="FlightVector" type="Node2D" parent="." unique_id=773047112]
 script = ExtResource("8_vector")
 
-[node name="FlightCamera" type="Camera2D" parent="."]
+[node name="FlightCamera" type="Camera2D" parent="." unique_id=366281931]
 script = ExtResource("6_camera")
 
-[node name="SoundView" type="Node" parent="."]
+[node name="SoundView" type="Node" parent="." unique_id=1343009448]
 script = ExtResource("22_sound")
 
-[node name="CanvasLayer" type="CanvasLayer" parent="."]
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=619570579]
 
-[node name="TuningPanel" parent="CanvasLayer" instance=ExtResource("5_panel")]
+[node name="TuningPanel" parent="CanvasLayer" unique_id=2035701448 instance=ExtResource("5_panel")]
+layout_mode = 3
+anchors_preset = 0
 
-[node name="HUD" parent="CanvasLayer" instance=ExtResource("14_hud")]
+[node name="HUD" parent="CanvasLayer" unique_id=411585612 instance=ExtResource("14_hud")]
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="Warnings" parent="CanvasLayer" instance=ExtResource("21_warnings")]
+[node name="Warnings" parent="CanvasLayer" unique_id=1378538970 instance=ExtResource("21_warnings")]
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="Summary" parent="CanvasLayer" instance=ExtResource("20_summary")]
+[node name="Summary" parent="CanvasLayer" unique_id=1804844081 instance=ExtResource("20_summary")]
+grow_horizontal = 2
+grow_vertical = 2

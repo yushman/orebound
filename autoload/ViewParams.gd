@@ -24,3 +24,6 @@ extends Resource
 @export var autoscale_override_time: float = 8.0
 @export var autoscale_smooth: float = 1.5
 @export var autoscale_speed_tau: float = 5.0
+@export var style_outline: bool = false
+@export var style_edges: bool = false
+@export var style_shading: int = 0

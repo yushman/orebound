@@ -1,28 +1,30 @@
 extends Node2D
 
+const SHADER := preload("res://shaders/body.gdshader")
 const DISC_RADIUS := 12.0
 const PLANET_POINTS := 512
 const MOON_POINTS := 64
-const PLANET_LIT_POINTS := 256
-const MOON_LIT_POINTS := 32
 
 @export var index: int = 0
 
+var _material := ShaderMaterial.new()
+
 @onready var _visual: Polygon2D = $Visual
-@onready var _lit: Polygon2D = $Visual/Lit
 
 
 func _ready() -> void:
 	var base := Palette.OBOD_ACCENT if index == 0 else Palette.MOON
 	var n := PLANET_POINTS if index == 0 else MOON_POINTS
-	var lit_n := PLANET_LIT_POINTS if index == 0 else MOON_LIT_POINTS
 	var pts := PackedVector2Array()
 	for k in n:
 		pts.append(Vector2.from_angle(TAU * k / n) * DISC_RADIUS)
 	_visual.polygon = pts
-	_visual.color = Palette.shade(base)
-	_lit.polygon = Palette.lit_half(DISC_RADIUS, lit_n, Palette.LIGHT_DIR)
-	_lit.color = base
+	_material.shader = SHADER
+	_material.set_shader_parameter("lit_color", base)
+	_material.set_shader_parameter("dark_color", Palette.shade(base))
+	_material.set_shader_parameter("light", Vector3(Palette.LIGHT_DIR.x, Palette.LIGHT_DIR.y, Palette.LIGHT_ELEVATION))
+	_material.set_shader_parameter("radius", DISC_RADIUS)
+	_visual.material = _material
 
 
 func _physics_process(_delta: float) -> void:
@@ -40,3 +42,9 @@ func _process(_delta: float) -> void:
 		radius = f.bodies[index].radius
 	var k := radius / DISC_RADIUS
 	_visual.scale = Vector2(k, k)
+	_material.set_shader_parameter("seed", surface_seed(Tuning.picture, index))
+	Style.apply(_material)
+
+
+static func surface_seed(picture: Dictionary, i: int) -> float:
+	return posmod(hash([picture.get("seed", 0), picture.get("flight", 0), i]), 1000) / 1000.0

@@ -8,3 +8,4 @@
 .tmp/
 build/
 build_info.json
+tools/models/node_modules/

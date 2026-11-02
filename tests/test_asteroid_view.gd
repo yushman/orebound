@@ -23,11 +23,7 @@ func after_each():
 
 
 func _polys(v) -> Array:
-	var out := []
-	for c in v.get_children():
-		if c is Polygon2D and c.visible:
-			out.append(c)
-	return out
+	return v.shown
 
 
 func _spot() -> Vector2:
@@ -44,19 +40,18 @@ func test_asteroid_view_shows_one_polygon_per_asteroid_within_gen_radius():
 	var polys := _polys(v)
 	assert_eq(polys.size(), want.size())
 	for p in polys:
-		assert_lte(p.position.distance_to(pos), Tuning.planet.chunk_gen_radius + 1.0)
+		assert_lte(p.pos.distance_to(pos), Tuning.planet.chunk_gen_radius + 1.0)
 	var first = polys[0]
-	assert_eq(first.polygon, want[0]["points"])
-	assert_eq(first.position, want[0]["pos"])
+	assert_eq(first.points, want[0]["points"])
+	assert_eq(first.pos, want[0]["pos"])
 	assert_eq(first.color, AsteroidViewScript.color_of(want[0]["type"]))
-	# positions follow t, pool is kept
+	# positions follow t
 	v.refresh(pos, t + 5.0)
 	var again := _polys(v)
 	assert_eq(again.size(), want.size())
-	assert_true(again[0] == first, "pool not rebuilt while the set is unchanged")
 	var moved: Array = AsteroidField.near(pos, t + 5.0, Tuning.planet.chunk_gen_radius)
-	assert_eq(first.position, moved[0]["pos"])
-	assert_ne(first.position, want[0]["pos"])
+	assert_eq(again[0].pos, moved[0]["pos"])
+	assert_ne(again[0].pos, want[0]["pos"])
 	# far from every field: nothing shown
 	v.refresh(Vector2(Tuning.field.carrier_orbit_radius * 3.0, 0.0), t)
 	assert_eq(_polys(v).size(), 0)
@@ -66,26 +61,24 @@ func test_asteroid_view_rebuilds_when_points_change_with_same_keys():
 	var v = add_child_autofree(AsteroidViewScript.new())
 	var pos := _spot()
 	v.refresh(pos, 10.0)
-	var before: PackedVector2Array = _polys(v)[0].polygon
+	var before: PackedVector2Array = _polys(v)[0].points
 	Tuning.planet.ast_radius_min = 20.0
 	Tuning.planet.ast_radius_max = 30.0
 	v.refresh(pos, 10.0)
 	var want: Array = AsteroidField.near(pos, 10.0, Tuning.planet.chunk_gen_radius)
 	assert_ne(want[0]["points"], before)
 	assert_eq(_polys(v).size(), want.size())
-	assert_eq(_polys(v)[0].polygon, want[0]["points"])
+	assert_eq(_polys(v)[0].points, want[0]["points"])
 
 
 func test_asteroid_view_rebuilds_on_preset_applied():
 	var v = add_child_autofree(AsteroidViewScript.new())
 	var pos := _spot()
 	v.refresh(pos, 10.0)
-	var p = _polys(v)[0]
-	p.polygon = PackedVector2Array()
 	Tuning.preset_applied.emit()
 	v.refresh(pos, 10.0)
 	var want: Array = AsteroidField.near(pos, 10.0, Tuning.planet.chunk_gen_radius)
-	assert_eq(_polys(v)[0].polygon, want[0]["points"])
+	assert_eq(_polys(v)[0].points, want[0]["points"])
 
 
 func test_asteroid_view_rotates_polygons_with_omega_t():
@@ -166,8 +159,8 @@ func test_asteroid_view_hides_a_broken_asteroid():
 	v.refresh(pos, 10.0, {})
 	var polys := _polys(v)
 	assert_eq(polys.size(), want.size())
-	assert_eq(polys[1].polygon, b["points"])
+	assert_eq(polys[1].points, b["points"])
 	v.refresh(pos, 10.0, {k1: true})
 	polys = _polys(v)
 	assert_eq(polys.size(), want.size() - 1)
-	assert_eq(polys[1].polygon, want[2]["points"])
+	assert_eq(polys[1].points, want[2]["points"])

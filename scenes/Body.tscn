@@ -7,5 +7,3 @@ script = ExtResource("1_body")
 
 [node name="Visual" type="Polygon2D" parent="."]
 polygon = PackedVector2Array(-12, -12, 12, -12, 12, 12, -12, 12)
-
-[node name="Lit" type="Polygon2D" parent="Visual"]

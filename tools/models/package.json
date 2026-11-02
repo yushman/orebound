@@ -1,0 +1,11 @@
+{
+  "name": "orebound-models",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "ship": "node ship.mjs"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  }
+}
