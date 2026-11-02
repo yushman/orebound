@@ -15,15 +15,20 @@ const BURST_TIME := 0.3
 const BURST_RADIUS_FACTOR := 2.5
 const BURST_STRENGTH_PX := 14.0
 const BURST_POOL := 4
+const CONE_STRENGTH_PX := 4.0
+const CONE_SPACING_PX := 24.0
+const CONE_SPEED_PX := 80.0
 const BREAK_RATIO_MIN := 0.5
 
 var beam: BeamView
+var collector: CollectorView
 var bursts: Array = []
 var _prev_key = null
 var _prev_ratio := 0.0
 var _prev_pos := Vector2.ZERO
 var _prev_radius := 0.0
 var _hit: Polygon2D
+var _cone := Polygon2D.new()
 var _pool: Array[Polygon2D] = []
 var _clock := 0.0
 
@@ -33,6 +38,16 @@ func _init() -> void:
 	_hit = _make_quad(shader)
 	for i in BURST_POOL:
 		_pool.append(_make_quad(shader))
+	var cm := ShaderMaterial.new()
+	cm.shader = load("res://shaders/cone_distortion.gdshader")
+	cm.set_shader_parameter("aberration", ABERRATION)
+	cm.set_shader_parameter("spacing_px", CONE_SPACING_PX)
+	cm.set_shader_parameter("speed_px", CONE_SPEED_PX)
+	cm.set_shader_parameter("strength_px", CONE_STRENGTH_PX)
+	_cone.material = cm
+	_cone.texture = ImageTexture.create_from_image(Image.create_empty(1, 1, false, Image.FORMAT_RGBA8))
+	_cone.visible = false
+	add_child(_cone)
 
 
 func _make_quad(shader: Shader) -> Polygon2D:
@@ -53,6 +68,7 @@ func _process(delta: float) -> void:
 		beam = get_node_or_null("../BeamView")
 	if ship == null or beam == null:
 		_hit.visible = false
+		_cone.visible = false
 		for q in _pool:
 			q.visible = false
 		return
@@ -82,6 +98,7 @@ static func broke(key, ratio: float, s: ShipState) -> bool:
 
 func refresh(state: ShipState, delta: float) -> void:
 	_clock += delta
+	_update_cone(state)
 	if broke(_prev_key, _prev_ratio, state):
 		_spawn(_prev_pos, _prev_radius)
 	_prev_key = beam.target_key
@@ -142,3 +159,19 @@ func _place(q: Polygon2D, world: Vector2, radius_px: float, strength: float, zoo
 		m.set_shader_parameter("fan_soft", FAN_SOFT)
 		m.set_shader_parameter("fan_dir", vp.get_canvas_transform().basis_xform(fan).normalized())
 	q.visible = true
+
+
+func _update_cone(state: ShipState) -> void:
+	if collector == null:
+		collector = get_node_or_null("../CollectorView")
+	_cone.visible = collector != null and collector.visible
+	if not _cone.visible:
+		return
+	var vp := get_viewport()
+	_cone.polygon = collector.polygon
+	_cone.uv = collector.uv
+	var m: ShaderMaterial = _cone.material
+	m.set_shader_parameter("viewport_size", vp.get_visible_rect().size)
+	m.set_shader_parameter("apex_px", vp.get_canvas_transform() * state.pos)
+	m.set_shader_parameter("radius_px", collector.radius_px)
+	m.set_shader_parameter("fade", collector.fade)

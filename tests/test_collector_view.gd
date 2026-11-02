@@ -33,9 +33,9 @@ func test_collector_view_is_hidden_when_collect_is_off():
 	assert_false(v.visible)
 
 
-func test_collector_view_uses_palette_colour_and_hides_without_ship():
+func test_collector_view_hides_without_ship():
 	var v = add_child_autofree(CollectorView.new())
-	assert_eq(Color(v.color, 1.0), Palette.FUEL)
+	assert_true(v.material is ShaderMaterial)
 	v.visible = true
 	v._process(0.0)
 	assert_false(v.visible)
