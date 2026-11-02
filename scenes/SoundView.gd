@@ -35,6 +35,9 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	for p in players.values():
+		p.stop()
+	OS.delay_msec(100)
 	SoundBank.clear()
 
 
