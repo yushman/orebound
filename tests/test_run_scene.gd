@@ -553,7 +553,7 @@ func test_run_has_ring_and_asteroid_views_between_well_view_and_ship():
 	var names: Array = []
 	for c in run.get_children():
 		names.append(str(c.name))
-	assert_eq(names.slice(0, 15), ["StarfieldView", "AtmosphereView", "GravityHaloView", "WellView", "RingView", "AsteroidView", "SmallObjectView", "Planet", "Moon1", "Moon2", "Moon3", "Carrier", "BeamView", "CollectorView", "Ship"])
+	assert_eq(names.slice(0, 16), ["StarfieldView", "AtmosphereView", "GravityHaloView", "WellView", "RingView", "AsteroidView", "SmallObjectView", "Planet", "Moon1", "Moon2", "Moon3", "Carrier", "BeamView", "CollectorView", "DistortionView", "Ship"])
 	var ring = run.get_node_or_null("RingView")
 	if ring != null:
 		assert_eq(ring.script.resource_path, "res://scenes/RingView.gd")

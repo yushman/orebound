@@ -22,6 +22,7 @@
 [ext_resource type="PackedScene" path="res://ui/Summary.tscn" id="20_summary"]
 [ext_resource type="PackedScene" path="res://ui/Warnings.tscn" id="21_warnings"]
 [ext_resource type="Script" uid="uid://xijfxlwjpa6" path="res://scenes/SoundView.gd" id="22_sound"]
+[ext_resource type="Script" path="res://scenes/DistortionView.gd" id="23_distortion"]
 
 [node name="Run" type="Node2D" unique_id=467074572]
 script = ExtResource("11_run")
@@ -65,6 +66,9 @@ script = ExtResource("15_beam")
 
 [node name="CollectorView" type="Polygon2D" parent="." unique_id=1608820590]
 script = ExtResource("17_collector")
+
+[node name="DistortionView" type="Node2D" parent="."]
+script = ExtResource("23_distortion")
 
 [node name="Ship" parent="." unique_id=444903704 instance=ExtResource("1_ship")]
 

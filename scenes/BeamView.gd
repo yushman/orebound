@@ -12,10 +12,15 @@ const WAVELENGTH_PX := 40.0
 const FREQUENCY := 10
 
 var energy := 0.0
+var ratio := 0.0
+var has_hit := false
+var target_key = null
+var target_pos := Vector2.ZERO
+var target_radius := 0.0
 var end := Vector2.ZERO
 var _fade := 0.0
 var _len := 0.0
-var _aim := 0.0
+var aim := 0.0
 var _zoom := 1.0
 var _mat := ShaderMaterial.new()
 
@@ -50,24 +55,34 @@ func refresh(state: ShipState, input: ShipInput, t: float, delta := FADE_TIME) -
 		var cands := ShipFlight.beam_candidates(state, t)
 		var h := Beam.hit(state.pos, input.aim, range_, cands)
 		end = h["point"] if not h.is_empty() else state.pos + Vector2.RIGHT.rotated(input.aim) * range_
-		_aim = input.aim
+		aim = input.aim
 		_len = state.pos.distance_to(end)
-		energy = _energy(state, h, cands)
+		_track(state, h, cands)
+		energy = lerpf(WIGGLE_MIN_PX, WIGGLE_MAX_PX, ratio) / (0.01 * _height_px())
+	else:
+		has_hit = false
+		target_key = null
+		ratio = 0.0
 	_fade = clampf(_fade + (delta if input.beam else -delta) / FADE_TIME, 0.0, 1.0)
 	visible = _fade > 0.0
 	if visible:
 		_build(state.pos)
 
 
-func _energy(state: ShipState, h: Dictionary, cands: Array) -> float:
-	var ratio := 0.0
-	if not h.is_empty():
-		for e in cands:
-			if typeof(e["key"]) == typeof(h["key"]) and e["key"] == h["key"]:
-				var threshold: float = Tuning.planet.break_per_sqrt_radius * sqrt(sqrt(AsteroidField._area(e["points"]) / PI))
-				ratio = clampf(state.beam_charge / threshold, 0.0, 1.0)
-				break
-	return lerpf(WIGGLE_MIN_PX, WIGGLE_MAX_PX, ratio) / (0.01 * _height_px())
+func _track(state: ShipState, h: Dictionary, cands: Array) -> void:
+	has_hit = not h.is_empty()
+	target_key = null
+	ratio = 0.0
+	if not has_hit:
+		return
+	for e in cands:
+		if typeof(e["key"]) == typeof(h["key"]) and e["key"] == h["key"]:
+			var r_eq: float = sqrt(AsteroidField._area(e["points"]) / PI)
+			target_key = e["key"]
+			target_pos = e["pos"]
+			target_radius = r_eq
+			ratio = clampf(state.beam_charge / (Tuning.planet.break_per_sqrt_radius * sqrt(r_eq)), 0.0, 1.0)
+			return
 
 
 func _height_px() -> float:
@@ -78,7 +93,7 @@ func _build(origin: Vector2) -> void:
 	var h_px := _height_px()
 	var half := h_px * 0.5 / _zoom
 	position = origin
-	rotation = _aim
+	rotation = aim
 	polygon = PackedVector2Array([Vector2(0, -half), Vector2(_len, -half), Vector2(_len, half), Vector2(0, half)])
 	uv = PackedVector2Array([Vector2(0, 0), Vector2(1, 0), Vector2(1, 1), Vector2(0, 1)])
 	var cells := 1.0 / (WAVELENGTH_PX * FREQUENCY)
