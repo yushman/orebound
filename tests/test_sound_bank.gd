@@ -56,3 +56,9 @@ func test_streams_are_not_silent_and_not_clipped_flat() -> void:
 			peak = maxi(peak, absi(d.decode_s16(i)))
 		assert_gt(peak, 500, n)
 		assert_lt(peak, 32767, n)
+
+
+func test_clear_rebuilds_streams() -> void:
+	var w := SoundBank.stream(&"click")
+	SoundBank.clear()
+	assert_ne(SoundBank.stream(&"click"), w)

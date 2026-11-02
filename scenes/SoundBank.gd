@@ -14,6 +14,10 @@ static func stream(name: StringName) -> AudioStreamWAV:
 	return _cache[name]
 
 
+static func clear() -> void:
+	_cache.clear()
+
+
 static func build(name: StringName) -> AudioStreamWAV:
 	var samples: PackedFloat32Array
 	match name:

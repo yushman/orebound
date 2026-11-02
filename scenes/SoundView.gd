@@ -34,6 +34,10 @@ func _ready() -> void:
 	_apply_volume()
 
 
+func _exit_tree() -> void:
+	SoundBank.clear()
+
+
 func _player(n: StringName) -> AudioStreamPlayer:
 	var p := AudioStreamPlayer.new()
 	p.stream = SoundBank.stream(n)
