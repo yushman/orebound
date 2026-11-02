@@ -14,6 +14,14 @@ const HATCH_ANGLE := 0.785398
 ## units of depth per world unit across) a single surface may have unlined.
 const DEPTH_EDGE_MIN := 2.0
 const DEPTH_EDGE_SLOPE := 4.0
+## Moon craters (`moon.gdshader`): cell sizes as fractions of the moon
+## radius, share of cells with a crater, bowl depth and rim height per
+## crater radius, bump strength.
+const MOON_CRATER_SCALES := Vector3(0.2, 0.08, 0.03)
+const MOON_CRATER_DENSITY := 0.6
+const MOON_CRATER_DEPTH := 0.25
+const MOON_CRATER_RIM := 0.08
+const MOON_CRATER_BUMP := 1.0
 
 
 static func apply(m: ShaderMaterial) -> void:
@@ -30,3 +38,11 @@ static func apply(m: ShaderMaterial) -> void:
 	m.set_shader_parameter("edge_px", EDGE_PX)
 	m.set_shader_parameter("depth_edge_min", DEPTH_EDGE_MIN)
 	m.set_shader_parameter("depth_edge_slope", DEPTH_EDGE_SLOPE)
+
+
+static func apply_craters(m: ShaderMaterial) -> void:
+	m.set_shader_parameter("crater_scales", MOON_CRATER_SCALES)
+	m.set_shader_parameter("crater_density", MOON_CRATER_DENSITY)
+	m.set_shader_parameter("crater_depth", MOON_CRATER_DEPTH)
+	m.set_shader_parameter("crater_rim", MOON_CRATER_RIM)
+	m.set_shader_parameter("crater_bump", MOON_CRATER_BUMP)

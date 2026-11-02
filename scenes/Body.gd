@@ -1,6 +1,7 @@
 extends Node2D
 
 const SHADER := preload("res://shaders/body.gdshader")
+const MOON_SHADER := preload("res://shaders/moon.gdshader")
 const DISC_RADIUS := 12.0
 const PLANET_POINTS := 512
 const MOON_POINTS := 64
@@ -19,7 +20,9 @@ func _ready() -> void:
 	for k in n:
 		pts.append(Vector2.from_angle(TAU * k / n) * DISC_RADIUS)
 	_visual.polygon = pts
-	_material.shader = SHADER
+	_material.shader = SHADER if index == 0 else MOON_SHADER
+	if index > 0:
+		Style.apply_craters(_material)
 	_material.set_shader_parameter("lit_color", base)
 	_material.set_shader_parameter("dark_color", Palette.shade(base))
 	_material.set_shader_parameter("light", Vector3(Palette.LIGHT_DIR.x, Palette.LIGHT_DIR.y, Palette.LIGHT_ELEVATION))
