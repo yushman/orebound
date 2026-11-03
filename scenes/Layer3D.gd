@@ -7,34 +7,55 @@ extends SubViewport
 ## `shaders/solid.gdshader` (unshaded), the owner blits with `blit_material`.
 ## With the outline on, a full-screen quad (`depth_edges.gdshader`) adds
 ## lines at depth steps where objects of the layer overlap.
+## `asteroid` is the solid shader with the ore look (inclusions, edge
+## darkening). A rim layer adds `type_view`, a pass over the same world whose
+## camera sees only TYPE_LAYER (flat type colour twins, `type_material`),
+## sampled by the blit for the rim light.
 
 const CAMERA_Z := 1000.0
 const SOLID := preload("res://shaders/solid.gdshader")
 const SILHOUETTE := preload("res://shaders/silhouette.gdshader")
 const DEPTH_EDGES := preload("res://shaders/depth_edges.gdshader")
+const TYPE := preload("res://shaders/type.gdshader")
+const MAIN_LAYER := 1
+const TYPE_LAYER := 2
 
 var camera := Camera3D.new()
 var origin := Vector2.ZERO
 var solid := ShaderMaterial.new()
+var asteroid := ShaderMaterial.new()
+var type_view: SubViewport
+var type_camera: Camera3D
+var type_material := ShaderMaterial.new()
 var blit_material := ShaderMaterial.new()
 var _edges := MeshInstance3D.new()
 var _edge_material := ShaderMaterial.new()
 
 
-func _init() -> void:
+func _init(rim := false) -> void:
 	transparent_bg = true
 	msaa_3d = Viewport.MSAA_4X
-	own_world_3d = true
+	world_3d = World3D.new()
 	render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.near = 1.0
-	camera.far = CAMERA_Z * 2.0
-	camera.position = Vector3(0.0, 0.0, CAMERA_Z)
+	_setup_camera(camera, MAIN_LAYER)
 	add_child(camera)
-	solid.shader = SOLID
-	solid.set_shader_parameter("light", light_3d())
-	solid.set_shader_parameter("shade_factor", Palette.SHADE_FACTOR)
+	for m in [solid, asteroid]:
+		m.shader = SOLID
+		m.set_shader_parameter("light", light_3d())
+		m.set_shader_parameter("shade_factor", Palette.SHADE_FACTOR)
 	blit_material.shader = SILHOUETTE
+	blit_material.set_shader_parameter("rim_on", rim)
+	if rim:
+		type_view = SubViewport.new()
+		type_view.transparent_bg = true
+		type_view.world_3d = world_3d
+		type_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		type_camera = Camera3D.new()
+		_setup_camera(type_camera, TYPE_LAYER)
+		type_view.add_child(type_camera)
+		add_child(type_view)
+		type_material.shader = TYPE
+		blit_material.set_shader_parameter("type_tex", type_view.get_texture())
 	_edge_material.shader = DEPTH_EDGES
 	_edge_material.set_shader_parameter("far_dist", camera.far)
 	_edges.mesh = QuadMesh.new()
@@ -42,6 +63,14 @@ func _init() -> void:
 	_edges.extra_cull_margin = 16384.0
 	_edges.visible = false
 	add_child(_edges)
+
+
+func _setup_camera(cam: Camera3D, mask: int) -> void:
+	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+	cam.near = 1.0
+	cam.far = CAMERA_Z * 2.0
+	cam.position = Vector3(0.0, 0.0, CAMERA_Z)
+	cam.cull_mask = mask
 
 
 ## Direction toward the light in layer space (Palette.LIGHT_DIR is y-down).
@@ -66,9 +95,18 @@ func sync(canvas: CanvasItem) -> void:
 	camera.size = view.y / xf.get_scale().x
 	camera.rotation = Vector3(0.0, 0.0, xf.get_rotation())
 	Style.apply(solid)
+	Style.apply(asteroid)
+	Style.apply_ore(asteroid)
 	Style.apply(blit_material)
 	Style.apply(_edge_material)
 	_edges.visible = Tuning.view.style_outline
+	if type_view != null:
+		type_view.size = size
+		type_camera.size = camera.size
+		type_camera.rotation = camera.rotation
+		blit_material.set_shader_parameter("rim_dir", Palette.LIGHT_DIR.normalized().rotated(xf.get_rotation()))
+		blit_material.set_shader_parameter("rim_px", Style.RIM_PX)
+		blit_material.set_shader_parameter("rim_strength", Style.RIM_STRENGTH)
 
 
 ## Draws the layer texture over the whole screen from the owner's _draw; the

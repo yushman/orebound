@@ -4,7 +4,7 @@ extends RefCounted
 const FIELD_MIN := 3
 const FIELD_MAX := 6
 const TRIES := 30
-const HULL_POINTS := 9
+const HULL_POINTS := 12
 
 
 static func band_count() -> int:
@@ -176,7 +176,7 @@ static func _area(pts: PackedVector2Array) -> float:
 static func _hull(rng: RandomNumberGenerator, rad: float) -> PackedVector2Array:
 	var pts := PackedVector2Array()
 	for j in HULL_POINTS:
-		pts.append(Vector2.from_angle(rng.randf() * TAU) * (rad * rng.randf_range(0.85, 1.0)))
+		pts.append(Vector2.from_angle(rng.randf() * TAU) * (rad * rng.randf_range(0.7, 1.0)))
 	var hull := Geometry2D.convex_hull(pts)
 	hull.remove_at(hull.size() - 1)
 	return hull

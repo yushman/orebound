@@ -11,10 +11,12 @@ const TYPE_COLORS := {
 
 ## Entries drawn this frame: `near` output plus `color` and `rotation`.
 var shown := []
-## The 3D layer, shared with `SmallObjectView` (drawn right after it).
-var layer := Layer3D.new()
+## The 3D layer with the rim pass, shared with `SmallObjectView` (drawn
+## right after it).
+var layer := Layer3D.new(true)
 var _meshes := {}
 var _pool: Array[MeshInstance3D] = []
+var _twins: Array[MeshInstance3D] = []
 
 
 static func color_of(type: StringName) -> Color:
@@ -53,7 +55,7 @@ func refresh(pos: Vector2, t: float, broken := {}) -> void:
 func mesh_of(a: Dictionary) -> ArrayMesh:
 	var c: Array = _meshes.get(a["key"], [])
 	if c.is_empty() or c[0] != a["points"] or c[1] != a["color"]:
-		c = [a["points"], a["color"], SolidMesh.rock(a["points"], hash(a["key"]), a["color"])]
+		c = [a["points"], a["color"], SolidMesh.rock(a["points"], hash(a["key"]), a["color"], Style.DOME_INNER_POINTS)]
 	return c[2]
 
 
@@ -64,19 +66,33 @@ func transform_of(a: Dictionary) -> Transform3D:
 
 func _draw() -> void:
 	layer.sync(self)
+	place()
+	layer.blit(self)
+
+
+func _instance(m: Material, mask: int) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.material_override = m
+	mi.layers = mask
+	layer.add_child(mi)
+	return mi
+
+
+func place() -> void:
 	var kept := {}
 	for i in shown.size():
 		if i >= _pool.size():
-			var mi := MeshInstance3D.new()
-			mi.material_override = layer.solid
-			layer.add_child(mi)
-			_pool.append(mi)
+			_pool.append(_instance(layer.asteroid, Layer3D.MAIN_LAYER))
+			_twins.append(_instance(layer.type_material, Layer3D.TYPE_LAYER))
 		var a: Dictionary = shown[i]
 		_pool[i].mesh = mesh_of(a)
 		kept[a["key"]] = [a["points"], a["color"], _pool[i].mesh]
 		_pool[i].transform = transform_of(a)
 		_pool[i].visible = true
+		_twins[i].mesh = _pool[i].mesh
+		_twins[i].transform = _pool[i].transform
+		_twins[i].visible = true
 	for i in range(shown.size(), _pool.size()):
 		_pool[i].visible = false
+		_twins[i].visible = false
 	_meshes = kept
-	layer.blit(self)

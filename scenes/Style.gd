@@ -22,6 +22,25 @@ const MOON_CRATER_DENSITY := 0.6
 const MOON_CRATER_DEPTH := 0.25
 const MOON_CRATER_RIM := 0.08
 const MOON_CRATER_BUMP := 1.0
+## Asteroid ore look (`apply_ore`, the `Layer3D` rim): inner dome ring
+## vertices of decimated rocks, share of top facets that are ore inclusions
+## and the chance an inclusion grows from a neighbour; the grey of the other
+## facets, inclusion brightness and unshadowing; rim width in screen px and
+## strength; facet edge darkening (lit side only).
+const DOME_INNER_POINTS := 6
+const INCLUSION_FRACTION := 0.2
+const INCLUSION_CLUSTER := 0.5
+const INCLUSION_GREY := Color("808080")
+const INCLUSION_GREY_MIX := 1.0
+const INCLUSION_BOOST := 1.4
+const INCLUSION_UNSHADOW := 0.5
+const RIM_PX := 11.5
+const RIM_STRENGTH := 1.0
+const EDGE_DARK_COLOR := Color("000000")
+const EDGE_DARK_STRENGTH := 0.5
+const EDGE_DARK_PX := 2.0
+const EDGE_DARK_LIT_ONLY := true
+
 
 
 static func apply(m: ShaderMaterial) -> void:
@@ -46,3 +65,19 @@ static func apply_craters(m: ShaderMaterial) -> void:
 	m.set_shader_parameter("crater_depth", MOON_CRATER_DEPTH)
 	m.set_shader_parameter("crater_rim", MOON_CRATER_RIM)
 	m.set_shader_parameter("crater_bump", MOON_CRATER_BUMP)
+
+
+static func apply_ore(m: ShaderMaterial) -> void:
+	m.set_shader_parameter("incl_on", true)
+	m.set_shader_parameter("incl_grey", _rgb(INCLUSION_GREY))
+	m.set_shader_parameter("incl_grey_mix", INCLUSION_GREY_MIX)
+	m.set_shader_parameter("incl_boost", INCLUSION_BOOST)
+	m.set_shader_parameter("incl_unshadow", INCLUSION_UNSHADOW)
+	m.set_shader_parameter("dark_strength", EDGE_DARK_STRENGTH)
+	m.set_shader_parameter("dark_color", _rgb(EDGE_DARK_COLOR))
+	m.set_shader_parameter("dark_px", EDGE_DARK_PX)
+	m.set_shader_parameter("dark_lit_only", EDGE_DARK_LIT_ONLY)
+
+
+static func _rgb(c: Color) -> Vector3:
+	return Vector3(c.r, c.g, c.b)

@@ -164,3 +164,28 @@ func test_asteroid_view_hides_a_broken_asteroid():
 	polys = _polys(v)
 	assert_eq(polys.size(), want.size() - 1)
 	assert_eq(polys[1].points, want[2]["points"])
+
+
+func test_asteroid_instances_use_the_ore_look_with_a_type_pass_twin():
+	var v = add_child_autofree(AsteroidViewScript.new())
+	v.refresh(_spot(), 10.0)
+	assert_gt(v.shown.size(), 0)
+	assert_not_null(v.layer.type_view, "asteroid layer has the rim pass")
+	v.layer.sync(v)
+	v.place()
+	for i in v.shown.size():
+		var a: Dictionary = v.shown[i]
+		var mi: MeshInstance3D = v._pool[i]
+		var twin: MeshInstance3D = v._twins[i]
+		assert_eq(mi.material_override, v.layer.asteroid)
+		assert_eq(mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size() / 3, 2 * a["points"].size() + 4 * Style.DOME_INNER_POINTS)
+		assert_eq(twin.mesh, mi.mesh)
+		assert_eq(twin.material_override, v.layer.type_material)
+		assert_eq(twin.layers, Layer3D.TYPE_LAYER)
+		assert_eq(twin.transform, mi.transform)
+		assert_true(twin.visible)
+	v.refresh(Vector2(Tuning.field.carrier_orbit_radius * 3.0, 0.0), 10.0)
+	v.place()
+	for twin in v._twins:
+		assert_false(twin.visible, "twins hide with their instance")
+

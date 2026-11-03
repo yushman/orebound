@@ -155,7 +155,7 @@ func test_hull_points_reach_near_contact_radius():
 				var far := 0.0
 				for p in x["points"]:
 					far = maxf(far, p.length())
-				assert_gte(far, 0.85 * x["radius"] - 1e-6, "hull reaches the contact radius")
+				assert_gte(far, 0.7 * x["radius"] - 1e-6, "hull reaches the contact radius")
 
 
 func test_chunk_empty_in_blocked_band():
@@ -378,3 +378,17 @@ func test_asteroid_amount_equals_hull_area_times_amount_per_area():
 	var st := AsteroidField.state(5, c[0], 0.0)
 	var found := AsteroidField.near(st["pos"], 0.0, 1.0)
 	assert_almost_eq(found[0]["amount"], c[0]["amount"] * 2.0, 1e-6)
+
+
+func test_hull_has_12_raw_points_within_0_7_to_1_of_the_radius():
+	assert_eq(AsteroidField.HULL_POINTS, 12)
+	var rng := RandomNumberGenerator.new()
+	var low := 1.0
+	for s in 200:
+		rng.seed = s
+		var h := AsteroidField._hull(rng, 50.0)
+		assert_lte(h.size(), 12)
+		for p in h:
+			assert_between(p.length() / 50.0, 0.7 - 1e-6, 1.0 + 1e-6)
+			low = minf(low, p.length() / 50.0)
+	assert_lt(low, 0.85, "the radius fraction reaches below the old 0.85 bound")

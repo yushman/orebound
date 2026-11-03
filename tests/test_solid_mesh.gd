@@ -116,3 +116,61 @@ func test_shrunk_piece_scales_the_birth_mesh_onto_its_points():
 				found = true
 				break
 		assert_true(found, "shrunk hull point %s matched" % q)
+
+
+func _tri_count(mesh: ArrayMesh) -> int:
+	return mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size() / 3
+
+
+func test_decimated_rock_keeps_silhouette_with_strip_triangles_and_top_facing_up():
+	var inner: int = Style.DOME_INNER_POINTS
+	for seed in [1, 2, 3, 4, 5, 6, 7]:
+		var pts := _hull(seed, 20.0 + 10.0 * seed)
+		var mesh := SolidMesh.rock(pts, seed, Palette.ORE, inner)
+		_assert_silhouette(mesh, pts)
+		assert_eq(_tri_count(mesh), 2 * pts.size() + 4 * inner)
+		var a := mesh.surface_get_arrays(0)
+		var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+		var nrm: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+		for t in v.size() / 3:
+			if v[3 * t].z + v[3 * t + 1].z + v[3 * t + 2].z > 0.0:
+				assert_gt(nrm[3 * t].z, 0.0, "top facet %d faces +z" % t)
+
+
+func test_default_rock_is_the_undecimated_dome():
+	var pts := _hull(3, 40.0)
+	var a := SolidMesh.rock(pts, 3, Palette.ORE).surface_get_arrays(0)
+	var b := SolidMesh.rock(pts, 3, Palette.ORE, 0).surface_get_arrays(0)
+	assert_eq(a[Mesh.ARRAY_VERTEX].size() / 3, 6 * pts.size())
+	for k in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TEX_UV, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_COLOR]:
+		assert_eq(a[k], b[k])
+
+
+func _flags(mesh: ArrayMesh) -> Array:
+	var a := mesh.surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var c: PackedFloat32Array = a[Mesh.ARRAY_CUSTOM0]
+	var top := 0
+	var on := 0
+	for t in v.size() / 3:
+		if v[3 * t].z + v[3 * t + 1].z + v[3 * t + 2].z > 0.0:
+			top += 1
+			if c[12 * t + 3] > 0.5:
+				on += 1
+	return [top, on]
+
+
+func test_rock_carries_inclusion_flags_on_a_fraction_of_top_facets():
+	for inner in [0, Style.DOME_INNER_POINTS]:
+		var mesh := SolidMesh.rock(_hull(5, 50.0), 5, Palette.ORE, inner)
+		assert_ne(mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_CUSTOM0, 0, "rock has CUSTOM0")
+		var f := _flags(mesh)
+		assert_eq(f[1], roundi(Style.INCLUSION_FRACTION * f[0]))
+		assert_gt(f[1], 0)
+
+
+func test_box_and_recolor_carry_no_custom0():
+	var pts := PackedVector2Array([Vector2(-5, -5), Vector2(5, -5), Vector2(5, 5), Vector2(-5, 5)])
+	var box := SolidMesh.box(pts, 5.0, Palette.ICE)
+	assert_eq(box.surface_get_format(0) & Mesh.ARRAY_FORMAT_CUSTOM0, 0)
+	assert_eq(SolidMesh.recolor(box, [Palette.ORE]).surface_get_format(0) & Mesh.ARRAY_FORMAT_CUSTOM0, 0)

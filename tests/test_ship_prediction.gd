@@ -209,22 +209,29 @@ func test_prediction_equals_flight_when_accelerating_into_asteroids() -> void:
 	var saved_ship = Tuning.ship
 	Tuning.ship = saved_ship.duplicate()
 	Tuning.ship.thrust_accel = 30.5
-	var ast: Dictionary = AsteroidField.chunk(0, 0)[0]
-	var st := AsteroidField.state(0, ast, 0.0)
-	var dir := Vector2.from_angle(ast["theta"] - 0.4)
-	var start := ShipState.new()
-	start.pos = st["pos"] + dir * 3000.0
-	start.vel = st["vel"]
-	start.rot = (-dir).angle() + PI * 0.5
 	var inp := ShipInput.new()
 	inp.thrust = true
-	var pts := ShipPrediction.run(start, inp, 0, 900)
-	var s := start.copy()
+	var start := ShipState.new()
+	var pts := PackedVector2Array()
+	var s := start
 	var diverged := 0
-	for i in pts.size():
-		s = ShipFlight.step(s, inp, GravityField.time_at(i + 1), GravityField.DT)
-		if pts[i] != s.pos:
-			diverged += 1
+	# aim at the first chunk asteroid the thrust run actually hits, so the pick follows the field
+	for ast in AsteroidField.chunk(0, 0):
+		var st := AsteroidField.state(0, ast, 0.0)
+		var dir := Vector2.from_angle(ast["theta"] - 0.4)
+		start = ShipState.new()
+		start.pos = st["pos"] + dir * 3000.0
+		start.vel = st["vel"]
+		start.rot = (-dir).angle() + PI * 0.5
+		pts = ShipPrediction.run(start, inp, 0, 900)
+		s = start.copy()
+		diverged = 0
+		for i in pts.size():
+			s = ShipFlight.step(s, inp, GravityField.time_at(i + 1), GravityField.DT)
+			if pts[i] != s.pos:
+				diverged += 1
+		if s.hull < start.hull:
+			break
 	var hull: float = s.hull
 	Tuning.planet = saved_planet
 	Tuning.ship = saved_ship
@@ -538,31 +545,43 @@ func test_predicted_points_equal_flight_through_the_ring_band_with_boulders() ->
 			min_d = minf(min_d, Vector2(ring["radius"] + 400.0, 0.0).distance_to(e["pos"]))
 	assert_true(boulder_in_band, "an ore_middle boulder sits in the band")
 	assert_lt(min_d, 1500.0, "a boulder passes close to the path")
-	var start := ShipState.new()
-	start.pos = Vector2(ring["radius"] + 400.0, 0.0)
-	start.vel = Vector2(-900.0, 60.0)
 	var inp := ShipInput.new()
-	var pts := ShipPrediction.run(start, inp, 0, 240)
-	var s := start.copy()
+	var start := ShipState.new()
+	var pts := PackedVector2Array()
 	var diverged := 0
 	var first := -1
 	var in_band := 0
 	var crossed := false
 	var v0 := -1.0
 	var vend := -1.0
-	for i in pts.size():
-		s = ShipFlight.step(s, inp, GravityField.time_at(i + 1), GravityField.DT)
-		if pts[i] != s.pos:
-			diverged += 1
-			if first < 0:
-				first = i
-		if ShipFlight.in_ring_band(s.pos):
-			if in_band == 0:
-				v0 = (s.vel - ShipFlight.ring_flow(s.pos)).length()
-			vend = (s.vel - ShipFlight.ring_flow(s.pos)).length()
-			in_band += 1
-		elif in_band > 0:
-			crossed = true
+	# take the first parallel lane the ship flies through untouched, so the pick follows the field
+	for lane in 12:
+		start = ShipState.new()
+		start.pos = Vector2(ring["radius"] + 400.0, lane * 150.0)
+		start.vel = Vector2(-900.0, 60.0)
+		pts = ShipPrediction.run(start, inp, 0, 240)
+		var s := start.copy()
+		diverged = 0
+		first = -1
+		in_band = 0
+		crossed = false
+		v0 = -1.0
+		vend = -1.0
+		for i in pts.size():
+			s = ShipFlight.step(s, inp, GravityField.time_at(i + 1), GravityField.DT)
+			if pts[i] != s.pos:
+				diverged += 1
+				if first < 0:
+					first = i
+			if ShipFlight.in_ring_band(s.pos):
+				if in_band == 0:
+					v0 = (s.vel - ShipFlight.ring_flow(s.pos)).length()
+				vend = (s.vel - ShipFlight.ring_flow(s.pos)).length()
+				in_band += 1
+			elif in_band > 0:
+				crossed = true
+		if s.hull == start.hull:
+			break
 	Tuning.picture = saved_picture
 	assert_eq(pts.size(), 240)
 	assert_eq(diverged, 0, "first diverged point %d" % first)
