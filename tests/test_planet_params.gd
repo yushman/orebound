@@ -101,7 +101,7 @@ func test_default_split_and_piece_knobs() -> void:
 	assert_false("break_per_area" in p)
 	assert_eq(p.piece_lifetime, 100.0)
 	assert_eq(p.piece_min_radius, 5.0)
-	assert_eq(p.piece_spread, 0.7)
+	assert_eq(p.piece_spread, 1.0)
 	assert_almost_eq(p.piece_scatter, 5.0 / 3.0, 1e-6)
 
 

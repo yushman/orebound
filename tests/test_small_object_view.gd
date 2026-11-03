@@ -87,7 +87,7 @@ func test_large_pieces_get_the_ore_look_small_pieces_and_containers_do_not():
 	assert_eq(v._twins[0].mesh, v._pool[0].mesh)
 	assert_eq(v._twins[0].layers, Layer3D.TYPE_LAYER)
 	assert_eq(v._twins[0].transform, v._pool[0].transform)
-	assert_eq(v._pool[1].material_override, v.layer.solid)
+	assert_eq(v._pool[1].material_override, v.layer.piece)
 	assert_eq(v._pool[1].mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size() / 3, 6 * small.points.size())
 	assert_false(v._twins[1].visible)
 	assert_eq(v._pool[2].material_override, v.layer.solid)

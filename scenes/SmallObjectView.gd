@@ -89,7 +89,7 @@ func place() -> void:
 		var large := is_large(b)
 		kept[b.id] = c
 		_pool[i].mesh = c[0]
-		_pool[i].material_override = layer.asteroid if large else layer.solid
+		_pool[i].material_override = layer.asteroid if large else (layer.solid if b.container else layer.piece)
 		_pool[i].transform = transform_of(b, c[1])
 		_pool[i].visible = true
 		_twins[i].mesh = c[0]

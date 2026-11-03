@@ -24,6 +24,7 @@ var camera := Camera3D.new()
 var origin := Vector2.ZERO
 var solid := ShaderMaterial.new()
 var asteroid := ShaderMaterial.new()
+var piece := ShaderMaterial.new()
 var type_view: SubViewport
 var type_camera: Camera3D
 var type_material := ShaderMaterial.new()
@@ -39,10 +40,11 @@ func _init(rim := false) -> void:
 	render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_setup_camera(camera, MAIN_LAYER)
 	add_child(camera)
-	for m in [solid, asteroid]:
+	for m in [solid, asteroid, piece]:
 		m.shader = SOLID
 		m.set_shader_parameter("light", light_3d())
 		m.set_shader_parameter("shade_factor", Palette.SHADE_FACTOR)
+	piece.set_shader_parameter("piece_boost", Style.PIECE_BOOST)
 	blit_material.shader = SILHOUETTE
 	blit_material.set_shader_parameter("rim_on", rim)
 	if rim:
@@ -96,6 +98,7 @@ func sync(canvas: CanvasItem) -> void:
 	camera.rotation = Vector3(0.0, 0.0, xf.get_rotation())
 	Style.apply(solid)
 	Style.apply(asteroid)
+	Style.apply(piece)
 	Style.apply_ore(asteroid)
 	Style.apply(blit_material)
 	Style.apply(_edge_material)

@@ -34,6 +34,7 @@ const INCLUSION_GREY := Color("808080")
 const INCLUSION_GREY_MIX := 1.0
 const INCLUSION_BOOST := 1.4
 const INCLUSION_UNSHADOW := 0.5
+const PIECE_BOOST := 2.5
 const RIM_PX := 11.5
 const RIM_STRENGTH := 1.0
 const EDGE_DARK_COLOR := Color("000000")

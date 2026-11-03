@@ -16,6 +16,7 @@ uniform vec3 incl_grey = vec3(0.5);
 uniform float incl_grey_mix = 1.0;
 uniform float incl_boost = 1.4;
 uniform float incl_unshadow = 0.5;
+uniform float piece_boost = 1.0;
 uniform float dark_strength = 0.0;
 uniform vec3 dark_color = vec3(0.0);
 uniform float dark_px = 2.0;
@@ -47,6 +48,7 @@ void fragment() {
 		lit *= incl_boost;
 		k = mix(k, 1.0, incl_unshadow);
 	}
+	lit *= piece_boost;
 	vec3 c = style_tone(lit * shade_factor, lit, k, FRAGCOORD.xy, local_xy);
 	if (dark_strength > 0.0) {
 		vec3 a = clamp(bary / max(fwidth(bary) * dark_px, vec3(1e-5)), 0.0, 1.0);

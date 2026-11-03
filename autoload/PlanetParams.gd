@@ -64,5 +64,5 @@ extends Resource
 @export var break_per_sqrt_radius: float = 0.5
 @export var piece_lifetime: float = 100.0
 @export var piece_min_radius: float = 5.0
-@export var piece_spread: float = 0.7
+@export var piece_spread: float = 1.0
 @export var piece_scatter: float = 5.0 / 3.0

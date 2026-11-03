@@ -42,3 +42,14 @@ func test_rim_direction_follows_the_canvas_rotation():
 	assert_almost_eq(got.x, want.x, 1e-5)
 	assert_almost_eq(got.y, want.y, 1e-5)
 
+
+func test_piece_material_boosts_and_others_do_not():
+	var layer := _synced(Layer3D.new(true))
+	assert_almost_eq(layer.piece.get_shader_parameter("piece_boost"), Style.PIECE_BOOST, 1e-6)
+	assert_almost_eq(Style.PIECE_BOOST, 2.5, 1e-6)
+	assert_eq(layer.piece.shader, Layer3D.SOLID)
+	assert_ne(layer.piece.get_shader_parameter("incl_on"), true)
+	for m in [layer.solid, layer.asteroid]:
+		var b = m.get_shader_parameter("piece_boost")
+		assert_true(b == null or b == 1.0)
+
