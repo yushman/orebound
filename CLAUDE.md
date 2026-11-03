@@ -17,3 +17,11 @@ Godot 4.7 2D game; stage 0 skeleton with placeholder ship and stub modules.
 - GUT 9.x is vendored in `addons/gut` and enabled as a plugin; tests live in `res://tests` as `test_*.gd` (`.gutconfig.json`, subdirs included).
 - Command: `godot --headless --import && godot --headless -s addons/gut/gut_cmdln.gd -gconfig=res://.gutconfig.json -gexit`. The import step is required: on a clean checkout `.godot/` (class_name cache) is missing and headless GUT fails.
 - `godot` must be on PATH.
+
+## Visual changes
+When a change touches visuals (look of objects, shaders, effects):
+1. Ask (AskUserQuestion) whether we switch to visual editing.
+2. Ask whether a web preview is needed.
+3. If yes, make the changes first in a web preview scene (opened locally, never on claude.ai).
+4. If not, or once the web preview is done, create a temporary Godot scene with only the objects whose look is being changed and iterate there, bypassing the SDD and TDD flow (no specs, no tests).
+5. Only after the user accepts the look, apply it to the main project and scenes through the normal flow, with tests and specs.
