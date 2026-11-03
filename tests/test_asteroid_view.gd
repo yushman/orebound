@@ -189,3 +189,84 @@ func test_asteroid_instances_use_the_ore_look_with_a_type_pass_twin():
 	for twin in v._twins:
 		assert_false(twin.visible, "twins hide with their instance")
 
+
+func _placed_with_target(ratio: float, phase := 1.0):
+	var v = add_child_autofree(AsteroidViewScript.new())
+	var pos := _spot()
+	v.refresh(pos, 10.0)
+	assert_gt(v.shown.size(), 1)
+	var a: Dictionary = v.shown[1]
+	var hit: Vector2 = a["pos"] + Vector2(a["radius"] * 0.5, 0.0)
+	v.shake_phase = phase
+	v.set_target(a["key"], ratio, hit)
+	v.layer.sync(v)
+	v.place()
+	return [v, a, hit]
+
+
+func test_beam_target_asteroid_gets_the_crack_material_and_its_hit_point_in_object_space():
+	var r = _placed_with_target(0.6)
+	var v = r[0]
+	var a: Dictionary = r[1]
+	var hit: Vector2 = r[2]
+	var m: ShaderMaterial = v.layer.target
+	assert_eq(v._pool[1].material_override, m)
+	assert_almost_eq(m.get_shader_parameter("crack_ratio"), 0.6, 1e-6)
+	assert_almost_eq(m.get_shader_parameter("crack_radius"), a["radius"], 1e-4)
+	var local: Vector3 = v.transform_of(a).affine_inverse() * v.layer.to_3d(hit)
+	var origin: Vector2 = m.get_shader_parameter("crack_origin")
+	assert_almost_eq(origin.x, local.x, 1e-3)
+	assert_almost_eq(origin.y, local.y, 1e-3)
+	assert_almost_eq(origin.length(), a["radius"] * 0.5, 1e-2, "hit point is relative to the rock centre")
+	for i in v.shown.size():
+		if i != 1:
+			assert_eq(v._pool[i].material_override, v.layer.asteroid, "other asteroids keep the asteroid look")
+	assert_eq(v._twins[1].transform, v._pool[1].transform, "the rim twin shakes with the target")
+
+
+func test_beam_target_shakes_with_the_ratio_and_not_at_zero():
+	var r = _placed_with_target(0.5)
+	var v = r[0]
+	var a: Dictionary = r[1]
+	var s: Vector2 = AsteroidViewScript.shake_offset(0.5, 1.0)
+	assert_gt(s.length(), 0.0)
+	var d: Vector3 = v._pool[1].transform.origin - v.transform_of(a).origin
+	assert_almost_eq(d.x, s.x, 0.02, "float32 at world scale")
+	assert_almost_eq(d.y, -s.y, 0.02)
+	assert_eq(v._pool[0].transform, v.transform_of(v.shown[0]), "other asteroids do not shake")
+	var s1: Vector2 = AsteroidViewScript.shake_offset(1.0, 1.0)
+	assert_almost_eq(s1.length(), 2.0 * s.length(), 1e-4, "offset grows with the ratio")
+	assert_almost_eq(s1.x, Style.SHAKE_PX_MAX * sin(1.0), 1e-5)
+	assert_almost_eq(s1.y, Style.SHAKE_PX_MAX * sin(1.37), 1e-5)
+	assert_eq(AsteroidViewScript.shake_offset(0.0, 1.0), Vector2.ZERO)
+
+
+func test_ratio_zero_leaves_every_asteroid_unchanged():
+	var r = _placed_with_target(0.0)
+	var v = r[0]
+	for i in v.shown.size():
+		assert_eq(v._pool[i].material_override, v.layer.asteroid)
+		assert_eq(v._pool[i].transform, v.transform_of(v.shown[i]))
+
+
+func test_view_reads_the_target_from_the_beam_view():
+	var holder: Node2D = add_child_autofree(Node2D.new())
+	var beam := BeamView.new()
+	beam.name = "BeamView"
+	holder.add_child(beam)
+	var v = AsteroidViewScript.new()
+	holder.add_child(v)
+	beam.ratio = 0.4
+	beam.target_key = Vector3i(1, 2, 3)
+	beam.has_hit = true
+	beam.end = Vector2(5, 6)
+	var phase: float = v.shake_phase
+	v._process(0.1)
+	assert_eq(v.target_key, Vector3i(1, 2, 3))
+	assert_almost_eq(v.target_ratio, 0.4, 1e-6)
+	assert_eq(v.target_hit, Vector2(5, 6))
+	assert_almost_eq(v.shake_phase - phase, TAU * lerpf(Style.SHAKE_HZ_MIN, Style.SHAKE_HZ_MAX, 0.4) * 0.1, 1e-4)
+	beam.ratio = 0.0
+	beam.target_key = null
+	v._process(0.1)
+	assert_almost_eq(v.target_ratio, 0.0, 1e-6)

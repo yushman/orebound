@@ -41,7 +41,23 @@ const EDGE_DARK_COLOR := Color("000000")
 const EDGE_DARK_STRENGTH := 0.5
 const EDGE_DARK_PX := 2.0
 const EDGE_DARK_LIT_ONLY := true
-
+## Sawing cracks on the beam target (`apply_crack`, `solid.gdshader`
+## crack_*): front radius at ratio 1 as a fraction of the radius, Voronoi
+## cells across the radius, share of cell borders kept, line warp in cell
+## units, core width and glow falloff in screen px, glow opacity, type colour
+## multiplier. Shake of the target: per-axis amplitude at ratio 1 in screen
+## px, frequency at ratio 0+ and at ratio 1.
+const CRACK_REACH := 0.9
+const CRACK_CELLS := 5.0
+const CRACK_BRANCHES := 0.45
+const CRACK_JAG := 0.35
+const CRACK_PX := 1.5
+const CRACK_GLOW := 3.0
+const CRACK_GLOW_ALPHA := 0.5
+const CRACK_BOOST := 1.6
+const SHAKE_PX_MAX := 3.0
+const SHAKE_HZ_MIN := 6.0
+const SHAKE_HZ_MAX := 24.0
 
 
 static func apply(m: ShaderMaterial) -> void:
@@ -78,6 +94,17 @@ static func apply_ore(m: ShaderMaterial) -> void:
 	m.set_shader_parameter("dark_color", _rgb(EDGE_DARK_COLOR))
 	m.set_shader_parameter("dark_px", EDGE_DARK_PX)
 	m.set_shader_parameter("dark_lit_only", EDGE_DARK_LIT_ONLY)
+
+
+static func apply_crack(m: ShaderMaterial) -> void:
+	m.set_shader_parameter("crack_reach", CRACK_REACH)
+	m.set_shader_parameter("crack_cells", CRACK_CELLS)
+	m.set_shader_parameter("crack_branches", CRACK_BRANCHES)
+	m.set_shader_parameter("crack_jag", CRACK_JAG)
+	m.set_shader_parameter("crack_px", CRACK_PX)
+	m.set_shader_parameter("crack_glow", CRACK_GLOW)
+	m.set_shader_parameter("crack_glow_alpha", CRACK_GLOW_ALPHA)
+	m.set_shader_parameter("crack_boost", CRACK_BOOST)
 
 
 static func _rgb(c: Color) -> Vector3:

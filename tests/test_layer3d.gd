@@ -53,3 +53,44 @@ func test_piece_material_boosts_and_others_do_not():
 		var b = m.get_shader_parameter("piece_boost")
 		assert_true(b == null or b == 1.0)
 
+
+func test_target_material_is_the_asteroid_look_plus_crack_constants():
+	var layer := _synced(Layer3D.new(true))
+	var m := layer.target
+	assert_eq(m.shader, Layer3D.SOLID)
+	assert_true(m.get_shader_parameter("incl_on"), "target keeps the ore look")
+	assert_almost_eq(m.get_shader_parameter("dark_strength"), Style.EDGE_DARK_STRENGTH, 1e-6)
+	assert_almost_eq(m.get_shader_parameter("crack_ratio"), 0.0, 1e-6)
+	var want := {
+		"crack_reach": Style.CRACK_REACH, "crack_cells": Style.CRACK_CELLS,
+		"crack_branches": Style.CRACK_BRANCHES, "crack_jag": Style.CRACK_JAG,
+		"crack_px": Style.CRACK_PX, "crack_glow": Style.CRACK_GLOW,
+		"crack_glow_alpha": Style.CRACK_GLOW_ALPHA, "crack_boost": Style.CRACK_BOOST,
+	}
+	for k in want:
+		assert_almost_eq(m.get_shader_parameter(k), want[k], 1e-6, k)
+	for m2 in [layer.solid, layer.asteroid, layer.piece]:
+		var r = m2.get_shader_parameter("crack_ratio")
+		assert_true(r == null or r == 0.0, "no crack outside the target")
+
+
+func test_style_crack_and_shake_defaults():
+	assert_almost_eq(Style.CRACK_REACH, 0.9, 1e-6)
+	assert_almost_eq(Style.CRACK_CELLS, 5.0, 1e-6)
+	assert_almost_eq(Style.CRACK_BRANCHES, 0.45, 1e-6)
+	assert_almost_eq(Style.CRACK_JAG, 0.35, 1e-6)
+	assert_almost_eq(Style.CRACK_PX, 1.5, 1e-6)
+	assert_almost_eq(Style.CRACK_GLOW, 3.0, 1e-6)
+	assert_almost_eq(Style.CRACK_GLOW_ALPHA, 0.5, 1e-6)
+	assert_almost_eq(Style.CRACK_BOOST, 1.6, 1e-6)
+	assert_almost_eq(Style.SHAKE_PX_MAX, 3.0, 1e-6)
+	assert_almost_eq(Style.SHAKE_HZ_MIN, 6.0, 1e-6)
+	assert_almost_eq(Style.SHAKE_HZ_MAX, 24.0, 1e-6)
+
+
+func test_solid_shader_declares_the_crack_uniforms():
+	var names := []
+	for u in Layer3D.SOLID.get_shader_uniform_list():
+		names.append(u["name"])
+	for k in ["crack_ratio", "crack_origin", "crack_radius", "crack_seed", "crack_reach", "crack_cells", "crack_branches", "crack_jag", "crack_px", "crack_glow", "crack_glow_alpha", "crack_boost"]:
+		assert_has(names, k)

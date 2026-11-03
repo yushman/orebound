@@ -17,6 +17,48 @@ var layer := Layer3D.new(true)
 var _meshes := {}
 var _pool: Array[MeshInstance3D] = []
 var _twins: Array[MeshInstance3D] = []
+## Beam target (`BeamView.target_key`, `ratio`, hit point `end`): drawn
+## with `layer.target` (cracks) and shaken while the ratio is above 0.
+var target_key = null
+var target_ratio := 0.0
+var target_hit := Vector2.ZERO
+var shake_phase := 0.0
+
+
+## Shake offset of the beam target in screen px (y down); 0 at ratio 0.
+static func shake_offset(ratio: float, phase: float) -> Vector2:
+	return ratio * Style.SHAKE_PX_MAX * Vector2(sin(phase), sin(phase * 1.37))
+
+
+## Shake phase advanced by `delta` at the ratio's frequency.
+static func advance_shake(phase: float, ratio: float, delta: float) -> float:
+	return fmod(phase + TAU * lerpf(Style.SHAKE_HZ_MIN, Style.SHAKE_HZ_MAX, ratio) * delta, TAU * 100.0)
+
+
+## Shake of `ratio` / `phase` as a layer-space offset (screen px through
+## the canvas transform of `ci`).
+static func shake_3d(ci: CanvasItem, ratio: float, phase: float) -> Vector3:
+	var d := ci.get_viewport().get_canvas_transform().affine_inverse().basis_xform(shake_offset(ratio, phase))
+	return Vector3(d.x, -d.y, 0.0)
+
+
+static func same_key(a, b) -> bool:
+	return a != null and b != null and typeof(a) == typeof(b) and a == b
+
+
+## Pushes the crack uniforms of `m` for a target at object-space hit point
+## `origin`; `seed_` picks the crack pattern.
+static func push_crack(m: ShaderMaterial, ratio: float, origin: Vector2, radius: float, seed_: int) -> void:
+	m.set_shader_parameter("crack_ratio", ratio)
+	m.set_shader_parameter("crack_origin", origin)
+	m.set_shader_parameter("crack_radius", radius)
+	m.set_shader_parameter("crack_seed", fmod(absf(float(seed_)) * 0.618034, 97.0))
+
+
+func set_target(key, ratio: float, hit: Vector2) -> void:
+	target_key = key
+	target_ratio = ratio
+	target_hit = hit
 
 
 static func color_of(type: StringName) -> Color:
@@ -30,10 +72,16 @@ func _ready() -> void:
 	Tuning.preset_applied.connect(func(): _meshes = {})
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var ship := get_node_or_null("../Ship")
 	if ship != null:
 		refresh(ship.state.pos, GravityField.time(), ship.state.broken)
+	var beam := get_node_or_null("../BeamView")
+	if beam != null and beam.has_hit:
+		set_target(beam.target_key, beam.ratio, beam.end)
+	else:
+		set_target(null, 0.0, Vector2.ZERO)
+	shake_phase = advance_shake(shake_phase, target_ratio, delta)
 	queue_redraw()
 
 
@@ -88,6 +136,12 @@ func place() -> void:
 		_pool[i].mesh = mesh_of(a)
 		kept[a["key"]] = [a["points"], a["color"], _pool[i].mesh]
 		_pool[i].transform = transform_of(a)
+		_pool[i].material_override = layer.asteroid
+		if target_ratio > 0.0 and same_key(a["key"], target_key):
+			var local: Vector3 = _pool[i].transform.affine_inverse() * layer.to_3d(target_hit)
+			push_crack(layer.target, target_ratio, Vector2(local.x, local.y), a["radius"], hash(a["key"]))
+			_pool[i].material_override = layer.target
+			_pool[i].transform.origin += shake_3d(self, target_ratio, shake_phase)
 		_pool[i].visible = true
 		_twins[i].mesh = _pool[i].mesh
 		_twins[i].transform = _pool[i].transform

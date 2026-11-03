@@ -97,3 +97,54 @@ func test_large_pieces_get_the_ore_look_small_pieces_and_containers_do_not():
 	v.place()
 	assert_eq(v._pool[0].material_override, v.layer.asteroid)
 
+
+func test_large_piece_targeted_by_the_beam_gets_the_crack_material_and_shakes():
+	var v = add_child_autofree(ViewScript.new())
+	var cr: float = Tuning.planet.collect_radius
+	var hit_one := _piece(cr * 2.0, 1)
+	var other := _piece(cr * 2.0, 2)
+	var bodies: Array[FreeBody] = [hit_one, other]
+	v.refresh(bodies)
+	var hit := hit_one.pos + Vector2(0.0, cr)
+	v.shake_phase = 1.0
+	v.set_target(hit_one.id, 0.5, hit)
+	v.layer.sync(v)
+	v.place()
+	var m: ShaderMaterial = v.layer.target
+	assert_eq(v._pool[0].material_override, m)
+	assert_almost_eq(m.get_shader_parameter("crack_ratio"), 0.5, 1e-6)
+	var base: Transform3D = v.transform_of(hit_one, v.mesh_of(hit_one)[1])
+	var local: Vector3 = base.affine_inverse() * v.layer.to_3d(hit)
+	var origin: Vector2 = m.get_shader_parameter("crack_origin")
+	assert_almost_eq(origin.x, local.x, 1e-3)
+	assert_almost_eq(origin.y, local.y, 1e-3)
+	var s: Vector2 = AsteroidView.shake_offset(0.5, 1.0)
+	var d: Vector3 = v._pool[0].transform.origin - base.origin
+	assert_almost_eq(d.x, s.x, 1e-3)
+	assert_almost_eq(d.y, -s.y, 1e-3)
+	assert_eq(v._twins[0].transform, v._pool[0].transform, "the rim twin shakes with the piece")
+	assert_eq(v._pool[1].material_override, v.layer.asteroid, "untargeted large piece keeps the asteroid look")
+	assert_eq(v._pool[1].transform, v.transform_of(other, v.mesh_of(other)[1]))
+	v.set_target(hit_one.id, 0.0, hit)
+	v.place()
+	assert_eq(v._pool[0].material_override, v.layer.asteroid, "ratio 0 changes nothing")
+	assert_eq(v._pool[0].transform, base)
+
+
+func test_view_reads_the_target_from_the_beam_view():
+	var holder: Node2D = add_child_autofree(Node2D.new())
+	var beam := BeamView.new()
+	beam.name = "BeamView"
+	holder.add_child(beam)
+	var v = ViewScript.new()
+	holder.add_child(v)
+	beam.ratio = 0.3
+	beam.target_key = 42
+	beam.has_hit = true
+	beam.end = Vector2(7, 8)
+	var phase: float = v.shake_phase
+	v._process(0.1)
+	assert_eq(v.target_key, 42)
+	assert_almost_eq(v.target_ratio, 0.3, 1e-6)
+	assert_eq(v.target_hit, Vector2(7, 8))
+	assert_almost_eq(v.shake_phase - phase, TAU * lerpf(Style.SHAKE_HZ_MIN, Style.SHAKE_HZ_MAX, 0.3) * 0.1, 1e-4)

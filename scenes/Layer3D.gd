@@ -25,6 +25,9 @@ var origin := Vector2.ZERO
 var solid := ShaderMaterial.new()
 var asteroid := ShaderMaterial.new()
 var piece := ShaderMaterial.new()
+## `asteroid` plus the crack uniforms: the one beam target (the owner sets
+## crack_ratio / crack_origin / crack_radius / crack_seed per frame).
+var target := ShaderMaterial.new()
 var type_view: SubViewport
 var type_camera: Camera3D
 var type_material := ShaderMaterial.new()
@@ -40,11 +43,13 @@ func _init(rim := false) -> void:
 	render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	_setup_camera(camera, MAIN_LAYER)
 	add_child(camera)
-	for m in [solid, asteroid, piece]:
+	for m in [solid, asteroid, piece, target]:
 		m.shader = SOLID
 		m.set_shader_parameter("light", light_3d())
 		m.set_shader_parameter("shade_factor", Palette.SHADE_FACTOR)
 	piece.set_shader_parameter("piece_boost", Style.PIECE_BOOST)
+	target.set_shader_parameter("crack_ratio", 0.0)
+	Style.apply_crack(target)
 	blit_material.shader = SILHOUETTE
 	blit_material.set_shader_parameter("rim_on", rim)
 	if rim:
@@ -100,6 +105,8 @@ func sync(canvas: CanvasItem) -> void:
 	Style.apply(asteroid)
 	Style.apply(piece)
 	Style.apply_ore(asteroid)
+	Style.apply(target)
+	Style.apply_ore(target)
 	Style.apply(blit_material)
 	Style.apply(_edge_material)
 	_edges.visible = Tuning.view.style_outline

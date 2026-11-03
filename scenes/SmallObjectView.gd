@@ -14,6 +14,12 @@ var _own := false
 var _meshes := {}
 var _pool: Array[MeshInstance3D] = []
 var _twins: Array[MeshInstance3D] = []
+## Beam target as in `AsteroidView`: a large piece whose id is the
+## `BeamView.target_key` gets `layer.target` and shakes.
+var target_key = null
+var target_ratio := 0.0
+var target_hit := Vector2.ZERO
+var shake_phase := 0.0
 
 
 func _ready() -> void:
@@ -28,10 +34,16 @@ func _ready() -> void:
 		_own = true
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var ship := get_node_or_null("../Ship")
 	if ship != null:
 		refresh(ship.state.bodies)
+	var beam := get_node_or_null("../BeamView")
+	if beam != null and beam.has_hit:
+		set_target(beam.target_key, beam.ratio, beam.end)
+	else:
+		set_target(null, 0.0, Vector2.ZERO)
+	shake_phase = AsteroidView.advance_shake(shake_phase, target_ratio, delta)
 	queue_redraw()
 
 
@@ -39,6 +51,12 @@ func refresh(bodies: Array[FreeBody]) -> void:
 	shown = []
 	for b in bodies:
 		shown.append({"body": b, "points": b.points, "pos": b.pos, "color": AsteroidView.color_of(b.type)})
+
+
+func set_target(key, ratio: float, hit: Vector2) -> void:
+	target_key = key
+	target_ratio = ratio
+	target_hit = hit
 
 
 ## Not a container and born above `collect_radius`.
@@ -91,6 +109,11 @@ func place() -> void:
 		_pool[i].mesh = c[0]
 		_pool[i].material_override = layer.asteroid if large else (layer.solid if b.container else layer.piece)
 		_pool[i].transform = transform_of(b, c[1])
+		if large and target_ratio > 0.0 and AsteroidView.same_key(b.id, target_key):
+			var local: Vector3 = _pool[i].transform.affine_inverse() * layer.to_3d(target_hit, LIFT_Z)
+			AsteroidView.push_crack(layer.target, target_ratio, Vector2(local.x, local.y), c[1], b.id)
+			_pool[i].material_override = layer.target
+			_pool[i].transform.origin += AsteroidView.shake_3d(self, target_ratio, shake_phase)
 		_pool[i].visible = true
 		_twins[i].mesh = c[0]
 		_twins[i].transform = _pool[i].transform
