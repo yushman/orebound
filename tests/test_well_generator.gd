@@ -342,3 +342,44 @@ func test_tiers_result_is_read_only():
 	var t: Dictionary = WellGenerator.tiers()
 	assert_true(t.is_read_only())
 	assert_true(t["boundaries"].is_read_only())
+
+
+func test_moons_of_one_flight_get_distinct_archetypes_up_to_four_moons():
+	for s in 40:
+		var pic: Dictionary = WellGenerator._build(s, 1)
+		var arch: Array = pic["archetypes"]
+		assert_eq(arch.size(), pic["moons"].size())
+		var seen := {}
+		for a in arch:
+			assert_between(a, 0, WellGenerator.MOON_ARCHETYPES - 1)
+			seen[a] = true
+		if arch.size() <= 4:
+			assert_eq(seen.size(), arch.size(), "distinct for seed %d" % s)
+
+
+func test_archetypes_are_deterministic_per_seed_and_flight():
+	assert_eq(WellGenerator._build(5, 1)["archetypes"], WellGenerator._build(5, 1)["archetypes"])
+	var differs := false
+	for f in range(2, 12):
+		if WellGenerator._build(5, f)["archetypes"] != WellGenerator._build(5, 1)["archetypes"]:
+			differs = true
+	assert_true(differs, "flight changes the draw")
+
+
+func test_archetype_draw_leaves_moons_and_ring_unchanged():
+	var pic: Dictionary = WellGenerator._build(5, 1)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([5, 1])
+	var pl: PlanetParams = Tuning.planet
+	var b: Array[float] = WellGenerator.tiers()["boundaries"]
+	var n := maxi(1, rng.randi_range(pl.moon_count_min, pl.moon_count_max))
+	var moons: Array[BodyParams] = [WellGenerator._moon(rng, pl.moon_large_radius_min, pl.moon_large_radius_max, b[3], b[4])]
+	for i in n - 1:
+		moons.append(WellGenerator._moon(rng, pl.moon_small_radius_min, pl.moon_small_radius_max, b[1], b[3]))
+	assert_eq(pic["ring"], WellGenerator._ring(rng, b, moons))
+	for i in n:
+		assert_eq(pic["moons"][i].orbit_radius, moons[i].orbit_radius)
+
+
+func test_style_archetype_rows_match_generator_count():
+	assert_eq(Style.MOON_ARCHETYPES.size(), WellGenerator.MOON_ARCHETYPES)

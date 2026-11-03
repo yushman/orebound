@@ -47,6 +47,23 @@ func _process(_delta: float) -> void:
 	_visual.scale = Vector2(k, k)
 	_material.set_shader_parameter("seed", surface_seed(Tuning.picture, index))
 	Style.apply(_material)
+	if index > 0:
+		var arch: Array = Tuning.picture.get("archetypes", [])
+		Style.apply_moon(_material, arch[index - 1] if index - 1 < arch.size() else 0)
+		_apply_motion()
+
+
+func _apply_motion() -> void:
+	var pic := Tuning.picture
+	var h := posmod(hash([pic.get("seed", 0), pic.get("flight", 0), index, "spin"]), 1000) / 1000.0
+	var speed := Style.MOON_SPIN_SPEED * (1.0 + Style.MOON_SPIN_VARIATION * (2.0 * h - 1.0))
+	var axis := Vector3(0.0, -cos(Style.MOON_SPIN_TILT), sin(Style.MOON_SPIN_TILT))
+	_material.set_shader_parameter("spin", Basis(axis, speed * GravityField.time()))
+	var to_planet := (GravityField.body_pos(0, GravityField.time()) - position).normalized()
+	_material.set_shader_parameter("planet_dir", Vector3(to_planet.x, to_planet.y, Style.MOON_EARTHSHINE_ELEVATION))
+	_material.set_shader_parameter("earth_strength", Style.MOON_EARTHSHINE_STRENGTH)
+	_material.set_shader_parameter("earth_color", Palette.OBOD_ACCENT)
+	_material.set_shader_parameter("earth_falloff", Style.MOON_EARTHSHINE_FALLOFF)
 
 
 static func surface_seed(picture: Dictionary, i: int) -> float:

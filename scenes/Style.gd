@@ -22,6 +22,42 @@ const MOON_CRATER_DENSITY := 0.6
 const MOON_CRATER_DEPTH := 0.25
 const MOON_CRATER_RIM := 0.08
 const MOON_CRATER_BUMP := 1.0
+## Moon archetypes (grey, ice, basalt, rust), indexed by the generator's
+## `picture["archetypes"]`. lit: lit colour, alt: blotch colour, craters:
+## crater density multiplier, maria: coverage multiplier, rays: ray crater
+## count, lineae: crack strength, blotch: albedo blotch strength.
+const MOON_ARCHETYPES := [
+	{"lit": Palette.MOON, "alt": Palette.MOON, "craters": 1.0, "maria": 1.0, "rays": 2, "lineae": 0.0, "blotch": 0.0},
+	{"lit": Palette.MOON_ICE, "alt": Palette.MOON_ICE, "craters": 0.35, "maria": 0.0, "rays": 1, "lineae": 0.6, "blotch": 0.0},
+	{"lit": Palette.MOON_BASALT, "alt": Palette.MOON_BASALT, "craters": 0.8, "maria": 2.0, "rays": 1, "lineae": 0.0, "blotch": 0.0},
+	{"lit": Palette.MOON_RUST, "alt": Palette.MOON_RUST_ALT, "craters": 0.6, "maria": 0.3, "rays": 0, "lineae": 0.0, "blotch": 0.6},
+]
+const MOON_BLOTCH_SCALE := 2.5
+const MOON_BLOTCH_DARK := 0.3
+const MOON_LINEAE_SCALE := 3.0
+const MOON_LINEAE_PX := 1.2
+const MOON_LINEAE_DARK := 0.5
+const MOON_LINEAE_BRIGHT := 0.35
+const MOON_MARIA_SCALE := 1.6
+const MOON_MARIA_COVERAGE := 0.35
+const MOON_MARIA_DARKNESS := 0.35
+const MOON_MARIA_SOFTNESS := 0.05
+const MOON_MARIA_SUPPRESS := 0.85
+const MOON_RAY_CRATER_SIZE := 0.08
+const MOON_RAY_LENGTH := 0.5
+const MOON_RAY_RAYS := 12
+const MOON_RAY_WIDTH := 0.06
+const MOON_RAY_BRIGHTNESS := 0.5
+## Spin about a tilted screen-up axis: rad/s, per-moon speed spread (+- share),
+## axis tilt toward the viewer (rad).
+const MOON_SPIN_SPEED := 0.08
+const MOON_SPIN_VARIATION := 0.5
+const MOON_SPIN_TILT := 0.4
+## Earthshine on the dark side: strength, falloff exponent, z of the planet
+## direction (toward the viewer).
+const MOON_EARTHSHINE_STRENGTH := 0.12
+const MOON_EARTHSHINE_FALLOFF := 1.5
+const MOON_EARTHSHINE_ELEVATION := 0.3
 ## Asteroid ore look (`apply_ore`, the `Layer3D` rim): inner dome ring
 ## vertices of decimated rocks, share of top facets that are ore inclusions
 ## and the chance an inclusion grows from a neighbour; the grey of the other
@@ -82,6 +118,33 @@ static func apply_craters(m: ShaderMaterial) -> void:
 	m.set_shader_parameter("crater_depth", MOON_CRATER_DEPTH)
 	m.set_shader_parameter("crater_rim", MOON_CRATER_RIM)
 	m.set_shader_parameter("crater_bump", MOON_CRATER_BUMP)
+
+
+static func apply_moon(m: ShaderMaterial, archetype: int) -> void:
+	var row: Dictionary = MOON_ARCHETYPES[archetype] if archetype >= 0 and archetype < MOON_ARCHETYPES.size() else MOON_ARCHETYPES[0]
+	m.set_shader_parameter("lit_color", row["lit"])
+	m.set_shader_parameter("dark_color", Palette.shade(row["lit"]))
+	m.set_shader_parameter("crater_density", clampf(MOON_CRATER_DENSITY * row["craters"], 0.0, 1.0))
+	m.set_shader_parameter("blotch", row["blotch"])
+	m.set_shader_parameter("blotch_color", row["alt"])
+	m.set_shader_parameter("blotch_scale", MOON_BLOTCH_SCALE)
+	m.set_shader_parameter("blotch_dark", MOON_BLOTCH_DARK)
+	m.set_shader_parameter("lineae", row["lineae"])
+	m.set_shader_parameter("lineae_scale", MOON_LINEAE_SCALE)
+	m.set_shader_parameter("lineae_px", MOON_LINEAE_PX)
+	m.set_shader_parameter("lineae_dark", MOON_LINEAE_DARK)
+	m.set_shader_parameter("lineae_bright", MOON_LINEAE_BRIGHT)
+	m.set_shader_parameter("maria_coverage", MOON_MARIA_COVERAGE * row["maria"])
+	m.set_shader_parameter("maria_scale", MOON_MARIA_SCALE)
+	m.set_shader_parameter("maria_darkness", MOON_MARIA_DARKNESS)
+	m.set_shader_parameter("maria_softness", MOON_MARIA_SOFTNESS)
+	m.set_shader_parameter("maria_suppress", MOON_MARIA_SUPPRESS)
+	m.set_shader_parameter("ray_craters", row["rays"])
+	m.set_shader_parameter("ray_crater_size", MOON_RAY_CRATER_SIZE)
+	m.set_shader_parameter("ray_length", MOON_RAY_LENGTH)
+	m.set_shader_parameter("ray_rays", MOON_RAY_RAYS)
+	m.set_shader_parameter("ray_width", MOON_RAY_WIDTH)
+	m.set_shader_parameter("ray_brightness", MOON_RAY_BRIGHTNESS)
 
 
 static func apply_ore(m: ShaderMaterial) -> void:

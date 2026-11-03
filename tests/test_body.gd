@@ -111,3 +111,86 @@ func test_moon_disc_uses_fewer_points_than_the_planet_disc() -> void:
 	var mv: Polygon2D = moon.get_node("Visual")
 	assert_lt(mv.polygon.size(), pv.polygon.size(), "moon disc is coarser")
 	assert_gte(mv.polygon.size(), 32, "moon still round")
+
+
+func _moon_body(i: int, archetypes: Array, picture_seed := 3) -> Node:
+	var f := _field_with_moon()
+	f.bodies[1].radius = 500.0
+	Tuning.field = f
+	Tuning.picture = {"seed": picture_seed, "flight": 1, "moons": [], "ring": {}, "archetypes": archetypes}
+	var body = load("res://scenes/Body.tscn").instantiate()
+	body.index = i
+	add_child_autofree(body)
+	body._process(0.0)
+	return body
+
+
+func test_moon_takes_lit_colour_and_crater_density_from_its_picture_archetype() -> void:
+	for a in Style.MOON_ARCHETYPES.size():
+		var row: Dictionary = Style.MOON_ARCHETYPES[a]
+		var mat: ShaderMaterial = _moon_body(1, [a]).get_node("Visual").material
+		assert_eq(mat.get_shader_parameter("lit_color"), row["lit"], "lit %d" % a)
+		assert_eq(mat.get_shader_parameter("dark_color"), Palette.shade(row["lit"]))
+		assert_almost_eq(mat.get_shader_parameter("crater_density"), clampf(Style.MOON_CRATER_DENSITY * row["craters"], 0.0, 1.0), 1e-6)
+		assert_almost_eq(mat.get_shader_parameter("maria_coverage"), Style.MOON_MARIA_COVERAGE * row["maria"], 1e-6)
+		assert_eq(mat.get_shader_parameter("ray_craters"), row["rays"])
+		assert_eq(mat.get_shader_parameter("lineae"), row["lineae"])
+		assert_eq(mat.get_shader_parameter("blotch"), row["blotch"])
+		assert_eq(mat.get_shader_parameter("blotch_color"), row["alt"])
+	assert_eq(Style.MOON_ARCHETYPES[1]["lit"], Palette.MOON_ICE)
+	assert_eq(Style.MOON_ARCHETYPES[3]["alt"], Palette.MOON_RUST_ALT)
+
+
+func test_moon_without_archetypes_falls_back_to_grey() -> void:
+	var mat: ShaderMaterial = _moon_body(1, []).get_node("Visual").material
+	assert_eq(mat.get_shader_parameter("lit_color"), Palette.MOON)
+
+
+func test_moon_gets_shared_look_knobs() -> void:
+	var mat: ShaderMaterial = _moon_body(1, [0]).get_node("Visual").material
+	assert_eq(mat.get_shader_parameter("maria_scale"), Style.MOON_MARIA_SCALE)
+	assert_eq(mat.get_shader_parameter("ray_rays"), Style.MOON_RAY_RAYS)
+	assert_eq(mat.get_shader_parameter("lineae_px"), Style.MOON_LINEAE_PX)
+	assert_eq(mat.get_shader_parameter("blotch_scale"), Style.MOON_BLOTCH_SCALE)
+
+
+func test_planet_material_has_no_moon_uniforms() -> void:
+	var mat: ShaderMaterial = _moon_body(0, [1]).get_node("Visual").material
+	for u in ["maria_coverage", "ray_craters", "lineae", "blotch", "spin", "earth_strength", "crater_density"]:
+		assert_null(mat.get_shader_parameter(u), u)
+
+
+func test_moon_spin_angle_follows_game_time_at_seeded_speed() -> void:
+	var body := _moon_body(1, [0])
+	var mat: ShaderMaterial = body.get_node("Visual").material
+	var h := posmod(hash([3, 1, 1, "spin"]), 1000) / 1000.0
+	var speed := Style.MOON_SPIN_SPEED * (1.0 + Style.MOON_SPIN_VARIATION * (2.0 * h - 1.0))
+	assert_between(speed, Style.MOON_SPIN_SPEED * (1.0 - Style.MOON_SPIN_VARIATION), Style.MOON_SPIN_SPEED * (1.0 + Style.MOON_SPIN_VARIATION))
+	GravityField.tick = 600
+	body._process(0.0)
+	var t := GravityField.time()
+	assert_gt(t, 0.0)
+	var expected := Basis(Vector3(0.0, -cos(Style.MOON_SPIN_TILT), sin(Style.MOON_SPIN_TILT)).normalized(), speed * t)
+	var got: Basis = mat.get_shader_parameter("spin")
+	assert_true(got.is_equal_approx(expected), "spin basis %s vs %s" % [got, expected])
+	GravityField.tick = 1200
+	body._process(0.0)
+	var t2 := GravityField.time()
+	expected = Basis(Vector3(0.0, -cos(Style.MOON_SPIN_TILT), sin(Style.MOON_SPIN_TILT)).normalized(), speed * t2)
+	assert_true((mat.get_shader_parameter("spin") as Basis).is_equal_approx(expected), "follows time")
+
+
+func test_moon_earthshine_points_to_planet() -> void:
+	var body := _moon_body(1, [0])
+	var mat: ShaderMaterial = body.get_node("Visual").material
+	GravityField.tick = 90
+	body._physics_process(0.0)
+	body._process(0.0)
+	var to_planet: Vector2 = (GravityField.body_pos(0, GravityField.time()) - body.position).normalized()
+	var d: Vector3 = mat.get_shader_parameter("planet_dir")
+	assert_almost_eq(d.x, to_planet.x, 1e-5)
+	assert_almost_eq(d.y, to_planet.y, 1e-5)
+	assert_almost_eq(d.z, Style.MOON_EARTHSHINE_ELEVATION, 1e-6)
+	assert_eq(mat.get_shader_parameter("earth_strength"), Style.MOON_EARTHSHINE_STRENGTH)
+	assert_eq(mat.get_shader_parameter("earth_color"), Palette.OBOD_ACCENT)
+	assert_eq(mat.get_shader_parameter("earth_falloff"), Style.MOON_EARTHSHINE_FALLOFF)

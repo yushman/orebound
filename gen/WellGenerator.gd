@@ -3,6 +3,7 @@ extends RefCounted
 
 const PHI_REL_TOL := 1e-9
 const MAX_ITER := 200
+const MOON_ARCHETYPES := 4
 
 
 static var _key: Array = []
@@ -90,7 +91,23 @@ static func _build(seed: int, flight: int, bounds: Array[float] = []) -> Diction
 	var moons: Array[BodyParams] = [_moon(rng, pl.moon_large_radius_min, pl.moon_large_radius_max, b[3], b[4])]
 	for i in n - 1:
 		moons.append(_moon(rng, pl.moon_small_radius_min, pl.moon_small_radius_max, b[1], b[3]))
-	return {"seed": seed, "flight": flight, "moons": moons, "ring": _ring(rng, b, moons)}
+	return {"seed": seed, "flight": flight, "moons": moons, "ring": _ring(rng, b, moons), "archetypes": _archetypes(seed, flight, n)}
+
+
+static func _archetypes(seed: int, flight: int, n: int) -> Array[int]:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([seed, flight, "archetypes"])
+	var out: Array[int] = []
+	while out.size() < n:
+		var block: Array = range(MOON_ARCHETYPES)
+		for i in range(block.size() - 1, 0, -1):
+			var j := rng.randi_range(0, i)
+			var t = block[i]
+			block[i] = block[j]
+			block[j] = t
+		out.append_array(block)
+	out.resize(n)
+	return out
 
 
 static func _ring(rng: RandomNumberGenerator, b: Array[float], moons: Array[BodyParams]) -> Dictionary:
