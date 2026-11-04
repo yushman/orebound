@@ -94,6 +94,42 @@ const CRACK_BOOST := 1.6
 const SHAKE_PX_MAX := 3.0
 const SHAKE_HZ_MIN := 6.0
 const SHAKE_HZ_MAX := 24.0
+## Planet (`planet.gdshader`, `apply_planet`). Detail: albedo octaves from
+## DETAIL_MAX down to DETAIL_MIN world units, size ratio between octaves,
+## albedo variation per octave (+-), amplitude ratio coarse -> fine, 0 smooth
+## .. 1 ridged, an octave fades in while its cell grows over FADE_PX px.
+const PLANET_DETAIL_MAX := 20000.0
+const PLANET_DETAIL_MIN := 200.0
+const PLANET_DETAIL_LACUNARITY := 2.0
+const PLANET_DETAIL_ALBEDO := 0.06
+const PLANET_DETAIL_GAIN := 0.85
+const PLANET_DETAIL_RIDGE := 0.5
+const PLANET_DETAIL_FADE_PX := Vector2(2.0, 6.0)
+## Night-side lava cracks: coarse and fine cell (world units), fine width and
+## brightness share, core width and glow falloff (px), glow, intensity, share
+## of the network that glows, night weight (1 - lit)^pow, pulse amount and
+## speed (rad/s of game time), a crack scale fades out under FADE_PX cell px.
+const PLANET_LAVA_SIZE := 2500.0
+const PLANET_LAVA_SIZE_FINE := 400.0
+const PLANET_LAVA_FINE := 0.6
+const PLANET_LAVA_WIDTH_PX := 1.5
+const PLANET_LAVA_GLOW_PX := 6.0
+const PLANET_LAVA_GLOW := 0.35
+const PLANET_LAVA_INTENSITY := 1.0
+const PLANET_LAVA_DENSITY := 0.6
+const PLANET_LAVA_NIGHT_POW := 2.0
+const PLANET_LAVA_PULSE := 0.3
+const PLANET_LAVA_PULSE_SPEED := 1.5
+const PLANET_LAVA_FADE_PX := 12.0
+## Limb haze: strength, width inside / outside the edge (world units),
+## minimum width (px), exponent of the limb's cosine to the light, extension
+## past the terminator.
+const PLANET_HAZE_STRENGTH := 0.5
+const PLANET_HAZE_IN := 600.0
+const PLANET_HAZE_OUT := 300.0
+const PLANET_HAZE_PX := 2.0
+const PLANET_HAZE_LIT_POW := 1.5
+const PLANET_HAZE_WRAP := 0.2
 
 
 static func apply(m: ShaderMaterial) -> void:
@@ -110,6 +146,31 @@ static func apply(m: ShaderMaterial) -> void:
 	m.set_shader_parameter("edge_px", EDGE_PX)
 	m.set_shader_parameter("depth_edge_min", DEPTH_EDGE_MIN)
 	m.set_shader_parameter("depth_edge_slope", DEPTH_EDGE_SLOPE)
+
+
+static func apply_planet(m: ShaderMaterial) -> void:
+	m.set_shader_parameter("detail_albedo", PLANET_DETAIL_ALBEDO)
+	m.set_shader_parameter("detail_gain", PLANET_DETAIL_GAIN)
+	m.set_shader_parameter("detail_ridge", PLANET_DETAIL_RIDGE)
+	m.set_shader_parameter("fade_px", PLANET_DETAIL_FADE_PX)
+	m.set_shader_parameter("lava", PLANET_LAVA_INTENSITY)
+	m.set_shader_parameter("lava_color", Palette.LAVA)
+	m.set_shader_parameter("lava_width_px", PLANET_LAVA_WIDTH_PX)
+	m.set_shader_parameter("lava_glow_px", PLANET_LAVA_GLOW_PX)
+	m.set_shader_parameter("lava_glow", PLANET_LAVA_GLOW)
+	m.set_shader_parameter("lava_density", PLANET_LAVA_DENSITY)
+	m.set_shader_parameter("lava_night_pow", PLANET_LAVA_NIGHT_POW)
+	m.set_shader_parameter("lava_pulse", PLANET_LAVA_PULSE)
+	m.set_shader_parameter("lava_pulse_speed", PLANET_LAVA_PULSE_SPEED)
+	m.set_shader_parameter("lava_fade_px", PLANET_LAVA_FADE_PX)
+	m.set_shader_parameter("lava_fine", PLANET_LAVA_FINE)
+	m.set_shader_parameter("haze", PLANET_HAZE_STRENGTH)
+	m.set_shader_parameter("haze_color", Palette.HAZE)
+	m.set_shader_parameter("haze_in", PLANET_HAZE_IN)
+	m.set_shader_parameter("haze_out", PLANET_HAZE_OUT)
+	m.set_shader_parameter("haze_px", PLANET_HAZE_PX)
+	m.set_shader_parameter("haze_lit_pow", PLANET_HAZE_LIT_POW)
+	m.set_shader_parameter("haze_wrap", PLANET_HAZE_WRAP)
 
 
 static func apply_craters(m: ShaderMaterial) -> void:

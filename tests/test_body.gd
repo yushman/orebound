@@ -1,5 +1,8 @@
 extends GutTest
 
+const BodyScript := preload("res://scenes/Body.gd")
+const WellViewScript := preload("res://scenes/WellView.gd")
+
 var _saved_field: FieldParams
 
 
@@ -61,22 +64,79 @@ func _zoom_to(zoom: float) -> void:
 	cam.make_current()
 
 
-func test_planet_is_disc_of_surface_radius_with_lit_half() -> void:
+func _planet_with_camera(cam_pos: Vector2, zoom: float) -> Node:
 	var f := _field_with_moon()
 	f.planet_surface_radius = 100000.0
 	Tuning.field = f
 	var body = load("res://scenes/Body.tscn").instantiate()
 	body.index = 0
 	add_child_autofree(body)
-	var visual: Polygon2D = body.get_node("Visual")
-	assert_eq(visual.material.get_shader_parameter("dark_color"), Palette.shade(Palette.OBOD_ACCENT))
-	assert_eq(visual.material.get_shader_parameter("lit_color"), Palette.OBOD_ACCENT)
-	assert_gte(visual.polygon.size(), 256, "smooth edge")
+	var cam := Camera2D.new()
+	add_child_autofree(cam)
+	cam.position = cam_pos
+	cam.zoom = Vector2(1.0 / zoom, 1.0 / zoom)
+	cam.make_current()
+	body._physics_process(0.0)
+	body._process(0.0)
+	return body
+
+
+func test_planet_visual_is_camera_centred_square_covering_the_view() -> void:
+	var cam_pos := Vector2(3000.0, -100150.0)
 	for zoom in [1.0, 40.0]:
-		_zoom_to(zoom)
-		body._process(0.0)
-		assert_almost_eq(_extent(visual.polygon) * visual.scale.x, 100000.0, 0.1, "zoom %s" % zoom)
-	assert_false(body.get_script().has_method("visual_scale"), "no constant-size marker")
+		var body := _planet_with_camera(cam_pos, zoom)
+		var visual: Polygon2D = body.get_node("Visual")
+		var mat: ShaderMaterial = visual.material
+		assert_eq(mat.shader, preload("res://shaders/planet.gdshader"), "planet shader")
+		assert_eq(mat.get_shader_parameter("lit_color"), Palette.OBOD_ACCENT)
+		assert_eq(mat.get_shader_parameter("dark_color"), Palette.shade(Palette.OBOD_ACCENT))
+		assert_eq(visual.scale, Vector2.ONE, "scale 1 at zoom %s" % zoom)
+		var centre: Vector2 = cam_pos - body.position
+		var h := WellViewScript.visible_half_extent(1.0 / zoom) * WellViewScript.VIEW_MARGIN
+		assert_eq(visual.polygon.size(), 4, "square")
+		var lo := Vector2(INF, INF)
+		var hi := -lo
+		for v in visual.polygon:
+			lo = lo.min(v)
+			hi = hi.max(v)
+		assert_almost_eq((lo + hi) * 0.5, centre, Vector2(0.01, 0.01), "centred on camera at zoom %s" % zoom)
+		assert_almost_eq(hi - lo, Vector2(2.0 * h, 2.0 * h), Vector2(0.01, 0.01), "half side at zoom %s" % zoom)
+		assert_almost_eq(mat.get_shader_parameter("cam"), centre, Vector2(0.01, 0.01))
+		assert_eq(mat.get_shader_parameter("planet_r"), 100000.0)
+
+
+func test_planet_gets_style_knobs_and_scale_table() -> void:
+	var body := _planet_with_camera(Vector2(0.0, -100150.0), 1.0)
+	var mat: ShaderMaterial = body.get_node("Visual").material
+	assert_eq(mat.get_shader_parameter("detail_count"), 7)
+	assert_almost_eq(mat.get_shader_parameter("detail_albedo"), Style.PLANET_DETAIL_ALBEDO, 1e-6)
+	assert_almost_eq(mat.get_shader_parameter("lava"), Style.PLANET_LAVA_INTENSITY, 1e-6)
+	assert_almost_eq(mat.get_shader_parameter("haze"), Style.PLANET_HAZE_STRENGTH, 1e-6)
+	assert_eq(mat.get_shader_parameter("lava_color"), Palette.LAVA)
+	assert_eq(mat.get_shader_parameter("haze_color"), Palette.HAZE)
+	assert_eq(mat.get_shader_parameter("fade_px"), Style.PLANET_DETAIL_FADE_PX)
+	var sizes: PackedFloat32Array = mat.get_shader_parameter("sc_size")
+	assert_almost_eq(sizes[0], Style.PLANET_DETAIL_MAX, 1e-3)
+	assert_almost_eq(sizes[6], Style.PLANET_DETAIL_MIN * 1.5625, 1e-3)
+	assert_almost_eq(sizes[7], Style.PLANET_LAVA_SIZE, 1e-3)
+	assert_almost_eq(sizes[8], Style.PLANET_LAVA_SIZE_FINE, 1e-3)
+	assert_almost_eq(sizes[9], Style.PLANET_LAVA_SIZE * 3.0, 1e-3)
+
+
+func test_scale_table_splits_camera_into_cell_base_and_fraction() -> void:
+	var cam := Vector2(70710.68, -70710.69)
+	var sizes := PackedFloat32Array([20000.0, 312.5, 200.0, 400.0, 7500.0])
+	var t := BodyScript.scale_table(cam, sizes)
+	var base: PackedVector2Array = t["base"]
+	var frac: PackedVector2Array = t["frac"]
+	assert_eq(base.size(), sizes.size())
+	for i in sizes.size():
+		var qx: float = cam.x / sizes[i]
+		var qy: float = cam.y / sizes[i]
+		assert_almost_eq(base[i].x + frac[i].x, qx, 1e-6, "x, size %s" % sizes[i])
+		assert_almost_eq(base[i].y + frac[i].y, qy, 1e-6, "y, size %s" % sizes[i])
+		assert_eq(base[i], Vector2(floorf(qx), floorf(qy)))
+		assert_true(frac[i].x >= 0.0 and frac[i].x < 1.0 and frac[i].y >= 0.0 and frac[i].y < 1.0, "frac in [0, 1)")
 
 
 func test_moon_is_grey_disc_with_shaded_dark_side_and_lit_half() -> void:
@@ -95,22 +155,6 @@ func test_moon_is_grey_disc_with_shaded_dark_side_and_lit_half() -> void:
 		_zoom_to(zoom)
 		body._process(0.0)
 		assert_almost_eq(_extent(visual.polygon) * visual.scale.x, 500.0, 0.01, "zoom %s" % zoom)
-
-
-func test_moon_disc_uses_fewer_points_than_the_planet_disc() -> void:
-	var f := _field_with_moon()
-	f.bodies[1].radius = 500.0
-	Tuning.field = f
-	var planet = load("res://scenes/Body.tscn").instantiate()
-	planet.index = 0
-	add_child_autofree(planet)
-	var moon = load("res://scenes/Body.tscn").instantiate()
-	moon.index = 1
-	add_child_autofree(moon)
-	var pv: Polygon2D = planet.get_node("Visual")
-	var mv: Polygon2D = moon.get_node("Visual")
-	assert_lt(mv.polygon.size(), pv.polygon.size(), "moon disc is coarser")
-	assert_gte(mv.polygon.size(), 32, "moon still round")
 
 
 func _moon_body(i: int, archetypes: Array, picture_seed := 3) -> Node:
